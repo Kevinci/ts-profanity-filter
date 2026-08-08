@@ -1,0 +1,6 @@
+# `files` in package.json is the source of truth; this is just a safety net.
+# src/ IS shipped on purpose, so declarationMap/sourceMap "go to definition"
+# lands on the real TypeScript source in a consumer's IDE.
+test/
+tsconfig*.json
+temp-test.ts

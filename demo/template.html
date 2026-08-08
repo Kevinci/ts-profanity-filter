@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ts-profanity-filter — playground</title>
+<style>
+  :root {
+    /* Light palette — the complete token set lives here. */
+    --paper:    #f1f3f0;
+    --surface:  #fbfcfa;
+    --sunken:   #e8ebe6;
+    --ink:      #151b19;
+    --muted:    #5c6763;
+    --faint:    #8a938f;
+    --rule:     #d6dcd7;
+    --accent:   #14655a;
+    --accent-soft: rgba(20, 101, 90, 0.13);
+    --redact:   #151b19;
+    --flag:     #14655a;
+    --shadow:   rgba(0, 0, 0, 0.09);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    --r: 3px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:    #0d1110;
+      --surface:  #141917;
+      --sunken:   #1a201e;
+      --ink:      #e4e9e6;
+      --muted:    #929c98;
+      --faint:    #6b7571;
+      --rule:     #262e2b;
+      --accent:   #56cdb4;
+      --accent-soft: rgba(86, 205, 180, 0.15);
+      --redact:   #e4e9e6;
+      --flag:     #56cdb4;
+      --shadow:   rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:    #0d1110;
+    --surface:  #141917;
+    --sunken:   #1a201e;
+    --ink:      #e4e9e6;
+    --muted:    #929c98;
+    --faint:    #6b7571;
+    --rule:     #262e2b;
+    --accent:   #56cdb4;
+    --accent-soft: rgba(86, 205, 180, 0.15);
+    --redact:   #e4e9e6;
+    --flag:     #56cdb4;
+    --shadow:   rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  /* ---------- header ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 14px; }
+
+  .masthead-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .wordmark {
+    margin: 0;
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  .wordmark .dim { color: var(--faint); font-weight: 400; }
+
+  .lang-pick { display: flex; align-items: center; gap: 8px; flex: none; }
+
+  select {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    padding: 5px 9px;
+    cursor: pointer;
+  }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .thesis {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 64ch;
+  }
+  .thesis strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- panels ---------- */
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .panel-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---------- input ---------- */
+
+  textarea {
+    width: 100%;
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    background: var(--sunken);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.65;
+    padding: 12px 13px;
+    resize: vertical;
+    display: block;
+    min-height: 108px;
+  }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 100px;
+    padding: 4px 11px;
+    cursor: pointer;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--faint); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- options ---------- */
+
+  .opts { display: flex; flex-direction: column; gap: 16px; }
+
+  .opt-row { display: flex; align-items: flex-start; gap: 11px; }
+
+  .opt-text { display: flex; flex-direction: column; gap: 3px; }
+  .opt-name { font-size: 13.5px; }
+  .opt-note {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 66ch;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--sunken);
+    padding: 1px 4px;
+    border-radius: 2px;
+    color: var(--ink);
+  }
+
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    margin: 4px 0 0;
+    flex: none;
+    border: 1px solid var(--faint);
+    border-radius: 2px;
+    background: var(--surface);
+    cursor: pointer;
+    position: relative;
+  }
+  input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+  input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 4.5px; top: 1px;
+    width: 4px; height: 8px;
+    border: solid var(--surface);
+    border-width: 0 2px 2px 0;
+    transform: rotate(42deg);
+  }
+  input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .lang-boxes { display: flex; gap: 22px; flex-wrap: wrap; padding-top: 2px; }
+  .lang-box { display: flex; align-items: center; gap: 8px; }
+  .lang-box input[type="checkbox"] { margin-top: 0; }
+  .lang-box label { font-size: 13.5px; cursor: pointer; }
+  .lang-box .count { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- segmented switch ---------- */
+
+  .switch { display: flex; gap: 2px; background: var(--sunken); padding: 2px; border-radius: var(--r); }
+
+  .switch button {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 2px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  .switch button:hover { color: var(--ink); }
+  .switch button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+  .switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  /* ---------- rendered output ---------- */
+
+  #output {
+    font-size: 19px;
+    line-height: 2;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 76px;
+  }
+
+  #output .clean { color: var(--ink); }
+  #output .placeholder { color: var(--faint); }
+
+  #output .redacted {
+    background: var(--redact);
+    color: transparent;
+    border-radius: 1px;
+    padding: 0 2px;
+    user-select: none;
+  }
+  #output .marked {
+    background: var(--accent-soft);
+    box-shadow: inset 0 -2px 0 var(--flag);
+    padding: 0 2px;
+  }
+  #output .stars { color: var(--flag); }
+
+  .stats {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+  }
+  .stats b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+
+  .scroll { overflow-x: auto; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 0 14px 8px 0;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 7px 14px 7px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: 0; }
+
+  .col-i { width: 1%; color: var(--faint); font-variant-numeric: tabular-nums; text-align: right; padding-right: 16px; }
+  .col-flag { width: 1%; white-space: nowrap; }
+
+  .seg-text { white-space: pre-wrap; word-break: break-word; }
+  .seg-text .q { color: var(--faint); }
+
+  .mono-cell { font-family: var(--mono); word-break: break-all; }
+  .rule-cell { color: var(--accent); font-family: var(--mono); word-break: break-all; }
+
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 1px 8px;
+    border-radius: 100px;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+  }
+  .pill.yes { border-color: var(--flag); color: var(--flag); background: var(--accent-soft); }
+
+  .empty { color: var(--faint); font-size: 13px; padding: 4px 0; font-family: var(--sans); }
+
+  /* ---------- code ---------- */
+
+  pre {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  pre.sample { background: var(--sunken); border-radius: var(--r); padding: 13px 15px; }
+
+  .file-name {
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 7px;
+  }
+
+  .sample-block { display: flex; flex-direction: column; }
+  .samples { display: flex; flex-direction: column; gap: 16px; }
+
+  .copy {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  .copy:hover { color: var(--ink); border-color: var(--faint); }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .note {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0;
+    max-width: 72ch;
+  }
+  .note.flagged {
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    padding: 10px 13px;
+    border-radius: 0 2px 2px 0;
+    color: var(--ink);
+  }
+
+  /* ---------- footer ---------- */
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .install {
+    font-size: 13.5px;
+    color: var(--muted);
+    background: var(--sunken);
+    border-radius: var(--r);
+    padding: 9px 13px;
+  }
+  .install .p { color: var(--faint); }
+
+  .caveats {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 76ch;
+  }
+
+  /* ---------- colophon ---------- */
+
+  .colophon {
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .links { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 13px;
+    text-decoration: none;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    padding: 6px 13px;
+  }
+  .btn:hover { color: var(--ink); border-color: var(--faint); background: var(--sunken); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .btn svg {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    fill: currentColor;
+  }
+
+  .legal {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .legal a { color: var(--faint); text-decoration: underline; text-underline-offset: 2px; }
+  .legal a:hover { color: var(--ink); }
+
+  @media (max-width: 560px) {
+    .wrap { padding: 28px 16px 56px; gap: 24px; }
+    .wordmark { font-size: 21px; }
+    #output { font-size: 17px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <h1 class="wordmark">ts-profanity-filter <span class="dim">/ playground</span></h1>
+      <div class="lang-pick">
+        <label class="label" for="ui-lang" data-i18n="ui.lang">Page language</label>
+        <select id="ui-lang">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </div>
+    </div>
+    <p class="thesis" data-i18n-html="thesis"></p>
+  </header>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" data-i18n="input">Input</span>
+      <div class="chips" id="presets"></div>
+    </div>
+    <div class="panel-body">
+      <textarea id="input" spellcheck="false" data-i18n-aria="input"></textarea>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><span class="label" data-i18n="options">Options</span></div>
+    <div class="panel-body">
+      <div class="opts">
+
+        <div class="opt-text">
+          <span class="opt-name">languages</span>
+          <span class="opt-note" data-i18n-html="opt.lang.note"></span>
+          <div class="lang-boxes">
+            <span class="lang-box">
+              <input type="checkbox" id="lang-en" checked />
+              <label for="lang-en">'en' — English <span class="count" id="count-en"></span></label>
+            </span>
+            <span class="lang-box">
+              <input type="checkbox" id="lang-de" />
+              <label for="lang-de">'de' — Deutsch <span class="count" id="count-de"></span></label>
+            </span>
+          </div>
+        </div>
+
+        <div class="opt-row">
+          <input type="checkbox" id="crosscheck" checked />
+          <span class="opt-text">
+            <label class="opt-name" for="crosscheck">crossCheck</label>
+            <span class="opt-note" data-i18n-html="opt.crosscheck.note"></span>
+          </span>
+        </div>
+
+        <div class="opt-row">
+          <input type="checkbox" id="aggressive" checked />
+          <span class="opt-text">
+            <label class="opt-name" for="aggressive">aggressive</label>
+            <span class="opt-note" data-i18n-html="opt.aggressive.note"></span>
+          </span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" data-i18n="output">Rendered from segments</span>
+      <div class="switch" role="group" id="modes" data-i18n-aria-label="output">
+        <button type="button" data-mode="redact" aria-pressed="true" data-i18n="mode.redact"></button>
+        <button type="button" data-mode="mark" aria-pressed="false" data-i18n="mode.mark"></button>
+        <button type="button" data-mode="stars" aria-pressed="false" data-i18n="mode.stars"></button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div id="output" aria-live="polite"></div>
+      <p class="stats" id="stats"></p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" data-i18n="xc">Suppressed by the cross-check</span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="xc.note"></p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="xc.col.word">word</th>
+              <th data-i18n="xc.col.hit">matched</th>
+              <th data-i18n="xc.col.rule">cleared by</th>
+            </tr>
+          </thead>
+          <tbody id="xc-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><span class="label" data-i18n="seg">Returned segments</span></div>
+    <div class="panel-body">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-i">#</th>
+              <th>text</th>
+              <th class="col-flag">isProfane</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" data-i18n="snippet">The call that produced this</span>
+      <button class="copy" type="button" id="copy" data-i18n="copy"></button>
+    </div>
+    <div class="panel-body">
+      <pre id="snippet"></pre>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" data-i18n="fw">Framework integration</span>
+      <div class="switch" role="group" id="fw-modes" data-i18n-aria-label="fw">
+        <button type="button" data-fw="react" aria-pressed="true">React</button>
+        <button type="button" data-fw="vue" aria-pressed="false">Vue</button>
+        <button type="button" data-fw="angular" aria-pressed="false">Angular</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="fw.intro"></p>
+      <div class="samples" id="fw-samples"></div>
+      <p class="note flagged" id="fw-note"></p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="install"><span class="p">$</span> npm install ts-profanity-filter</div>
+    <ul class="caveats" id="caveats"></ul>
+
+    <div class="colophon">
+      <div class="links">
+        <a class="btn" id="link-npm" href="#" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331z"/></svg>
+          <span>npm</span>
+        </a>
+        <a class="btn" id="link-git" href="#" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+      <p class="legal" id="legal"></p>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/* ==========================================================================
+   Compiled library, injected verbatim from dist/ by scripts/build-demo.mjs.
+   Do not edit here — edit src/ and run `npm run demo`.
+   ========================================================================== */
+/*#LIBRARY*/
+
+/* ---- name, version, license and author, injected from package.json ---- */
+/*#META*/
+
+/* Footer profile links. Two lines to change if a handle ever differs. */
+const PROFILES = {
+  npm: 'https://www.npmjs.com/~kevinci',
+  git: 'https://github.com/Kevinci',
+};
+
+/* ============================== strings ================================= */
+
+const I18N = {
+  en: {
+    'ui.lang': 'Page language',
+    thesis:
+      'The library never rewrites your string. It returns an array of segments, each flagged ' +
+      '<strong>profane</strong> or not — <strong>you</strong> decide what that looks like on ' +
+      'screen. Below, the same segment array is drawn three different ways.',
+    input: 'Input',
+    options: 'Options',
+    'opt.lang.note':
+      'Which built-in lists to match against. Mixed-language text needs both — running a German ' +
+      'sentence through the English list alone produces little but false positives.',
+    'opt.crosscheck.note':
+      'Drops a hit when the whole word around it is on the allowlist. This is what keeps ' +
+      '<code>Klassik</code>, <code>classic</code>, <code>Massage</code> and <code>Analyse</code> ' +
+      'out of the results. Turn it off to see the raw substring matches underneath.',
+    'opt.aggressive.note':
+      'Expands every letter into a character class so leet spellings match too: ' +
+      '<code>a → [a@4]</code>, <code>i → [i!1]</code>, <code>o → [o0]</code>, ' +
+      '<code>c → [c(k&lt;]</code>.',
+    output: 'Rendered from segments',
+    'mode.redact': 'Redacted',
+    'mode.mark': 'Highlighted',
+    'mode.stars': 'Asterisks',
+    xc: 'Suppressed by the cross-check',
+    'xc.note':
+      'Every row is a substring hit that the allowlist overruled. An allowed word always wins ' +
+      'over a blocked pattern.',
+    'xc.col.word': 'word',
+    'xc.col.hit': 'matched',
+    'xc.col.rule': 'cleared by',
+    'xc.none': 'Nothing suppressed — no ordinary word tripped a pattern here.',
+    'xc.off': 'crossCheck is off, so nothing is being suppressed.',
+    seg: 'Returned segments',
+    'seg.none': 'No input.',
+    snippet: 'The call that produced this',
+    copy: 'Copy',
+    copied: 'Copied',
+    'copy.fail': 'Select it manually',
+    fw: 'Framework integration',
+    'fw.intro':
+      'The core entry point has no dependencies. Each framework adapter is a separate subpath ' +
+      'import, so nothing you do not use reaches your bundle.',
+    'fw.react.note':
+      'Memoised by the <em>value</em> of the options, not their identity — an inline object ' +
+      'literal will not re-run the filter on every render.',
+    'fw.vue.note':
+      'Both arguments accept a plain value, a ref, or a getter. You get back a computed ref that ' +
+      'recomputes only when its reactive input changes.',
+    'fw.angular.note':
+      'A class carrying a real @Pipe() decorator has to be compiled by Angular’s own compiler, ' +
+      'and a plain tsc build cannot produce that — an AOT build in your app would reject it. So ' +
+      'the package ships the logic without decorators and you add the decorator in your app, ' +
+      'where ngtsc compiles it properly. That is the four-line file above. The base class caches ' +
+      'by value, which matters because a pure pipe re-runs whenever a template object literal ' +
+      'gets a new identity.',
+    'stats.tpl':
+      '<b>{segments}</b> segments · <b>{flagged}</b> flagged · <b>{suppressed}</b> suppressed by ' +
+      'cross-check · <b>{chars}</b> of <b>{total}</b> characters covered',
+    'placeholder': 'Type something above.',
+    'link.npm': 'npm profile',
+    'link.git': 'GitHub profile',
+    'legal.tpl': '© {year} {author} · {license} License · v{version}',
+    caveats: [
+      'Matching is substring-based, not word-based — that is exactly what catches ' +
+        '<code>asshole</code> from <code>ass</code> and survives obfuscation. The allowlist is ' +
+        'the counterweight; add your own entries with the <code>allowList</code> option.',
+      'German compounding forces permissive allow entries like <code>\\p{L}*klass\\p{L}*</code>, ' +
+        'so a contrived word containing both a slur and an allowed stem comes out clean. Allowed ' +
+        'always beats blocked.',
+      '<code>dick</code> is German for “thick”. With the German list active it is allowlisted, ' +
+        'which also clears the English word. Known collision — use <code>languages: [\'en\']</code> ' +
+        'for English-only text.',
+      'Concatenating every <code>segment.text</code> always reproduces the input exactly, so ' +
+        'rendering is lossless.',
+    ],
+  },
+
+  de: {
+    'ui.lang': 'Seitensprache',
+    thesis:
+      'Die Library schreibt deinen Text nie um. Sie liefert ein Array aus Segmenten zurück, jedes ' +
+      'als <strong>anstößig</strong> markiert oder nicht — wie das auf dem Bildschirm aussieht, ' +
+      'entscheidest <strong>du</strong>. Unten wird dasselbe Segment-Array auf drei Arten ' +
+      'gezeichnet.',
+    input: 'Eingabe',
+    options: 'Optionen',
+    'opt.lang.note':
+      'Gegen welche eingebauten Listen geprüft wird. Gemischter Text braucht beide — ein deutscher ' +
+      'Satz nur gegen die englische Liste liefert fast nur Fehlalarme.',
+    'opt.crosscheck.note':
+      'Verwirft einen Treffer, wenn das ganze Wort drumherum auf der Allowlist steht. Genau das ' +
+      'hält <code>Klassik</code>, <code>classic</code>, <code>Massage</code> und ' +
+      '<code>Analyse</code> aus dem Ergebnis heraus. Abschalten zeigt die rohen Substring-Treffer ' +
+      'darunter.',
+    'opt.aggressive.note':
+      'Erweitert jeden Buchstaben zu einer Zeichenklasse, damit auch Leetspeak greift: ' +
+      '<code>a → [a@4]</code>, <code>i → [i!1]</code>, <code>o → [o0]</code>, ' +
+      '<code>c → [c(k&lt;]</code>.',
+    output: 'Aus den Segmenten gerendert',
+    'mode.redact': 'Geschwärzt',
+    'mode.mark': 'Markiert',
+    'mode.stars': 'Sternchen',
+    xc: 'Vom Gegencheck abgefangen',
+    'xc.note':
+      'Jede Zeile ist ein Substring-Treffer, den die Allowlist überstimmt hat. Ein erlaubtes Wort ' +
+      'gewinnt immer gegen ein gesperrtes Muster.',
+    'xc.col.word': 'Wort',
+    'xc.col.hit': 'Treffer',
+    'xc.col.rule': 'freigegeben durch',
+    'xc.none': 'Nichts abgefangen — hier ist kein harmloses Wort in ein Muster gelaufen.',
+    'xc.off': 'crossCheck ist aus, es wird gerade nichts abgefangen.',
+    seg: 'Zurückgegebene Segmente',
+    'seg.none': 'Keine Eingabe.',
+    snippet: 'Der Aufruf, der das erzeugt hat',
+    copy: 'Kopieren',
+    copied: 'Kopiert',
+    'copy.fail': 'Bitte manuell markieren',
+    fw: 'Framework-Anbindung',
+    'fw.intro':
+      'Der Kern-Einstiegspunkt hat keine Abhängigkeiten. Jeder Framework-Adapter ist ein eigener ' +
+      'Subpath-Import — was du nicht nutzt, landet auch nicht im Bundle.',
+    'fw.react.note':
+      'Memoisiert über den <em>Wert</em> der Optionen, nicht über deren Identität — ein Inline-' +
+      'Objektliteral löst also nicht bei jedem Render eine Neuberechnung aus.',
+    'fw.vue.note':
+      'Beide Argumente akzeptieren einen einfachen Wert, ein Ref oder einen Getter. Zurück kommt ' +
+      'ein Computed-Ref, das nur bei Änderung seiner reaktiven Eingabe neu rechnet.',
+    'fw.angular.note':
+      'Eine Klasse mit echtem @Pipe()-Dekorator muss von Angulars eigenem Compiler übersetzt ' +
+      'werden, und das kann ein reiner tsc-Build nicht liefern — ein AOT-Build in deiner App ' +
+      'würde sie ablehnen. Deshalb liefert das Paket die Logik ohne Dekoratoren aus, und du ' +
+      'setzt den Dekorator in deiner App, wo ngtsc ihn korrekt übersetzt. Das ist die ' +
+      'vierzeilige Datei oben. Die Basisklasse cacht über den Wert — wichtig, weil eine Pure ' +
+      'Pipe bei jedem neuen Objektliteral im Template erneut läuft.',
+    'stats.tpl':
+      '<b>{segments}</b> Segmente · <b>{flagged}</b> markiert · <b>{suppressed}</b> vom Gegencheck ' +
+      'abgefangen · <b>{chars}</b> von <b>{total}</b> Zeichen erfasst',
+    'placeholder': 'Oben etwas eintippen.',
+    'link.npm': 'npm-Profil',
+    'link.git': 'GitHub-Profil',
+    'legal.tpl': '© {year} {author} · {license}-Lizenz · v{version}',
+    caveats: [
+      'Gematcht wird auf Substring-Ebene, nicht wortweise — genau das fängt <code>asshole</code> ' +
+        'über <code>ass</code> und übersteht Verschleierung. Die Allowlist ist das Gegengewicht; ' +
+        'eigene Einträge kommen über die Option <code>allowList</code> dazu.',
+      'Deutsche Komposita erzwingen großzügige Allow-Einträge wie ' +
+        '<code>\\p{L}*klass\\p{L}*</code>. Ein konstruiertes Wort, das zugleich eine Beleidigung ' +
+        'und einen erlaubten Stamm enthält, kommt deshalb sauber durch. Erlaubt schlägt immer ' +
+        'gesperrt.',
+      '<code>dick</code> heißt auf Deutsch schlicht „dick“. Mit aktiver deutscher Liste steht es ' +
+        'auf der Allowlist — das gibt zwangsläufig auch das englische Wort frei. Bekannte ' +
+        'Kollision: für rein englischen Text <code>languages: [\'en\']</code> verwenden.',
+      'Alle <code>segment.text</code> aneinandergehängt ergeben immer exakt die Eingabe — das ' +
+        'Rendering ist also verlustfrei.',
+    ],
+  },
+};
+
+const PRESETS = [
+  {
+    id: 'leet',
+    langs: ['en'],
+    label: { en: 'Leetspeak (EN)', de: 'Leetspeak (EN)' },
+    text: 'Honestly, what the sh1t is this? Total bullsh!t. The guy was an @sshole about it.',
+  },
+  {
+    id: 'fp-en',
+    langs: ['en'],
+    label: { en: 'False positives (EN)', de: 'Falsch-Positive (EN)' },
+    text: 'Please pass the class list to the assistant before the assessment in Scunthorpe.',
+  },
+  {
+    id: 'fp-de',
+    langs: ['en', 'de'],
+    label: { en: 'False positives (DE)', de: 'Falsch-Positive (DE)' },
+    text:
+      'Der Klassiker: ein harscher Marsch zur Massage — danach die Analyse der Hausaufgaben ' +
+      'in einer dicken Kassette.',
+  },
+  {
+    id: 'flag-de',
+    langs: ['de'],
+    label: { en: 'Insults (DE)', de: 'Beleidigungen (DE)' },
+    text: 'So ein Arschloch! Diese verdammte Scheiße nervt, du Vollpfosten.',
+  },
+  {
+    id: 'mixed',
+    langs: ['en', 'de'],
+    label: { en: 'Mixed DE/EN', de: 'Gemischt DE/EN' },
+    text: 'Total bullshit, du Trottel — aber die Massage war klasse.',
+  },
+  {
+    id: 'clean',
+    langs: ['en'],
+    label: { en: 'Clean', de: 'Sauber' },
+    text: 'A perfectly civil sentence about quarterly spreadsheets and printer toner.',
+  },
+];
+
+const SAMPLES = {
+  react: [
+    {
+      file: 'Comment.tsx',
+      code: `import { useProfanitySegments } from 'ts-profanity-filter/react';
+
+export function Comment({ body }: { body: string }) {
+  const segments = useProfanitySegments(body, { languages: ['en', 'de'] });
+
+  return (
+    <p>
+      {segments.map((seg, i) =>
+        seg.isProfane
+          ? <span key={i} className="redacted">{seg.text}</span>
+          : <span key={i}>{seg.text}</span>,
+      )}
+    </p>
+  );
+}`,
+    },
+    {
+      file: 'useIsProfane',
+      code: `import { useIsProfane } from 'ts-profanity-filter/react';
+
+const blocked = useIsProfane(draft, { languages: ['en', 'de'] });
+<button disabled={blocked}>Post</button>`,
+    },
+  ],
+
+  vue: [
+    {
+      file: 'Comment.vue',
+      code: `<script setup lang="ts">
+import { ref } from 'vue';
+import { useProfanitySegments } from 'ts-profanity-filter/vue';
+
+const body = ref('');
+const segments = useProfanitySegments(body, { languages: ['en', 'de'] });
+<\/script>
+
+<template>
+  <p>
+    <template v-for="(seg, i) in segments" :key="i">
+      <span v-if="seg.isProfane" class="redacted">{{ seg.text }}</span>
+      <template v-else>{{ seg.text }}</template>
+    </template>
+  </p>
+</template>`,
+    },
+  ],
+
+  angular: [
+    {
+      file: 'profanity-segments.pipe.ts',
+      code: `import { Pipe } from '@angular/core';
+import { ProfanitySegmentsPipeBase } from 'ts-profanity-filter/angular';
+
+@Pipe({ name: 'profanitySegments', standalone: true })
+export class ProfanitySegmentsPipe extends ProfanitySegmentsPipeBase {}`,
+    },
+    {
+      file: 'comment.component.html',
+      code: `<p>
+  <span *ngFor="let seg of body | profanitySegments:{ languages: ['en','de'] }"
+        [class.redacted]="seg.isProfane">{{ seg.text }}</span>
+</p>`,
+    },
+    {
+      file: 'comment.component.ts',
+      code: `import { ProfanityFilter } from 'ts-profanity-filter/angular';
+
+providers: [
+  {
+    provide: ProfanityFilter,
+    useFactory: () => new ProfanityFilter({ languages: ['en', 'de'] }),
+  },
+]
+
+// filter.mask('Du Trottel!')  ->  'Du *******!'`,
+    },
+  ],
+};
+
+/* ============================== wiring ================================== */
+
+const $ = (id) => document.getElementById(id);
+const els = {
+  uiLang: $('ui-lang'),
+  input: $('input'),
+  presets: $('presets'),
+  langEn: $('lang-en'),
+  langDe: $('lang-de'),
+  countEn: $('count-en'),
+  countDe: $('count-de'),
+  crossCheck: $('crosscheck'),
+  aggressive: $('aggressive'),
+  output: $('output'),
+  stats: $('stats'),
+  xcRows: $('xc-rows'),
+  rows: $('rows'),
+  snippet: $('snippet'),
+  fwSamples: $('fw-samples'),
+  fwNote: $('fw-note'),
+  caveats: $('caveats'),
+  copy: $('copy'),
+  linkNpm: $('link-npm'),
+  linkGit: $('link-git'),
+  legal: $('legal'),
+};
+
+let ui = 'en';
+let mode = 'redact';
+let framework = 'react';
+
+const t = (key) => I18N[ui][key];
+
+/* --- options -------------------------------------------------------- */
+
+function activeLanguages() {
+  const langs = [];
+  if (els.langEn.checked) langs.push('en');
+  if (els.langDe.checked) langs.push('de');
+  return langs;
+}
+
+function currentOptions() {
+  return {
+    languages: activeLanguages(),
+    aggressive: els.aggressive.checked,
+    crossCheck: els.crossCheck.checked,
+  };
+}
+
+/* --- cross-check report ---------------------------------------------- */
+
+const WORD = /[\p{L}\p{M}\p{N}_]/u;
+
+function wordAround(text, start, end) {
+  let a = start;
+  let b = end;
+  while (a > 0 && WORD.test(text.charAt(a - 1))) a--;
+  while (b < text.length && WORD.test(text.charAt(b))) b++;
+  return text.slice(a, b);
+}
+
+function flaggedSpans(segments) {
+  const out = [];
+  let i = 0;
+  for (const seg of segments) {
+    if (seg.isProfane) out.push({ start: i, end: i + seg.text.length, text: seg.text });
+    i += seg.text.length;
+  }
+  return out;
+}
+
+/** Which allow pattern cleared this word? */
+function clearingRule(word, languages) {
+  for (const lang of languages) {
+    for (const pattern of (LISTS[lang] ? LISTS[lang].allow : [])) {
+      try {
+        if (new RegExp('^(?:' + pattern + ')$', 'iu').test(word)) return pattern;
+      } catch (e) {
+        /* a malformed entry simply never clears anything */
+      }
+    }
+  }
+  return null;
+}
+
+function suppressedHits(text, options) {
+  if (!options.crossCheck) return [];
+  const kept = new Set(
+    flaggedSpans(filterFWordsToSegments(text, options)).map((s) => s.start + ':' + s.end),
+  );
+  const raw = flaggedSpans(
+    filterFWordsToSegments(text, Object.assign({}, options, { crossCheck: false })),
+  );
+
+  const seen = new Set();
+  const out = [];
+  for (const span of raw) {
+    if (kept.has(span.start + ':' + span.end)) continue;
+    const word = wordAround(text, span.start, span.end);
+    const key = word + '|' + span.text;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ word, hit: span.text, rule: clearingRule(word, options.languages) });
+  }
+  return out;
+}
+
+/* --- rendering -------------------------------------------------------- */
+
+function run() {
+  const text = els.input.value;
+  const options = currentOptions();
+  const segments = filterFWordsToSegments(text, options);
+  const suppressed = suppressedHits(text, options);
+
+  drawOutput(segments);
+  drawSegments(segments);
+  drawSuppressed(suppressed, options);
+  drawStats(segments, suppressed, text);
+  drawSnippet(options);
+}
+
+function drawOutput(segments) {
+  els.output.textContent = '';
+  if (segments.length === 1 && segments[0].text === '') {
+    const el = document.createElement('span');
+    el.className = 'placeholder';
+    el.textContent = t('placeholder');
+    els.output.append(el);
+    return;
+  }
+  for (const seg of segments) {
+    const el = document.createElement('span');
+    if (!seg.isProfane) {
+      el.className = 'clean';
+      el.textContent = seg.text;
+    } else if (mode === 'redact') {
+      el.className = 'redacted';
+      el.textContent = seg.text;
+    } else if (mode === 'mark') {
+      el.className = 'marked';
+      el.textContent = seg.text;
+    } else {
+      el.className = 'stars';
+      el.textContent = '*'.repeat(seg.text.length);
+    }
+    els.output.append(el);
+  }
+}
+
+function emptyRow(tbody, message, cols) {
+  const tr = document.createElement('tr');
+  const td = document.createElement('td');
+  td.colSpan = cols;
+  td.className = 'empty';
+  td.textContent = message;
+  tr.append(td);
+  tbody.append(tr);
+}
+
+function drawSegments(segments) {
+  els.rows.textContent = '';
+  if (segments.length === 1 && segments[0].text === '') {
+    emptyRow(els.rows, t('seg.none'), 3);
+    return;
+  }
+  segments.forEach((seg, i) => {
+    const tr = document.createElement('tr');
+
+    const idx = document.createElement('td');
+    idx.className = 'col-i';
+    idx.textContent = String(i);
+
+    const txt = document.createElement('td');
+    txt.className = 'seg-text';
+    const open = document.createElement('span');
+    open.className = 'q';
+    open.textContent = '"';
+    txt.append(open, document.createTextNode(seg.text), open.cloneNode(true));
+
+    const flag = document.createElement('td');
+    flag.className = 'col-flag';
+    const pill = document.createElement('span');
+    pill.className = seg.isProfane ? 'pill yes' : 'pill';
+    pill.textContent = seg.isProfane ? 'true' : 'false';
+    flag.append(pill);
+
+    tr.append(idx, txt, flag);
+    els.rows.append(tr);
+  });
+}
+
+function drawSuppressed(hits, options) {
+  els.xcRows.textContent = '';
+  if (!options.crossCheck) {
+    emptyRow(els.xcRows, t('xc.off'), 3);
+    return;
+  }
+  if (hits.length === 0) {
+    emptyRow(els.xcRows, t('xc.none'), 3);
+    return;
+  }
+  for (const hit of hits) {
+    const tr = document.createElement('tr');
+
+    const word = document.createElement('td');
+    word.className = 'mono-cell';
+    word.textContent = hit.word;
+
+    const matched = document.createElement('td');
+    matched.className = 'mono-cell';
+    matched.textContent = hit.hit;
+
+    const rule = document.createElement('td');
+    rule.className = 'rule-cell';
+    rule.textContent = hit.rule || '—';
+
+    tr.append(word, matched, rule);
+    els.xcRows.append(tr);
+  }
+}
+
+function drawStats(segments, suppressed, text) {
+  const flagged = segments.filter((s) => s.isProfane);
+  const chars = flagged.reduce((n, s) => n + s.text.length, 0);
+  const real = segments.length === 1 && segments[0].text === '' ? 0 : segments.length;
+  els.stats.innerHTML = t('stats.tpl')
+    .replace('{segments}', real)
+    .replace('{flagged}', flagged.length)
+    .replace('{suppressed}', suppressed.length)
+    .replace('{chars}', chars)
+    .replace('{total}', text.length);
+}
+
+function drawSnippet(options) {
+  const langs = options.languages.map((l) => "'" + l + "'").join(', ');
+  const lines = [
+    "import { filterFWordsToSegments } from 'ts-profanity-filter';",
+    '',
+    'filterFWordsToSegments(text, {',
+    '  languages: [' + langs + '],',
+  ];
+  if (!options.aggressive) lines.push('  aggressive: false,');
+  if (!options.crossCheck) lines.push('  crossCheck: false,');
+  lines.push('});');
+
+  els.snippet.textContent = lines.join('\n');
+}
+
+/* --- framework samples ------------------------------------------------ */
+
+function drawFramework() {
+  els.fwSamples.textContent = '';
+  for (const sample of SAMPLES[framework]) {
+    const block = document.createElement('div');
+    block.className = 'sample-block';
+
+    const name = document.createElement('div');
+    name.className = 'file-name';
+    name.textContent = sample.file;
+
+    const pre = document.createElement('pre');
+    pre.className = 'sample';
+    pre.textContent = sample.code;
+
+    block.append(name, pre);
+    els.fwSamples.append(block);
+  }
+  els.fwNote.innerHTML = t('fw.' + framework + '.note');
+}
+
+/* --- colophon --------------------------------------------------------- */
+
+function drawColophon() {
+  els.linkNpm.href = PROFILES.npm;
+  els.linkGit.href = PROFILES.git;
+  els.linkNpm.title = t('link.npm');
+  els.linkGit.title = t('link.git');
+  els.linkNpm.setAttribute('aria-label', t('link.npm'));
+  els.linkGit.setAttribute('aria-label', t('link.git'));
+
+  els.legal.textContent = t('legal.tpl')
+    .replace('{year}', String(new Date().getFullYear()))
+    .replace('{author}', META.author)
+    .replace('{license}', META.license)
+    .replace('{version}', META.version);
+}
+
+/* --- i18n ------------------------------------------------------------- */
+
+function applyLanguage() {
+  document.documentElement.lang = ui;
+
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    el.textContent = t(el.dataset.i18n);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-html]')) {
+    el.innerHTML = t(el.dataset.i18nHtml);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-aria]')) {
+    el.setAttribute('aria-label', t(el.dataset.i18nAria));
+  }
+  for (const el of document.querySelectorAll('[data-i18n-aria-label]')) {
+    el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel));
+  }
+
+  els.caveats.textContent = '';
+  for (const item of I18N[ui].caveats) {
+    const li = document.createElement('li');
+    li.innerHTML = item;
+    els.caveats.append(li);
+  }
+
+  drawPresets();
+  drawFramework();
+  drawColophon();
+  run();
+}
+
+function drawPresets() {
+  els.presets.textContent = '';
+  for (const preset of PRESETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.textContent = preset.label[ui];
+    btn.addEventListener('click', () => {
+      els.input.value = preset.text;
+      els.langEn.checked = preset.langs.includes('en');
+      els.langDe.checked = preset.langs.includes('de');
+      run();
+    });
+    els.presets.append(btn);
+  }
+}
+
+/* --- events ----------------------------------------------------------- */
+
+for (const btn of document.querySelectorAll('#modes button')) {
+  btn.addEventListener('click', () => {
+    mode = btn.dataset.mode;
+    for (const b of document.querySelectorAll('#modes button')) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    }
+    run();
+  });
+}
+
+for (const btn of document.querySelectorAll('#fw-modes button')) {
+  btn.addEventListener('click', () => {
+    framework = btn.dataset.fw;
+    for (const b of document.querySelectorAll('#fw-modes button')) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    }
+    drawFramework();
+  });
+}
+
+els.uiLang.addEventListener('change', () => {
+  ui = els.uiLang.value;
+  applyLanguage();
+});
+
+els.copy.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(els.snippet.textContent);
+    els.copy.textContent = t('copied');
+  } catch (e) {
+    els.copy.textContent = t('copy.fail');
+  }
+  setTimeout(() => { els.copy.textContent = t('copy'); }, 1600);
+});
+
+for (const el of [els.input]) el.addEventListener('input', run);
+for (const el of [els.langEn, els.langDe, els.aggressive, els.crossCheck]) {
+  el.addEventListener('change', run);
+}
+
+/* --- start ------------------------------------------------------------ */
+
+els.countEn.textContent =
+  '(' + LISTS.en.profanity.length + ' + ' + LISTS.en.allow.length + ')';
+els.countDe.textContent =
+  '(' + LISTS.de.profanity.length + ' + ' + LISTS.de.allow.length + ')';
+
+els.input.value = PRESETS[0].text;
+applyLanguage();
+</script>
+</body>
+</html>

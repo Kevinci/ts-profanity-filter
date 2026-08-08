@@ -1,0 +1,98 @@
+{
+  "name": "ts-profanity-filter",
+  "version": "1.0.0",
+  "description": "A strict TypeScript profanity filter for English and German that returns text segments for UI rendering, with an allowlist that clears false positives like \"Klassik\" and \"classic\".",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "default": "./dist/vue.js"
+    },
+    "./angular": {
+      "types": "./dist/angular.d.ts",
+      "default": "./dist/angular.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "react": [
+        "./dist/react.d.ts"
+      ],
+      "vue": [
+        "./dist/vue.d.ts"
+      ],
+      "angular": [
+        "./dist/angular.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc",
+    "demo": "npm run build && node scripts/build-demo.mjs",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "npm run build && node --test test/*.test.ts",
+    "prepublishOnly": "npm run clean && npm run build && npm run typecheck && npm test"
+  },
+  "keywords": [
+    "profanity",
+    "filter",
+    "typescript",
+    "censor",
+    "moderation",
+    "german",
+    "deutsch",
+    "schimpfwoerter",
+    "react",
+    "vue",
+    "angular"
+  ],
+  "author": "Kevin Imig <kevinci.coding@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/Kevinci/ts-profanity-filter#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kevinci/ts-profanity-filter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kevinci/ts-profanity-filter/issues"
+  },
+  "peerDependencies": {
+    "react": ">=16.8",
+    "vue": ">=3.3"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "typescript": "^5.9.3",
+    "vue": "^3.5.41"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,227 @@
+# ts-profanity-filter
+
+A strict TypeScript profanity filter for **English and German** that splits text
+into segments so your UI can render the redaction itself — the library never
+mutates or masks your string.
+
+Zero runtime dependencies. Optional adapters for React, Vue and Angular.
+
+```bash
+npm install ts-profanity-filter
+```
+
+## Usage
+
+```ts
+import { filterFWordsToSegments } from 'ts-profanity-filter';
+
+const output = filterFWordsToSegments('This is bullsh1t.', { languages: ['en'] });
+
+// [
+//   { text: 'This is bull', isProfane: false },
+//   { text: 'sh1t',         isProfane: true  },
+//   { text: '.',            isProfane: false },
+// ]
+```
+
+Concatenating every `segment.text` always reproduces the original input exactly,
+so rendering is lossless:
+
+```tsx
+<p>
+  {filterFWordsToSegments(comment).map((seg, i) =>
+    seg.isProfane ? <span key={i} className="redacted">{seg.text}</span> : seg.text,
+  )}
+</p>
+```
+
+## The cross-check
+
+Matching is **substring-based**. That is what catches `asshole` from `ass` and
+survives obfuscation — but on its own it also flags `class`, `Klassik` and
+`Massage`.
+
+So every hit is checked against an allowlist of ordinary words before it counts.
+The allowlist is anchored against the **whole surrounding word**, and an allowed
+word always beats a blocked pattern:
+
+```ts
+filterFWordsToSegments('Der Klassiker war klasse.', { languages: ['en', 'de'] });
+// -> one clean segment; the two `ass` hits are dropped
+
+filterFWordsToSegments('Der Klassiker war klasse.', {
+  languages: ['en', 'de'],
+  crossCheck: false,          // raw substring matching
+});
+// -> `ass` flagged twice
+```
+
+Cross-checked out of the box, among others:
+
+| Language | Blocked pattern | Ordinary words it would otherwise hit          |
+| -------- | --------------- | ---------------------------------------------- |
+| en       | `ass`           | class, pass, assistant, embarrass, potassium   |
+| en       | `cunt`          | Scunthorpe                                     |
+| en       | `cock`          | cocktail, cockpit, peacock                     |
+| en       | `spic`          | spicy, suspicious, conspicuous                 |
+| de       | `ass`           | Klassik, klassisch, Massage, Sparkasse, Tasse  |
+| de       | `arsch`         | Marsch, marschieren, Barsch, harsch            |
+| de       | `anal`          | Analyse, Kanal, banal, Analphabet              |
+| de       | `cum` (via `k`) | Dokument, Kumpel, Publikum, Vakuum             |
+
+Add your own with `allowList` — entries are regex sources matched against the
+whole word:
+
+```ts
+filterFWordsToSegments('Die Assmann GmbH', {
+  languages: ['en', 'de'],
+  allowList: ['assmann', 'meine-firma\\p{L}*'],
+});
+```
+
+## API
+
+### `filterFWordsToSegments(text, options?): TextSegment[]`
+
+| Option       | Type                    | Default  | Description                                                                       |
+| ------------ | ----------------------- | -------- | --------------------------------------------------------------------------------- |
+| `languages`  | `('en' \| 'de')[]`      | `['en']` | Which built-in lists to use. Mixed-language text needs both.                       |
+| `crossCheck` | `boolean`               | `true`   | Drop a hit when the surrounding word is allowlisted. `false` = raw substrings.     |
+| `allowList`  | `string[]`              | —        | Extra allowed words, added on top of the built-in allowlist. Regex sources.        |
+| `customList` | `string[]`              | —        | Replaces the built-in patterns entirely. Regex sources. Empty array = fall back.   |
+| `aggressive` | `boolean`               | `true`   | Also match leet spellings: `a→@4`, `e→3`, `i→!1`, `o→0`, `u→^`, `c→(k<`.           |
+
+```ts
+interface TextSegment {
+  text: string;
+  isProfane: boolean;
+}
+```
+
+The word lists are exported too, so you can inspect or extend them:
+
+```ts
+import { LISTS, LANGUAGES, EN_PROFANITY, DE_ALLOWLIST } from 'ts-profanity-filter';
+
+LISTS.de.profanity; // readonly string[]
+LISTS.de.allow;     // readonly string[]
+```
+
+## Framework adapters
+
+Each adapter is a separate subpath import, so nothing you do not use reaches
+your bundle. `react` and `vue` are **optional** peer dependencies.
+
+### React
+
+```tsx
+import { useProfanitySegments, useIsProfane } from 'ts-profanity-filter/react';
+
+function Comment({ body }: { body: string }) {
+  const segments = useProfanitySegments(body, { languages: ['en', 'de'] });
+  return (
+    <p>
+      {segments.map((seg, i) =>
+        seg.isProfane ? <mark key={i}>{seg.text}</mark> : <span key={i}>{seg.text}</span>,
+      )}
+    </p>
+  );
+}
+```
+
+Memoised by the **value** of the options, not their identity — an inline object
+literal will not re-run the filter on every render.
+
+### Vue
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useProfanitySegments } from 'ts-profanity-filter/vue';
+
+const body = ref('');
+const segments = useProfanitySegments(body, { languages: ['en', 'de'] });
+</script>
+```
+
+Both arguments accept a plain value, a ref, or a getter; you get back a computed
+ref. Needs Vue 3.3+ (for `toValue`).
+
+### Angular
+
+A class carrying a real `@Pipe()` decorator has to be compiled by Angular's own
+compiler, and a plain `tsc` build cannot produce that — an AOT build in your app
+would reject it. So this package ships the **logic without decorators**, and you
+add the decorator in your app where `ngtsc` compiles it properly:
+
+```ts
+// profanity-segments.pipe.ts — the whole file
+import { Pipe } from '@angular/core';
+import { ProfanitySegmentsPipeBase } from 'ts-profanity-filter/angular';
+
+@Pipe({ name: 'profanitySegments', standalone: true })
+export class ProfanitySegmentsPipe extends ProfanitySegmentsPipeBase {}
+```
+
+```html
+<span *ngFor="let seg of body | profanitySegments:{ languages: ['en','de'] }"
+      [class.redacted]="seg.isProfane">{{ seg.text }}</span>
+```
+
+The base class caches by value, which matters because a pure pipe re-runs
+whenever a template's object literal gets a new identity.
+
+There is also a plain service class (no `@Injectable()`, so provide it
+explicitly):
+
+```ts
+import { ProfanityFilter } from 'ts-profanity-filter/angular';
+
+providers: [
+  { provide: ProfanityFilter, useFactory: () => new ProfanityFilter({ languages: ['en', 'de'] }) },
+]
+
+filter.mask('Du Trottel!'); // 'Du *******!'
+```
+
+Because it imports nothing from `@angular/core`, Angular is not a peer
+dependency of this package at all.
+
+## Playground
+
+```bash
+npm run demo
+open demo/index.html
+```
+
+A standalone page — no server, no hosting. Bilingual UI (English/German), live
+segmentation, three render modes, and a table showing exactly which false
+positives the cross-check suppressed and which allowlist rule cleared them. It
+is generated from the compiled `dist/`, so it always runs the same code npm
+ships.
+
+## Known limitations
+
+- **German compounding** forces permissive allow entries like
+  `\p{L}*klass\p{L}*`. A contrived word containing both a slur and an allowed
+  stem comes out clean. Allowed always beats blocked.
+- **`dick` is German for "thick".** With the German list active it is
+  allowlisted, which necessarily clears the English word too. Use
+  `languages: ['en']` for English-only text.
+- **`customList` replaces the patterns but not the allowlist.** A custom `ass`
+  pattern still loses against an allowlisted `Klassik`. Combine with
+  `crossCheck: false` if you want nothing suppressed.
+- **Word lists are a starting point, not a policy.** Extend them for your domain.
+
+## Scripts
+
+```bash
+npm run build      # tsc -> dist/ (.js, .d.ts, .d.ts.map, .js.map)
+npm test           # builds, then runs node --test
+npm run typecheck  # type-checks src + test
+npm run demo       # builds and regenerates demo/index.html
+```
+
+## License
+
+MIT
