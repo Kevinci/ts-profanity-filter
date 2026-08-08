@@ -1,5 +1,6 @@
 // src/filter.ts
-import { LISTS, type Language } from './lists/index.js';
+import { toAggressivePattern } from './aggressive.js';
+import { getLanguage, listLanguages, type Language } from './registry.js';
 
 /** A single segment of the analysed text. */
 export interface TextSegment {
@@ -11,10 +12,13 @@ export interface TextSegment {
 
 export interface FilterOptions {
   /**
-   * Which built-in lists to use. Defaults to `['en']`.
-   * Pass `['en', 'de']` for mixed-language text.
+   * Which registered languages to match against. Defaults to `['en']`.
+   *
+   * Pass `['en', 'de']` for mixed-language text, a BCP-47 tag like `'de-AT'`
+   * (which falls back to `'de'` when the variant is not registered), or the
+   * literal `'*'` to use every registered language.
    */
-  languages?: readonly Language[];
+  languages?: readonly Language[] | '*';
   /**
    * Replaces the built-in profanity patterns entirely. Entries are regex
    * source strings. An empty array falls back to the built-in lists.
@@ -41,17 +45,6 @@ export interface FilterOptions {
 
 /** Characters that count as part of a word when looking up the allowlist. */
 const WORD_CHAR = /[\p{L}\p{M}\p{N}_]/u;
-
-/** Expands a pattern so that common leet-speak substitutions also match. */
-function toAggressivePattern(pattern: string): string {
-  return pattern
-    .replace(/a/g, '[a@4]')
-    .replace(/e/g, '[e3]')
-    .replace(/i/g, '[i!1]')
-    .replace(/o/g, '[o0]')
-    .replace(/u/g, '[u\\^]')
-    .replace(/c/g, '[c(k<]');
-}
 
 /** Compiled regexes are reused across calls — building them is the slow part. */
 const profanityCache = new Map<string, RegExp>();
@@ -100,13 +93,21 @@ function resolvePatterns(options: FilterOptions): {
   profanity: readonly string[];
   allow: readonly string[];
 } {
-  const languages = options.languages ?? ['en'];
+  const languages =
+    options.languages === '*' ? listLanguages() : (options.languages ?? ['en']);
 
   const builtinProfanity: string[] = [];
   const builtinAllow: string[] = [];
   for (const language of languages) {
-    const lists = LISTS[language];
-    if (!lists) continue;
+    const lists = getLanguage(language);
+    if (!lists) {
+      // Silently ignoring a typo would let profanity through unfiltered, which
+      // is the worst way for a moderation filter to fail.
+      throw new RangeError(
+        `Unknown language '${language}'. Registered: ${listLanguages().join(', ') || '(none)'}. ` +
+          'Add it with registerLanguage().',
+      );
+    }
     builtinProfanity.push(...lists.profanity);
     builtinAllow.push(...lists.allow);
   }

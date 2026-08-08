@@ -23,6 +23,14 @@
       "types": "./dist/angular.d.ts",
       "default": "./dist/angular.js"
     },
+    "./lang/en": {
+      "types": "./dist/lang/en.d.ts",
+      "default": "./dist/lang/en.js"
+    },
+    "./lang/de": {
+      "types": "./dist/lang/de.d.ts",
+      "default": "./dist/lang/de.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
@@ -35,6 +43,12 @@
       ],
       "angular": [
         "./dist/angular.d.ts"
+      ],
+      "lang/en": [
+        "./dist/lang/en.d.ts"
+      ],
+      "lang/de": [
+        "./dist/lang/de.d.ts"
       ]
     }
   },
@@ -62,7 +76,9 @@
     "schimpfwoerter",
     "react",
     "vue",
-    "angular"
+    "angular",
+    "i18n",
+    "multilingual"
   ],
   "author": "Kevin Imig <kevinci.coding@gmail.com>",
   "license": "MIT",

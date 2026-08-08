@@ -235,11 +235,64 @@
   }
   input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  .lang-boxes { display: flex; gap: 22px; flex-wrap: wrap; padding-top: 2px; }
+  .lang-boxes { display: flex; gap: 22px; flex-wrap: wrap; padding-top: 4px; }
   .lang-box { display: flex; align-items: center; gap: 8px; }
   .lang-box input[type="checkbox"] { margin-top: 0; }
   .lang-box label { font-size: 13.5px; cursor: pointer; }
   .lang-box .count { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .lang-box .inherits { color: var(--accent); font-size: 12px; }
+
+  /* ---------- language registration ---------- */
+
+  .reg-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .field input[type="text"] {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--sunken);
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    padding: 8px 11px;
+    width: 100%;
+  }
+  .field input[type="text"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .field select { width: 100%; padding: 8px 11px; font-size: 14px; }
+  .field textarea { min-height: 92px; font-size: 13.5px; }
+
+  .reg-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  .chip.solid {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--surface);
+    padding: 6px 16px;
+    font-size: 13px;
+  }
+  .chip.solid:hover { color: var(--surface); opacity: 0.88; }
+
+  .reg-msg {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    flex: 1 1 260px;
+  }
+  .reg-msg.ok { color: var(--accent); }
+  .reg-msg.err { color: var(--ink); }
 
   /* ---------- segmented switch ---------- */
 
@@ -525,16 +578,7 @@
         <div class="opt-text">
           <span class="opt-name">languages</span>
           <span class="opt-note" data-i18n-html="opt.lang.note"></span>
-          <div class="lang-boxes">
-            <span class="lang-box">
-              <input type="checkbox" id="lang-en" checked />
-              <label for="lang-en">'en' — English <span class="count" id="count-en"></span></label>
-            </span>
-            <span class="lang-box">
-              <input type="checkbox" id="lang-de" />
-              <label for="lang-de">'de' — Deutsch <span class="count" id="count-de"></span></label>
-            </span>
-          </div>
+          <div class="lang-boxes" id="lang-boxes"></div>
         </div>
 
         <div class="opt-row">
@@ -553,6 +597,43 @@
           </span>
         </div>
 
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" data-i18n="reg">Add a language</span>
+      <button class="copy" type="button" id="reg-reset" data-i18n="reg.reset"></button>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="reg.note"></p>
+
+      <div class="reg-grid">
+        <label class="field">
+          <span class="field-label" data-i18n="reg.code">code</span>
+          <input type="text" id="reg-code" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="reg.extends">extends</span>
+          <select id="reg-extends"></select>
+        </label>
+      </div>
+
+      <div class="reg-grid">
+        <label class="field">
+          <span class="field-label" data-i18n="reg.profanity">profanity — one regex per line</span>
+          <textarea id="reg-profanity" spellcheck="false"></textarea>
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="reg.allow">allow — one regex per line</span>
+          <textarea id="reg-allow" spellcheck="false"></textarea>
+        </label>
+      </div>
+
+      <div class="reg-actions">
+        <button class="chip solid" type="button" id="reg-submit" data-i18n="reg.submit"></button>
+        <span class="reg-msg" id="reg-msg"></span>
       </div>
     </div>
   </section>
@@ -686,8 +767,26 @@ const I18N = {
     input: 'Input',
     options: 'Options',
     'opt.lang.note':
-      'Which built-in lists to match against. Mixed-language text needs both — running a German ' +
-      'sentence through the English list alone produces little but false positives.',
+      'Which registered languages to match against. Mixed-language text needs more than one — ' +
+      'running a German sentence through the English list alone produces little but false ' +
+      'positives. Pass <code>\'*\'</code> in code to use everything registered.',
+    reg: 'Add a language',
+    'reg.note':
+      'The two built-in lists are just the ones that ship pre-registered — nothing about the ' +
+      'library is limited to them. Register anything here and it appears as a checkbox above, ' +
+      'immediately usable. <code>extends</code> inherits a base list, so a regional variant is a ' +
+      'handful of extra words rather than a second full list. Patterns are validated on ' +
+      'registration, so a typo fails here and not later inside a moderation request.',
+    'reg.code': 'code',
+    'reg.extends': 'extends',
+    'reg.none': '(nothing)',
+    'reg.profanity': 'profanity — one regex per line',
+    'reg.allow': 'allow — one regex per line',
+    'reg.submit': 'Register',
+    'reg.reset': 'Reset to built-ins',
+    'reg.ok': 'Registered ‘{code}’ with {profanity} patterns and {allow} allow entries{inherited}.',
+    'reg.ok.inherited': ', inheriting {count} from ‘{parent}’',
+    'reg.wasreset': 'Back to the built-in languages.',
     'opt.crosscheck.note':
       'Drops a hit when the whole word around it is on the allowlist. This is what keeps ' +
       '<code>Klassik</code>, <code>classic</code>, <code>Massage</code> and <code>Analyse</code> ' +
@@ -764,8 +863,27 @@ const I18N = {
     input: 'Eingabe',
     options: 'Optionen',
     'opt.lang.note':
-      'Gegen welche eingebauten Listen geprüft wird. Gemischter Text braucht beide — ein deutscher ' +
-      'Satz nur gegen die englische Liste liefert fast nur Fehlalarme.',
+      'Gegen welche registrierten Sprachen geprüft wird. Gemischter Text braucht mehr als eine — ' +
+      'ein deutscher Satz nur gegen die englische Liste liefert fast nur Fehlalarme. Im Code ' +
+      'nimmt <code>\'*\'</code> alles Registrierte.',
+    reg: 'Sprache hinzufügen',
+    'reg.note':
+      'Die beiden eingebauten Listen sind nur die, die vorregistriert mitkommen — die Library ist ' +
+      'nicht auf sie beschränkt. Hier registrierte Sprachen erscheinen sofort als Checkbox oben ' +
+      'und sind direkt nutzbar. <code>extends</code> erbt eine Basisliste, eine regionale Variante ' +
+      'ist also eine Handvoll Zusatzwörter statt einer zweiten kompletten Liste. Muster werden bei ' +
+      'der Registrierung geprüft — ein Tippfehler fliegt hier auf, nicht später mitten in einem ' +
+      'Moderations-Request.',
+    'reg.code': 'Code',
+    'reg.extends': 'erbt von',
+    'reg.none': '(nichts)',
+    'reg.profanity': 'profanity — eine Regex pro Zeile',
+    'reg.allow': 'allow — eine Regex pro Zeile',
+    'reg.submit': 'Registrieren',
+    'reg.reset': 'Auf Standard zurücksetzen',
+    'reg.ok': '‚{code}‘ registriert: {profanity} Muster, {allow} Allow-Einträge{inherited}.',
+    'reg.ok.inherited': ', davon {count} von ‚{parent}‘ geerbt',
+    'reg.wasreset': 'Zurück auf die eingebauten Sprachen.',
     'opt.crosscheck.note':
       'Verwirft einen Treffer, wenn das ganze Wort drumherum auf der Allowlist steht. Genau das ' +
       'hält <code>Klassik</code>, <code>classic</code>, <code>Massage</code> und ' +
@@ -966,10 +1084,14 @@ const els = {
   uiLang: $('ui-lang'),
   input: $('input'),
   presets: $('presets'),
-  langEn: $('lang-en'),
-  langDe: $('lang-de'),
-  countEn: $('count-en'),
-  countDe: $('count-de'),
+  langBoxes: $('lang-boxes'),
+  regCode: $('reg-code'),
+  regExtends: $('reg-extends'),
+  regProfanity: $('reg-profanity'),
+  regAllow: $('reg-allow'),
+  regSubmit: $('reg-submit'),
+  regReset: $('reg-reset'),
+  regMsg: $('reg-msg'),
   crossCheck: $('crosscheck'),
   aggressive: $('aggressive'),
   output: $('output'),
@@ -994,11 +1116,61 @@ const t = (key) => I18N[ui][key];
 
 /* --- options -------------------------------------------------------- */
 
+/** Codes ticked in the language list, in registration order. */
 function activeLanguages() {
-  const langs = [];
-  if (els.langEn.checked) langs.push('en');
-  if (els.langDe.checked) langs.push('de');
-  return langs;
+  return [...els.langBoxes.querySelectorAll('input:checked')].map((box) => box.value);
+}
+
+/** Rebuilds the checkbox list from whatever the registry currently holds. */
+function drawLanguages(selected) {
+  const keep = selected ?? new Set(activeLanguages());
+  els.langBoxes.textContent = '';
+
+  for (const code of listLanguages()) {
+    const lists = getLanguage(code);
+    const id = 'lang-' + code;
+
+    const wrap = document.createElement('span');
+    wrap.className = 'lang-box';
+
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.id = id;
+    box.value = code;
+    box.checked = keep.has(code);
+    box.addEventListener('change', run);
+
+    const label = document.createElement('label');
+    label.htmlFor = id;
+    label.append("'" + code + "'");
+
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = ' (' + lists.profanity.length + ' + ' + lists.allow.length + ')';
+    label.append(count);
+
+    wrap.append(box, label);
+    els.langBoxes.append(wrap);
+  }
+}
+
+/** Keeps the extends dropdown in step with the registry. */
+function drawExtendsOptions() {
+  const previous = els.regExtends.value;
+  els.regExtends.textContent = '';
+
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = t('reg.none');
+  els.regExtends.append(none);
+
+  for (const code of listLanguages()) {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = code;
+    els.regExtends.append(option);
+  }
+  els.regExtends.value = listLanguages().includes(previous) ? previous : '';
 }
 
 function currentOptions() {
@@ -1034,7 +1206,8 @@ function flaggedSpans(segments) {
 /** Which allow pattern cleared this word? */
 function clearingRule(word, languages) {
   for (const lang of languages) {
-    for (const pattern of (LISTS[lang] ? LISTS[lang].allow : [])) {
+    const lists = getLanguage(lang);
+    for (const pattern of (lists ? lists.allow : [])) {
       try {
         if (new RegExp('^(?:' + pattern + ')$', 'iu').test(word)) return pattern;
       } catch (e) {
@@ -1195,12 +1368,17 @@ function drawStats(segments, suppressed, text) {
 }
 
 function drawSnippet(options) {
-  const langs = options.languages.map((l) => "'" + l + "'").join(', ');
+  const all = listLanguages();
+  const everything = options.languages.length === all.length && all.length > 0;
+  const langs = everything
+    ? "'*'"
+    : '[' + options.languages.map((l) => "'" + l + "'").join(', ') + ']';
+
   const lines = [
     "import { filterFWordsToSegments } from 'ts-profanity-filter';",
     '',
     'filterFWordsToSegments(text, {',
-    '  languages: [' + langs + '],',
+    '  languages: ' + langs + ',',
   ];
   if (!options.aggressive) lines.push('  aggressive: false,');
   if (!options.crossCheck) lines.push('  crossCheck: false,');
@@ -1229,6 +1407,83 @@ function drawFramework() {
     els.fwSamples.append(block);
   }
   els.fwNote.innerHTML = t('fw.' + framework + '.note');
+}
+
+/* --- registering a language ------------------------------------------- */
+
+const EXAMPLE = {
+  code: 'fr',
+  extends: '',
+  profanity: ['merde', 'connard', 'salope', 'putain', 'enfoir(?:é|e)'],
+  allow: ['\\p{L}*connaiss\\p{L}*', '\\p{L}*merdique\\p{L}*'],
+};
+
+function resetRegistrationForm() {
+  els.regCode.value = EXAMPLE.code;
+  els.regProfanity.value = EXAMPLE.profanity.join('\n');
+  els.regAllow.value = EXAMPLE.allow.join('\n');
+  drawExtendsOptions();
+  els.regExtends.value = EXAMPLE.extends;
+}
+
+function lines(value) {
+  return value.split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+function say(message, kind) {
+  els.regMsg.textContent = message;
+  els.regMsg.className = 'reg-msg' + (kind ? ' ' + kind : '');
+}
+
+function fill(template, values) {
+  return Object.keys(values).reduce(
+    (out, key) => out.replace('{' + key + '}', values[key]),
+    template,
+  );
+}
+
+function submitRegistration() {
+  const code = els.regCode.value.trim();
+  const parent = els.regExtends.value;
+
+  const definition = {
+    profanity: lines(els.regProfanity.value),
+    allow: lines(els.regAllow.value),
+  };
+  if (parent) definition.extends = parent;
+
+  try {
+    registerLanguage(code, definition);
+  } catch (error) {
+    // The library's own message is the useful part — show it verbatim.
+    say(error.message, 'err');
+    return;
+  }
+
+  const key = resolveKey(code);
+  const resolved = getLanguage(code);
+  const inherited = parent
+    ? fill(t('reg.ok.inherited'), {
+        count: resolved.profanity.length - definition.profanity.length,
+        parent: parent,
+      })
+    : '';
+
+  say(
+    fill(t('reg.ok'), {
+      code: key,
+      profanity: resolved.profanity.length,
+      allow: resolved.allow.length,
+      inherited: inherited,
+    }),
+    'ok',
+  );
+
+  const selected = new Set(activeLanguages());
+  selected.add(key);
+  drawLanguages(selected);
+  drawExtendsOptions();
+  run();
 }
 
 /* --- colophon --------------------------------------------------------- */
@@ -1276,6 +1531,7 @@ function applyLanguage() {
   drawPresets();
   drawFramework();
   drawColophon();
+  drawExtendsOptions();
   run();
 }
 
@@ -1288,8 +1544,7 @@ function drawPresets() {
     btn.textContent = preset.label[ui];
     btn.addEventListener('click', () => {
       els.input.value = preset.text;
-      els.langEn.checked = preset.langs.includes('en');
-      els.langDe.checked = preset.langs.includes('de');
+      drawLanguages(new Set(preset.langs));
       run();
     });
     els.presets.append(btn);
@@ -1318,6 +1573,16 @@ for (const btn of document.querySelectorAll('#fw-modes button')) {
   });
 }
 
+els.regSubmit.addEventListener('click', submitRegistration);
+
+els.regReset.addEventListener('click', () => {
+  resetLanguages();
+  resetRegistrationForm();
+  drawLanguages(new Set(['en']));
+  say(t('reg.wasreset'), 'ok');
+  run();
+});
+
 els.uiLang.addEventListener('change', () => {
   ui = els.uiLang.value;
   applyLanguage();
@@ -1334,18 +1599,13 @@ els.copy.addEventListener('click', async () => {
 });
 
 for (const el of [els.input]) el.addEventListener('input', run);
-for (const el of [els.langEn, els.langDe, els.aggressive, els.crossCheck]) {
-  el.addEventListener('change', run);
-}
+for (const el of [els.aggressive, els.crossCheck]) el.addEventListener('change', run);
 
 /* --- start ------------------------------------------------------------ */
 
-els.countEn.textContent =
-  '(' + LISTS.en.profanity.length + ' + ' + LISTS.en.allow.length + ')';
-els.countDe.textContent =
-  '(' + LISTS.de.profanity.length + ' + ' + LISTS.de.allow.length + ')';
-
+drawLanguages(new Set(['en']));
 els.input.value = PRESETS[0].text;
+resetRegistrationForm();
 applyLanguage();
 </script>
 </body>

@@ -1,8 +1,11 @@
 # ts-profanity-filter
 
-A strict TypeScript profanity filter for **English and German** that splits text
-into segments so your UI can render the redaction itself — the library never
-mutates or masks your string.
+A strict TypeScript profanity filter that splits text into segments so your UI
+can render the redaction itself — the library never mutates or masks your
+string.
+
+**English and German ship pre-registered; any other language is a
+`registerLanguage()` call away.**
 
 Zero runtime dependencies. Optional adapters for React, Vue and Angular.
 
@@ -87,7 +90,7 @@ filterFWordsToSegments('Die Assmann GmbH', {
 
 | Option       | Type                    | Default  | Description                                                                       |
 | ------------ | ----------------------- | -------- | --------------------------------------------------------------------------------- |
-| `languages`  | `('en' \| 'de')[]`      | `['en']` | Which built-in lists to use. Mixed-language text needs both.                       |
+| `languages`  | `string[] \| '*'`       | `['en']` | Registered languages to match against. `'*'` uses every registered one.            |
 | `crossCheck` | `boolean`               | `true`   | Drop a hit when the surrounding word is allowlisted. `false` = raw substrings.     |
 | `allowList`  | `string[]`              | —        | Extra allowed words, added on top of the built-in allowlist. Regex sources.        |
 | `customList` | `string[]`              | —        | Replaces the built-in patterns entirely. Regex sources. Empty array = fall back.   |
@@ -100,14 +103,79 @@ interface TextSegment {
 }
 ```
 
-The word lists are exported too, so you can inspect or extend them:
+## Languages
+
+`en` and `de` are simply the two that ship pre-registered. Nothing about the
+library is limited to them.
 
 ```ts
-import { LISTS, LANGUAGES, EN_PROFANITY, DE_ALLOWLIST } from 'ts-profanity-filter';
+import { registerLanguage } from 'ts-profanity-filter';
 
-LISTS.de.profanity; // readonly string[]
-LISTS.de.allow;     // readonly string[]
+registerLanguage('fr', {
+  profanity: ['merde', 'connard', 'salope', 'putain'],
+  allow: ['\\p{L}*connaiss\\p{L}*'],   // connaissance, connaisseur
+});
+
+filterFWordsToSegments('Quelle merde', { languages: ['fr'] });
 ```
+
+**Regional variants inherit instead of duplicating.** A parent's patterns come
+first, yours are added on top — including its allowlist, so the false positives
+it already solved stay solved:
+
+```ts
+registerLanguage('de-AT', { extends: 'de', profanity: ['oasch', 'gschissana'] });
+
+filterFWordsToSegments('Du Oasch, du Trottel!', { languages: ['de-AT'] });
+// both flagged: 'oasch' is the variant's, 'Trottel' is inherited from 'de'
+```
+
+**Lookups fall back along BCP-47 subtags.** `de-AT-1996` tries `de-at-1996`,
+then `de-at`, then `de` — so an unregistered `de-CH` still works, and codes
+are case-insensitive.
+
+**Use everything at once** with `'*'`:
+
+```ts
+filterFWordsToSegments(text, { languages: '*' });
+```
+
+**Patterns are validated when you register them**, not when text is filtered, so
+a typo fails at startup naming the offending entry rather than throwing inside a
+moderation request:
+
+```
+SyntaxError: registerLanguage('fr'): profanity[1] "(unclosed" is not a
+valid regular expression — Invalid regular expression: /(unclosed/gi:
+Unterminated group
+```
+
+An **unknown language throws** rather than being ignored — silently matching
+nothing is the worst way for a moderation filter to fail.
+
+### Registry API
+
+| Function | Purpose |
+| --- | --- |
+| `registerLanguage(code, def)` | Add or replace a language. `def` is `{ profanity?, allow?, extends? }`. |
+| `unregisterLanguage(code)` | Remove one. Refuses while another language extends it. |
+| `resetLanguages()` | Back to just the built-in `en` and `de`. |
+| `getLanguage(code)` | Resolved lists, `extends` flattened and subtags applied. |
+| `hasLanguage(code)` / `resolveKey(code)` | Existence check / which code it resolves to. |
+| `listLanguages()` | Every registered code. |
+
+The built-in packs are importable on their own, which is also the shape a
+third-party language pack should export:
+
+```ts
+import { en, EN_PROFANITY, EN_ALLOWLIST } from 'ts-profanity-filter/lang/en';
+import { de } from 'ts-profanity-filter/lang/de';
+
+registerLanguage('en-custom', { extends: 'en', profanity: ourExtraWords });
+```
+
+Both are registered by the main entry point, so they are in your bundle whether
+or not you use them — `unregisterLanguage` changes behaviour, not bundle size.
 
 ## Framework adapters
 

@@ -47,4 +47,4 @@ export function useIsProfane(
 
 export { filterFWordsToSegments } from './filter.js';
 export type { FilterOptions, TextSegment } from './filter.js';
-export type { Language } from './lists/index.js';
+export type { Language } from './registry.js';

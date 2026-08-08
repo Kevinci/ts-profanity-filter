@@ -1,4 +1,4 @@
-// src/lists/de.ts
+// src/lang/de.ts — import from 'ts-profanity-filter/lang/de'
 //
 // German word lists. Same rules as the English ones: every entry is a regex
 // source string and matching is substring-based.
@@ -9,6 +9,8 @@
 //      permissively as `\p{L}*stem\p{L}*`.
 //   2. `aggressive` maps `c` to `[c(k<]`, so English patterns start matching
 //      German k-spellings: `cum` suddenly hits `Dokument`, `Kumpel`, `Publikum`.
+
+import type { LanguageDefinition } from '../registry.js';
 
 /** Patterns that flag a match. */
 export const DE_PROFANITY: readonly string[] = [
@@ -135,3 +137,9 @@ export const DE_ALLOWLIST: readonly string[] = [
   'homolog\\p{L}*',
   'homosexuell\\p{L}*',
 ];
+
+/** Ready to hand to `registerLanguage('de', de)`. Pre-registered already. */
+export const de: LanguageDefinition = {
+  profanity: DE_PROFANITY,
+  allow: DE_ALLOWLIST,
+};

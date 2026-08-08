@@ -126,9 +126,11 @@ test('segments stay lossless when matches are dropped by the allowlist', () => {
   assert.equal(segments.map((s) => s.text).join(''), text);
 });
 
-test('an unknown language code is ignored rather than throwing', () => {
-  // @ts-expect-error deliberately outside the Language union
-  assert.deepEqual(flagged('This is bullshit.', { languages: ['xx'] }), []);
+test('an unknown language throws rather than passing text through unfiltered', () => {
+  assert.throws(
+    () => flagged('This is bullshit.', { languages: ['xx'] }),
+    /Unknown language 'xx'/,
+  );
 });
 
 test('default language is English only', () => {

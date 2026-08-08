@@ -1,4 +1,4 @@
-// src/lists/en.ts
+// src/lang/en.ts — import from 'ts-profanity-filter/lang/en'
 //
 // English word lists. Every entry is a **regex source string**, not a plain
 // word — that is what lets a single entry cover several spellings.
@@ -6,6 +6,8 @@
 // Matching is substring-based on purpose: it catches `asshole` from `ass` and
 // survives obfuscation. The price is false positives, which is what
 // EN_ALLOWLIST exists to undo.
+
+import type { LanguageDefinition } from '../registry.js';
 
 /** Patterns that flag a match. */
 export const EN_PROFANITY: readonly string[] = [
@@ -179,3 +181,9 @@ export const EN_ALLOWLIST: readonly string[] = [
   'retardation',
   'fagott\\p{L}*', // fag — the bassoon
 ];
+
+/** Ready to hand to `registerLanguage('en', en)`. Pre-registered already. */
+export const en: LanguageDefinition = {
+  profanity: EN_PROFANITY,
+  allow: EN_ALLOWLIST,
+};

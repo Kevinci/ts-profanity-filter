@@ -16,9 +16,10 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Dependency order — these get concatenated into one classic <script> scope.
 const MODULES = [
-  'dist/lists/en.js',
-  'dist/lists/de.js',
-  'dist/lists/index.js',
+  'dist/aggressive.js',
+  'dist/lang/en.js',
+  'dist/lang/de.js',
+  'dist/registry.js',
   'dist/filter.js',
 ];
 
