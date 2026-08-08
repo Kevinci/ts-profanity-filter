@@ -806,15 +806,23 @@ const I18N = {
     'mode.redact': 'Redacted',
     'mode.mark': 'Highlighted',
     'mode.stars': 'Asterisks',
-    xc: 'Suppressed by the cross-check',
+    xc: 'Words the cross-check rescued',
     'xc.note':
-      'Every row is a substring hit that the allowlist overruled. An allowed word always wins ' +
-      'over a blocked pattern.',
-    'xc.col.word': 'word',
-    'xc.col.hit': 'matched',
-    'xc.col.rule': 'cleared by',
-    'xc.none': 'Nothing suppressed — no ordinary word tripped a pattern here.',
-    'xc.off': 'crossCheck is off, so nothing is being suppressed.',
+      'The filter looks <em>inside</em> words — that is the only way <code>arsch</code> finds ' +
+      '<code>Arschloch</code>. The price is that it fires inside harmless words too: ' +
+      '<code>Klassiker</code> contains <code>ass</code>, <code>Marsch</code> contains ' +
+      '<code>arsch</code>. Every row below is one of those hits, thrown away because the whole ' +
+      'word around it is on the allowlist. Without this table\u2019s contents, each one would be a ' +
+      'false positive.',
+    'xc.col.word': 'harmless word',
+    'xc.col.hit': 'pattern that fired inside it',
+    'xc.col.rule': 'allowlist rule that cleared it',
+    'xc.none':
+      'Nothing to rescue here \u2014 no harmless word in this text ran into a pattern. To see it ' +
+      'work, pick the \u201cFalse positives (DE)\u201d preset at the top.',
+    'xc.off':
+      'crossCheck is off, so nothing is being rescued \u2014 the raw hits are showing above, ' +
+      'false positives and all.',
     seg: 'Returned segments',
     'seg.none': 'No input.',
     snippet: 'The call that produced this',
@@ -904,15 +912,22 @@ const I18N = {
     'mode.redact': 'Geschwärzt',
     'mode.mark': 'Markiert',
     'mode.stars': 'Sternchen',
-    xc: 'Vom Gegencheck abgefangen',
+    xc: 'Wörter, die der Gegencheck gerettet hat',
     'xc.note':
-      'Jede Zeile ist ein Substring-Treffer, den die Allowlist überstimmt hat. Ein erlaubtes Wort ' +
-      'gewinnt immer gegen ein gesperrtes Muster.',
-    'xc.col.word': 'Wort',
-    'xc.col.hit': 'Treffer',
-    'xc.col.rule': 'freigegeben durch',
-    'xc.none': 'Nichts abgefangen — hier ist kein harmloses Wort in ein Muster gelaufen.',
-    'xc.off': 'crossCheck ist aus, es wird gerade nichts abgefangen.',
+      'Der Filter sucht <em>innerhalb</em> von Wörtern — nur so findet <code>arsch</code> auch ' +
+      '<code>Arschloch</code>. Der Preis: er schlägt genauso mitten in harmlosen Wörtern an. In ' +
+      '<code>Klassiker</code> steckt <code>ass</code>, in <code>Marsch</code> steckt ' +
+      '<code>arsch</code>. Jede Zeile hier ist so ein Treffer, verworfen, weil das ganze Wort ' +
+      'drumherum auf der Allowlist steht. Ohne das wäre jede einzelne ein Fehlalarm.',
+    'xc.col.word': 'harmloses Wort',
+    'xc.col.hit': 'Muster, das darin ansprang',
+    'xc.col.rule': 'Allowlist-Regel, die es aufhob',
+    'xc.none':
+      'Hier gab es nichts zu retten \u2014 in diesem Text ist kein harmloses Wort in ein Muster ' +
+      'gelaufen. Zum Ausprobieren oben das Preset \u201eFalsch-Positive (DE)\u201c wählen.',
+    'xc.off':
+      'crossCheck ist aus, es wird gerade nichts gerettet \u2014 oben stehen die rohen Treffer, ' +
+      'Fehlalarme inklusive.',
     seg: 'Zurückgegebene Segmente',
     'seg.none': 'Keine Eingabe.',
     snippet: 'Der Aufruf, der das erzeugt hat',
