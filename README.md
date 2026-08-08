@@ -6,6 +6,8 @@ mutates or masks your string.
 
 Zero runtime dependencies. Optional adapters for React, Vue and Angular.
 
+**[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/demo/)**
+
 ```bash
 npm install ts-profanity-filter
 ```
@@ -189,16 +191,22 @@ dependency of this package at all.
 
 ## Playground
 
+**<https://kevinci.github.io/ts-profanity-filter/demo/>**
+
+Bilingual UI (English/German), live segmentation, three render modes, and a
+table showing exactly which false positives the cross-check suppressed and
+which allowlist rule cleared them.
+
+The page is a single self-contained file generated from the compiled `dist/`,
+so it always runs the same code npm ships. To work on it locally:
+
 ```bash
-npm run demo
+npm run demo        # tsc, then regenerate demo/index.html
 open demo/index.html
 ```
 
-A standalone page — no server, no hosting. Bilingual UI (English/German), live
-segmentation, three render modes, and a table showing exactly which false
-positives the cross-check suppressed and which allowlist rule cleared them. It
-is generated from the compiled `dist/`, so it always runs the same code npm
-ships.
+Edit `demo/template.html`, never `demo/index.html` — the latter is generated.
+GitHub Pages serves it straight from `main`, so a push updates the live page.
 
 ## Known limitations
 
