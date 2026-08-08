@@ -226,6 +226,8 @@ or not you use them — `unregisterLanguage` changes behaviour, not bundle size.
 The package is plain ESM with no dependencies, so a module script and a CDN
 import are the whole setup — no build step, nothing to install.
 
+**[Run this example on JSFiddle →](https://jsfiddle.net/7x6mtawo/)**
+
 ```html
 <textarea id="draft"></textarea>
 <p id="output"></p>
@@ -266,7 +268,8 @@ string, building nodes is both the safe route and the obvious one.
 ### CDNs
 
 Nothing to set up — every npm CDN serves the package automatically, subpath
-imports included.
+imports included. [The jsDelivr package page](https://www.jsdelivr.com/package/npm/ts-profanity-filter)
+lists every published file and version.
 
 | CDN | URL |
 | --- | --- |
