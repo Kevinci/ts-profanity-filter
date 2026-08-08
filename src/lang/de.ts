@@ -39,7 +39,10 @@ export const DE_PROFANITY: readonly string[] = [
   'schlampe',
   'bastard',
   'mistst(?:ü|ue)ck',
-  'drecksau',
+  // The Dreck- family: Dreck alone is just dirt, the compounds are the insult.
+  'drecks?(?:au|schwein|sack|kerl|st(?:ü|ue)ck|viech|nest|fresse)',
+  '\\bschwein\\b', // anchored: Schweinefleisch and Meerschweinchen are fine
+  'schweinehund',
   'saukerl',
   'sauhund',
   '\\bsau\\b', // anchored: Hausaufgaben, sauber, Sauna are fine

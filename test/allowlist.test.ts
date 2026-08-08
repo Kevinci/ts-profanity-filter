@@ -30,6 +30,9 @@ const INNOCENT_DE = [
   'Vormarsch der Marschmusik, gespielt auf dem Fagott.',
   'Er ließ sich vom Dickicht und dem dickflüssigen Sirup nicht aufhalten.',
   'Die Massage im Elsass war klasse.',
+  // Dreck on its own is dirt, and Schwein is anchored so compounds survive.
+  'Der Dreck muss weg, die Dreckwäsche auch.',
+  'Schweinefleisch, Schweinsbraten und ein Meerschweinchen.',
 ];
 
 const INNOCENT_EN = [
@@ -62,6 +65,9 @@ for (const sentence of INNOCENT_EN) {
 
 /** The allowlist must not swallow the real thing. */
 const MUST_FLAG_DE: Array<[string, string[]]> = [
+  ['Du Dreckschwein!', ['Dreckschwein']],
+  ['So ein Drecksack, so ein Dreckskerl.', ['Drecksack', 'Dreckskerl']],
+  ['Du Schwein, du Schweinehund.', ['Schwein', 'Schweinehund']],
   ['So ein Arschloch!', ['Arsch']],
   ['Diese verdammte Scheiße nervt.', ['verdammt', 'Scheiß']],
   ['Du Vollpfosten, du Trottel.', ['Vollpfosten', 'Trottel']],
