@@ -6,7 +6,7 @@ mutates or masks your string.
 
 Zero runtime dependencies. Optional adapters for React, Vue and Angular.
 
-**[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/demo/)**
+**[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/)**
 
 ```bash
 npm install ts-profanity-filter
@@ -191,7 +191,7 @@ dependency of this package at all.
 
 ## Playground
 
-**<https://kevinci.github.io/ts-profanity-filter/demo/>**
+**<https://kevinci.github.io/ts-profanity-filter/>**
 
 Bilingual UI (English/German), live segmentation, three render modes, and a
 table showing exactly which false positives the cross-check suppressed and
@@ -201,11 +201,11 @@ The page is a single self-contained file generated from the compiled `dist/`,
 so it always runs the same code npm ships. To work on it locally:
 
 ```bash
-npm run demo        # tsc, then regenerate demo/index.html
-open demo/index.html
+npm run demo        # tsc, then regenerate docs/index.html
+open docs/index.html
 ```
 
-Edit `demo/template.html`, never `demo/index.html` — the latter is generated.
+Edit `demo/template.html`, never `docs/index.html` — the latter is generated.
 GitHub Pages serves it straight from `main`, so a push updates the live page.
 
 ## Known limitations
@@ -227,7 +227,7 @@ GitHub Pages serves it straight from `main`, so a push updates the live page.
 npm run build      # tsc -> dist/ (.js, .d.ts, .d.ts.map, .js.map)
 npm test           # builds, then runs node --test
 npm run typecheck  # type-checks src + test
-npm run demo       # builds and regenerates demo/index.html
+npm run demo       # builds and regenerates docs/index.html
 ```
 
 ## License

@@ -1,12 +1,14 @@
-// Generates demo/index.html from demo/template.html, inlining the *compiled*
+// Generates docs/index.html from demo/template.html, inlining the *compiled*
 // library from dist/ so the playground can never drift from what npm ships.
 //
-// The page is a plain standalone file — open it straight from disk, no server
-// and no hosting involved.
+// The page is a single self-contained file: open it straight from disk, and it
+// is also what GitHub Pages serves. Pages can only use the repo root or /docs
+// as its site root, hence docs/ — that puts the playground at the bare
+// https://<user>.github.io/<repo>/ URL rather than a subfolder.
 //
 // Run: npm run demo   (builds with tsc first)
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,7 +70,9 @@ if (!template.includes(META_MARKER)) throw new Error(`Missing ${META_MARKER} in 
 const page = template
   .replace(MARKER, () => bundle)
   .replace(META_MARKER, () => `const META = ${JSON.stringify(meta)};`);
-await writeFile(resolve(root, 'demo/index.html'), page);
 
-console.log(`demo/index.html   ${(page.length / 1024).toFixed(1)} kB`);
-console.log('open demo/index.html');
+await mkdir(resolve(root, 'docs'), { recursive: true });
+await writeFile(resolve(root, 'docs/index.html'), page);
+
+console.log(`docs/index.html   ${(page.length / 1024).toFixed(1)} kB`);
+console.log('open docs/index.html');
