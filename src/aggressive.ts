@@ -5,25 +5,49 @@
 // expansion, and the filter imports the registry, so this cannot live there.
 
 /**
- * Expands a pattern so that common leet-speak substitutions also match.
+ * What each letter is allowed to look like.
+ *
+ * Three kinds of substitution, all of them things people actually type to get
+ * past a filter:
+ *
+ *  - **leet**: `@`/`4` for a, `3` for e, `$`/`5` for s
+ *  - **diacritics**: `ä` for a *and* for e — `Dräcksau` uses it as an e, so the
+ *    ambiguity is deliberate. A one-to-one fold would have to pick a side and
+ *    would get that example wrong.
+ *  - **cross-script lookalikes**: Cyrillic `а е о с ѕ і` and Greek `α ε ο ϲ ι`
+ *    are different code points that render identically to their Latin twins.
+ *    `Аrschloch` with a Cyrillic А reads as the real word to every human.
+ *
+ * `p` is deliberately *not* expandable: allow patterns are full of `\p{L}`, and
+ * rewriting the `p` in it would destroy them.
+ */
+const CLASSES: Readonly<Record<string, string>> = {
+  a: '[aàáâãäåāă@4аα]',
+  e: '[eèéêëēĕė3äеε]',
+  i: '[iìíîïīı!1і]',
+  o: '[oòóôõöøō0оο]',
+  u: '[uùúûüū\\^]',
+  c: '[cçćčk(<сϲ]',
+  s: '[sšśş$5ѕ]',
+};
+
+/** One pass, so an inserted class is never rescanned and re-expanded. */
+const EXPANDABLE = /[aeiousc]/g;
+
+/**
+ * Expands a pattern so that leet spellings, diacritics and cross-script
+ * lookalikes also match.
  *
  * This rewrites the regex *source*, letters and all, so a pattern that carries
- * its own syntax can come out broken: `[abc]` becomes `[[a@4]b[c(k<]]` and
- * `(?<word>…)` becomes `(?<w[o0]rd>…)`, neither of which is legal.
- *
- * The filter compiles with the `u` flag, which is strict enough to reject both,
- * and `registerLanguage` compiles the expanded form up front — so this surfaces
- * as an error at registration rather than as silently different matching.
+ * its own syntax can come out broken: `[abc]` becomes a nest of character
+ * classes and `(?<word>…)` loses its capture group name. The filter compiles
+ * with the `u` flag, which is strict enough to reject both, and
+ * `registerLanguage` compiles the expanded form up front — so this surfaces as
+ * an error at registration rather than as silently different matching.
  *
  * Write patterns as plain words. For hand-written regexes, turn `aggressive`
  * off instead.
  */
 export function toAggressivePattern(pattern: string): string {
-  return pattern
-    .replace(/a/g, '[a@4]')
-    .replace(/e/g, '[e3]')
-    .replace(/i/g, '[i!1]')
-    .replace(/o/g, '[o0]')
-    .replace(/u/g, '[u\\^]')
-    .replace(/c/g, '[c(k<]');
+  return pattern.replace(EXPANDABLE, (letter) => CLASSES[letter] ?? letter);
 }

@@ -74,12 +74,22 @@ function profanityRegexFor(patterns: readonly string[], aggressive: boolean): Re
   });
 }
 
-function allowRegexFor(patterns: readonly string[]): RegExp | null {
+function allowRegexFor(patterns: readonly string[], aggressive: boolean): RegExp | null {
   if (patterns.length === 0) return null;
-  const key = patterns.join('\u0000');
+  const key = `${aggressive ? 'a' : 'l'}${'\u0000'}${patterns.join('\u0000')}`;
+  // The allowlist gets the same expansion as the patterns it has to overrule.
+  // Without that the two sides drift apart: `ass` matches the `4ss` in
+  // `Kl4ssik` while the allow entry still only spells `klass`, and a perfectly
+  // ordinary word comes back flagged.
+  //
   // 'u' so allow entries can use \p{L}; anchored so a stem must cover the
   // whole surrounding word rather than just appearing inside it.
-  return cached(allowCache, key, () => new RegExp(`^(?:${patterns.join('|')})$`, 'iu'));
+  return cached(allowCache, key, () => {
+    const source = patterns
+      .map((p) => (aggressive ? toAggressivePattern(p) : p))
+      .join('|');
+    return new RegExp(`^(?:${source})$`, 'iu');
+  });
 }
 
 /** Grows a match outwards to the word it sits in, e.g. `ass` -> `Klassik`. */
@@ -157,7 +167,7 @@ export function filterFWordsToSegments(
   }
 
   const profanityRegex = profanityRegexFor(profanity, aggressive);
-  const allowRegex = allowRegexFor(allow);
+  const allowRegex = allowRegexFor(allow, aggressive);
 
   profanityRegex.lastIndex = 0;
 

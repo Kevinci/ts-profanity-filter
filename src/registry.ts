@@ -90,6 +90,13 @@ function assertPatterns(
     if (kind === 'allow') {
       // Anchored and unicode-aware, exactly how the filter uses it.
       compile(`^(?:${pattern})$`, 'iu', 'is not a valid regular expression');
+      // Allow entries are expanded alongside the profanity patterns, so they
+      // break the same way. \p{L} survives it; \p{Lu} would lose its 'u'.
+      compile(
+        `^(?:${toAggressivePattern(pattern)})$`,
+        'iu',
+        'becomes invalid once aggressive matching expands the letters in it',
+      );
     } else {
       compile(pattern, 'giu', 'is not a valid regular expression');
       // The aggressive pass rewrites letters in the source, which can break an

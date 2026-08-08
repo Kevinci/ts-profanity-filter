@@ -94,7 +94,7 @@ filterFWordsToSegments('Die Assmann GmbH', {
 | `crossCheck` | `boolean`               | `true`   | Drop a hit when the surrounding word is allowlisted. `false` = raw substrings.     |
 | `allowList`  | `string[]`              | —        | Extra allowed words, added on top of the built-in allowlist. Regex sources.        |
 | `customList` | `string[]`              | —        | Replaces the built-in patterns entirely. Regex sources. Empty array = fall back.   |
-| `aggressive` | `boolean`               | `true`   | Also match leet spellings: `a→@4`, `e→3`, `i→!1`, `o→0`, `u→^`, `c→(k<`.           |
+| `aggressive` | `boolean`               | `true`   | Also match lookalike spellings — see below.                                        |
 
 Patterns are compiled with the `u` flag, so case-insensitive matching uses full
 Unicode case folding — `SCHEIẞE` folds to `scheiße` and is caught. It also means
@@ -107,6 +107,30 @@ interface TextSegment {
   isProfane: boolean;
 }
 ```
+
+## Lookalike matching
+
+With `aggressive` on (the default) every letter is expanded into the things
+people actually type to get past a filter:
+
+| Kind | Example |
+| --- | --- |
+| leet | `Dr3cks4u`, `a$$hole`, `$hit`, `fu(k` |
+| diacritics | `DräckSAU`, `ärschloch` |
+| cross-script lookalikes | `Аrschloch` (Cyrillic А), `Sсheiße` (Cyrillic с) |
+
+The diacritics are deliberately ambiguous: `ä` counts as an **a** *and* as an
+**e**, because `Dräck` uses it as an e while `ärsch` uses it as an a. A
+one-to-one normalisation would have to pick a side and get one of them wrong.
+
+**The allowlist gets the same expansion.** That symmetry is the whole point —
+without it `ass` matches the `4ss` in `Kl4ssik` while the allow entry still
+only spells `klass`, and an ordinary word comes back flagged. `Kl4ssik`,
+`M4ssage`, `Cl4ss` and `Fässer` all stay clean.
+
+Not covered: separators and repetition (`D r e c k s a u`, `Dreeecksau`).
+Those change the length of the text, so catching them needs an offset map to
+keep segments lossless — a different piece of machinery.
 
 ## Languages
 

@@ -110,6 +110,47 @@ test('capital sharp s folds to ß, so SCHEIẞE is caught', () => {
   assert.deepEqual(flagged('SCHEISSE', { languages: ['de'] }), ['SCHEISS']);
 });
 
+test('diacritics stand in for a and for e', () => {
+  // 'Dräck' uses ä as an e, 'ärsch' uses it as an a — both must land.
+  assert.deepEqual(flagged('DräckSAU', BOTH), ['DräckSAU']);
+  assert.deepEqual(flagged('Dräckschwein', BOTH), ['Dräckschwein']);
+  assert.deepEqual(flagged('ärschloch', BOTH), ['ärsch']);
+});
+
+test('cross-script lookalikes are matched', () => {
+  // Cyrillic А (U+0410), с (U+0441), а (U+0430) render as their Latin twins.
+  assert.deepEqual(flagged('\u0410rschloch', BOTH), ['\u0410rsch']);
+  assert.deepEqual(flagged('S\u0441hei\u00dfe', BOTH), ['S\u0441hei\u00df']);
+  assert.deepEqual(flagged('\u0430ssloch', BOTH), ['\u0430ss']);
+});
+
+test('symbol substitutions for s', () => {
+  assert.deepEqual(flagged('a$$hole', BOTH), ['a$$']);
+  assert.deepEqual(flagged('$hit', BOTH), ['$hit']);
+});
+
+test('the allowlist is expanded too, so obfuscated innocents stay clean', () => {
+  // Before the allowlist was expanded these were false positives: 'ass'
+  // matched the '4ss' while the allow entry still only spelled 'klass'.
+  for (const word of ['Kl4ssik', 'Kl@ssik', 'M4ssage', 'Cl4ss', 'Klässik', 'Fässer']) {
+    assert.deepEqual(flagged(word, BOTH), [], word);
+  }
+});
+
+test('umlaut-heavy German stays clean', () => {
+  const corpus = [
+    'Schöne Grüße aus Österreich, die Fässer sind größer als gedacht.',
+    'Über München nach Zürich, mit Käse, Müsli und einer Tüte Nüsse.',
+    'Die Männer öffneten die Tür für die Mädchen und die Schüler.',
+    'Gemäß Vorschrift wurde das Gefäß im Faß verstaut.',
+    'Süßigkeiten, Sauerkraut und Spätzle zum Frühstück.',
+    'Naïve café résumé façade jalapeño piñata.',
+  ];
+  for (const sentence of corpus) {
+    assert.deepEqual(flagged(sentence, BOTH), [], sentence);
+  }
+});
+
 test('German leet spellings still get caught', () => {
   assert.deepEqual(flagged('Du @rschloch, du Tr0ttel!', { languages: ['de'] }), [
     '@rsch',

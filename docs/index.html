@@ -758,27 +758,49 @@
 // the registry needs it to validate that a pattern still compiles *after* the
 // expansion, and the filter imports the registry, so this cannot live there.
 /**
- * Expands a pattern so that common leet-speak substitutions also match.
+ * What each letter is allowed to look like.
+ *
+ * Three kinds of substitution, all of them things people actually type to get
+ * past a filter:
+ *
+ *  - **leet**: `@`/`4` for a, `3` for e, `$`/`5` for s
+ *  - **diacritics**: `ä` for a *and* for e — `Dräcksau` uses it as an e, so the
+ *    ambiguity is deliberate. A one-to-one fold would have to pick a side and
+ *    would get that example wrong.
+ *  - **cross-script lookalikes**: Cyrillic `а е о с ѕ і` and Greek `α ε ο ϲ ι`
+ *    are different code points that render identically to their Latin twins.
+ *    `Аrschloch` with a Cyrillic А reads as the real word to every human.
+ *
+ * `p` is deliberately *not* expandable: allow patterns are full of `\p{L}`, and
+ * rewriting the `p` in it would destroy them.
+ */
+const CLASSES = {
+    a: '[aàáâãäåāă@4аα]',
+    e: '[eèéêëēĕė3äеε]',
+    i: '[iìíîïīı!1і]',
+    o: '[oòóôõöøō0оο]',
+    u: '[uùúûüū\\^]',
+    c: '[cçćčk(<сϲ]',
+    s: '[sšśş$5ѕ]',
+};
+/** One pass, so an inserted class is never rescanned and re-expanded. */
+const EXPANDABLE = /[aeiousc]/g;
+/**
+ * Expands a pattern so that leet spellings, diacritics and cross-script
+ * lookalikes also match.
  *
  * This rewrites the regex *source*, letters and all, so a pattern that carries
- * its own syntax can come out broken: `[abc]` becomes `[[a@4]b[c(k<]]` and
- * `(?<word>…)` becomes `(?<w[o0]rd>…)`, neither of which is legal.
- *
- * The filter compiles with the `u` flag, which is strict enough to reject both,
- * and `registerLanguage` compiles the expanded form up front — so this surfaces
- * as an error at registration rather than as silently different matching.
+ * its own syntax can come out broken: `[abc]` becomes a nest of character
+ * classes and `(?<word>…)` loses its capture group name. The filter compiles
+ * with the `u` flag, which is strict enough to reject both, and
+ * `registerLanguage` compiles the expanded form up front — so this surfaces as
+ * an error at registration rather than as silently different matching.
  *
  * Write patterns as plain words. For hand-written regexes, turn `aggressive`
  * off instead.
  */
 function toAggressivePattern(pattern) {
-    return pattern
-        .replace(/a/g, '[a@4]')
-        .replace(/e/g, '[e3]')
-        .replace(/i/g, '[i!1]')
-        .replace(/o/g, '[o0]')
-        .replace(/u/g, '[u\\^]')
-        .replace(/c/g, '[c(k<]');
+    return pattern.replace(EXPANDABLE, (letter) => CLASSES[letter] ?? letter);
 }
 
 // ---- dist/lang/en.js ----
@@ -1135,6 +1157,9 @@ function assertPatterns(code, kind, patterns) {
         if (kind === 'allow') {
             // Anchored and unicode-aware, exactly how the filter uses it.
             compile(`^(?:${pattern})$`, 'iu', 'is not a valid regular expression');
+            // Allow entries are expanded alongside the profanity patterns, so they
+            // break the same way. \p{L} survives it; \p{Lu} would lose its 'u'.
+            compile(`^(?:${toAggressivePattern(pattern)})$`, 'iu', 'becomes invalid once aggressive matching expands the letters in it');
         }
         else {
             compile(pattern, 'giu', 'is not a valid regular expression');
@@ -1304,13 +1329,23 @@ function profanityRegexFor(patterns, aggressive) {
         return new RegExp(source, 'giu');
     });
 }
-function allowRegexFor(patterns) {
+function allowRegexFor(patterns, aggressive) {
     if (patterns.length === 0)
         return null;
-    const key = patterns.join('\u0000');
+    const key = `${aggressive ? 'a' : 'l'}${'\u0000'}${patterns.join('\u0000')}`;
+    // The allowlist gets the same expansion as the patterns it has to overrule.
+    // Without that the two sides drift apart: `ass` matches the `4ss` in
+    // `Kl4ssik` while the allow entry still only spells `klass`, and a perfectly
+    // ordinary word comes back flagged.
+    //
     // 'u' so allow entries can use \p{L}; anchored so a stem must cover the
     // whole surrounding word rather than just appearing inside it.
-    return cached(allowCache, key, () => new RegExp(`^(?:${patterns.join('|')})$`, 'iu'));
+    return cached(allowCache, key, () => {
+        const source = patterns
+            .map((p) => (aggressive ? toAggressivePattern(p) : p))
+            .join('|');
+        return new RegExp(`^(?:${source})$`, 'iu');
+    });
 }
 /** Grows a match outwards to the word it sits in, e.g. `ass` -> `Klassik`. */
 function enclosingWord(text, start, end) {
@@ -1369,7 +1404,7 @@ function filterFWordsToSegments(text, options = {}) {
         return [{ text, isProfane: false }];
     }
     const profanityRegex = profanityRegexFor(profanity, aggressive);
-    const allowRegex = allowRegexFor(allow);
+    const allowRegex = allowRegexFor(allow, aggressive);
     profanityRegex.lastIndex = 0;
     const segments = [];
     let lastIndex = 0;
