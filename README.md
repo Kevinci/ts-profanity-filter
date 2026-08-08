@@ -96,6 +96,11 @@ filterFWordsToSegments('Die Assmann GmbH', {
 | `customList` | `string[]`              | —        | Replaces the built-in patterns entirely. Regex sources. Empty array = fall back.   |
 | `aggressive` | `boolean`               | `true`   | Also match leet spellings: `a→@4`, `e→3`, `i→!1`, `o→0`, `u→^`, `c→(k<`.           |
 
+Patterns are compiled with the `u` flag, so case-insensitive matching uses full
+Unicode case folding — `SCHEIẞE` folds to `scheiße` and is caught. It also means
+your patterns must be valid in unicode mode: a stray identity escape like
+`\\-` is an error there. `registerLanguage` reports that up front.
+
 ```ts
 interface TextSegment {
   text: string;
@@ -287,6 +292,11 @@ GitHub Pages serves it straight from `main`, so a push updates the live page.
 - **`customList` replaces the patterns but not the allowlist.** A custom `ass`
   pattern still loses against an allowlisted `Klassik`. Combine with
   `crossCheck: false` if you want nothing suppressed.
+- **`aggressive` rewrites the regex source**, letters and all, so a pattern
+  carrying its own syntax breaks: `[abc]` becomes `[[a@4]b[c(k<]]` and
+  `(?<word>…)` becomes `(?<w[o0]rd>…)`. Both are rejected at registration.
+  Write patterns as plain words, or turn `aggressive` off for hand-written
+  regexes.
 - **Word lists are a starting point, not a policy.** Extend them for your domain.
 
 ## Scripts

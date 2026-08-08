@@ -62,13 +62,15 @@ function cached<T>(store: Map<string, T>, key: string, build: () => T): T {
 
 function profanityRegexFor(patterns: readonly string[], aggressive: boolean): RegExp {
   const key = `${aggressive ? 'a' : 'l'}\u0000${patterns.join('\u0000')}`;
-  // 'gi': global (find every occurrence) and ignoreCase. lastIndex is reset
-  //  before every use, so sharing one instance across calls is safe.
+  // 'g' find every occurrence, 'i' ignore case, 'u' so case folding is the
+  // full Unicode one — without it 'SCHEIẞE' does not fold to 'ß' and slips
+  // through. lastIndex is reset before every use, so sharing one instance
+  // across calls is safe.
   return cached(profanityCache, key, () => {
     const source = patterns
       .map((p) => (aggressive ? toAggressivePattern(p) : p))
       .join('|');
-    return new RegExp(source, 'gi');
+    return new RegExp(source, 'giu');
   });
 }
 

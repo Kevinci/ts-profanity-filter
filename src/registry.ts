@@ -91,12 +91,12 @@ function assertPatterns(
       // Anchored and unicode-aware, exactly how the filter uses it.
       compile(`^(?:${pattern})$`, 'iu', 'is not a valid regular expression');
     } else {
-      compile(pattern, 'gi', 'is not a valid regular expression');
+      compile(pattern, 'giu', 'is not a valid regular expression');
       // The aggressive pass rewrites letters in the source, which can break an
       // otherwise valid pattern: (?<word>…) turns into (?<w[o0]rd>…).
       compile(
         toAggressivePattern(pattern),
-        'gi',
+        'giu',
         'becomes invalid once aggressive matching expands the letters in it',
       );
     }

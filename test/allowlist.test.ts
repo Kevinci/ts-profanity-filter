@@ -97,6 +97,13 @@ test('anchored patterns keep German compounds clean', () => {
   assert.deepEqual(flagged('Der Schwanz.', { languages: ['de'] }), ['Schwanz']);
 });
 
+test('capital sharp s folds to ß, so SCHEIẞE is caught', () => {
+  // Full Unicode case folding — this needs the u flag on the compiled regex.
+  assert.deepEqual(flagged('SCHEIẞE', { languages: ['de'] }), ['SCHEIẞ']);
+  assert.deepEqual(flagged('Scheiße', { languages: ['de'] }), ['Scheiß']);
+  assert.deepEqual(flagged('SCHEISSE', { languages: ['de'] }), ['SCHEISS']);
+});
+
 test('German leet spellings still get caught', () => {
   assert.deepEqual(flagged('Du @rschloch, du Tr0ttel!', { languages: ['de'] }), [
     '@rsch',

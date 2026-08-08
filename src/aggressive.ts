@@ -7,16 +7,16 @@
 /**
  * Expands a pattern so that common leet-speak substitutions also match.
  *
- * This rewrites the regex *source*, letters and all, which has two
- * consequences worth knowing about:
+ * This rewrites the regex *source*, letters and all, so a pattern that carries
+ * its own syntax can come out broken: `[abc]` becomes `[[a@4]b[c(k<]]` and
+ * `(?<word>…)` becomes `(?<w[o0]rd>…)`, neither of which is legal.
  *
- * - It can produce an invalid pattern. `(?<word>fuck)` becomes
- *   `(?<w[o0]rd>…)`, and that is no longer a legal capture group name.
- *   `registerLanguage` compiles the expanded form to catch this early.
- * - It can silently change a valid pattern's meaning. `[abc]` becomes
- *   `[[a@4]b[c(k<]]`, which still compiles but matches something else.
- *   Nothing can detect that for you — write patterns as plain words, or
- *   turn `aggressive` off for hand-written regexes.
+ * The filter compiles with the `u` flag, which is strict enough to reject both,
+ * and `registerLanguage` compiles the expanded form up front — so this surfaces
+ * as an error at registration rather than as silently different matching.
+ *
+ * Write patterns as plain words. For hand-written regexes, turn `aggressive`
+ * off instead.
  */
 export function toAggressivePattern(pattern: string): string {
   return pattern

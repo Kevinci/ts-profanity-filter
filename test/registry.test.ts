@@ -160,12 +160,22 @@ test('a pattern that only breaks under aggressive expansion is rejected too', ()
   );
 });
 
-test('a character class survives expansion but changes meaning — documented, not caught', () => {
-  // [abc] becomes [[a@4]b[c(k<]]: still a legal regex, different semantics.
-  // Nothing throws here; this pins the behaviour so it cannot change silently.
-  registerLanguage('classy', { profanity: ['[abc]'] });
-  assert.equal(hasLanguage('classy'), true);
-  assert.deepEqual(flagged('b', { languages: ['classy'], aggressive: false }), ['b']);
+test('a character class broken by expansion is caught by the u flag', () => {
+  // [abc] becomes [[a@4]b[c(k<]]. Without the u flag that still compiles and
+  // silently means something else; with it, it is a syntax error we can report.
+  assert.throws(
+    () => registerLanguage('classy', { profanity: ['[abc]'] }),
+    /becomes invalid once aggressive matching expands the letters in it/,
+  );
+  assert.equal(hasLanguage('classy'), false);
+});
+
+test('a pattern only invalid under the u flag is rejected', () => {
+  // \- is a legal identity escape without u, and an error with it.
+  assert.throws(
+    () => registerLanguage('dashy', { profanity: ['b\\-d'] }),
+    /is not a valid regular expression/,
+  );
 });
 
 test('a malformed allow pattern is rejected', () => {
