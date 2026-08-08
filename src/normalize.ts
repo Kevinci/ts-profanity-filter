@@ -1,0 +1,132 @@
+// src/normalize.ts
+//
+// Leet spellings and lookalikes are handled on the pattern side, because those
+// substitutions are one character for one character. Separators and repetition
+// are not: `D r e c k s a u` and `Dreeecksau` change the *length* of the text,
+// so no character class can reach them.
+//
+// So the text is rewritten instead — and every rewritten character remembers
+// which slice of the original it came from. Matches are found in the rewritten
+// string and then sliced out of the original, which is what keeps the segments
+// lossless: concatenating them still reproduces the input exactly.
+
+/** A rewritten copy of the text plus the map back to the original. */
+export interface Normalized {
+  /** The text to run patterns against. */
+  readonly text: string;
+  /** `starts[i]` — where character `i` began in the original. */
+  readonly starts: readonly number[];
+  /** `ends[i]` — where the original slice behind character `i` ended. */
+  readonly ends: readonly number[];
+}
+
+/**
+ * Invisible formatting characters, dropped wherever they appear. A zero-width
+ * space has no business inside a word being moderated — `Dreck<ZWSP>sau` is
+ * only ever an attempt to break the match up.
+ */
+const FORMAT = /\p{Cf}/u;
+
+/**
+ * Combining marks. These are *composed* rather than dropped: `a` followed by a
+ * combining diaeresis becomes `ä`, which the letter classes already know about.
+ * Dropping the mark instead would leave a plain `a`, and `Dräcksau` written in
+ * decomposed form would need `e` to match `a` — far too loose a rule to want.
+ */
+const MARK = /\p{M}/u;
+
+/** What counts as a separator when letters have been pulled apart. */
+const SEPARATOR = /[\s._*+~|\-]/u;
+
+/**
+ * The spaced-out shape: at least three single letters, each pair split by
+ * separators.
+ *
+ * The lookarounds are what make this safe. Without them the run may start or
+ * end inside an ordinary word, and `next to a cockroach` collapses into
+ * `next toacockroach` — a false `cock` that the allowlist can no longer
+ * clear, because `cockroach\p{L}*` no longer covers the surrounding word.
+ * Every letter in the run has to be a whole one-letter token.
+ */
+const SPACED_RUN = /(?<!\p{L})(?:\p{L}[\s._*+~|\-]+){2,}\p{L}(?!\p{L})/gu;
+
+/** Runs of this many identical characters collapse to one. */
+const REPEAT_LIMIT = 3;
+
+/** Cheap pre-check, so untouched text never pays for the map. */
+const NEEDS_WORK =
+  /[\p{Cf}\p{M}]|(.)\1{2,}|(?<!\p{L})(?:\p{L}[\s._*+~|\-]+){2,}\p{L}(?!\p{L})/u;
+
+/**
+ * Rewrites `text` for matching, or returns `null` when there is nothing to do —
+ * which is the common case, and lets the filter skip the whole mechanism.
+ */
+export function normalizeForMatching(text: string): Normalized | null {
+  if (!NEEDS_WORK.test(text)) return null;
+
+  // 1. Which indices disappear? Separators only count inside a spaced-out run.
+  const dropped = new Set<number>();
+  SPACED_RUN.lastIndex = 0;
+  let run: RegExpExecArray | null;
+  while ((run = SPACED_RUN.exec(text)) !== null) {
+    for (let i = run.index; i < run.index + run[0].length; i++) {
+      if (SEPARATOR.test(text.charAt(i))) dropped.add(i);
+    }
+  }
+
+  // 2. Keep what is left, remembering where each character came from.
+  const chars: string[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charAt(i);
+    if (dropped.has(i) || FORMAT.test(ch)) continue;
+    if (MARK.test(ch)) continue; // a mark with no base character before it
+
+    // Pull any trailing combining marks into one cluster and compose it.
+    let end = i + 1;
+    while (end < text.length && !dropped.has(end) && MARK.test(text.charAt(end))) end++;
+
+    if (end > i + 1) {
+      const composed = text.slice(i, end).normalize('NFC');
+      // A cluster with no precomposed form keeps just its base character.
+      chars.push([...composed].length === 1 ? composed : ch);
+      starts.push(i);
+      ends.push(end);
+      i = end - 1;
+      continue;
+    }
+
+    chars.push(ch);
+    starts.push(i);
+    ends.push(i + 1);
+  }
+
+  // 3. Collapse long runs. Doubles are left alone — `Klasse` and `Fässer` are
+  //    ordinary words, while three of the same character is not.
+  const outChars: string[] = [];
+  const outStarts: number[] = [];
+  const outEnds: number[] = [];
+  for (let i = 0; i < chars.length; ) {
+    const here = chars[i]!.toLowerCase();
+    let j = i + 1;
+    while (j < chars.length && chars[j]!.toLowerCase() === here) j++;
+    const length = j - i;
+
+    if (length >= REPEAT_LIMIT) {
+      // One character standing in for the whole run, covering all of it.
+      outChars.push(chars[i]!);
+      outStarts.push(starts[i]!);
+      outEnds.push(ends[j - 1]!);
+    } else {
+      for (let k = i; k < j; k++) {
+        outChars.push(chars[k]!);
+        outStarts.push(starts[k]!);
+        outEnds.push(ends[k]!);
+      }
+    }
+    i = j;
+  }
+
+  return { text: outChars.join(''), starts: outStarts, ends: outEnds };
+}

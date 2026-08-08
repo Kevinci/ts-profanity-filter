@@ -803,6 +803,121 @@ function toAggressivePattern(pattern) {
     return pattern.replace(EXPANDABLE, (letter) => CLASSES[letter] ?? letter);
 }
 
+// ---- dist/normalize.js ----
+// src/normalize.ts
+//
+// Leet spellings and lookalikes are handled on the pattern side, because those
+// substitutions are one character for one character. Separators and repetition
+// are not: `D r e c k s a u` and `Dreeecksau` change the *length* of the text,
+// so no character class can reach them.
+//
+// So the text is rewritten instead — and every rewritten character remembers
+// which slice of the original it came from. Matches are found in the rewritten
+// string and then sliced out of the original, which is what keeps the segments
+// lossless: concatenating them still reproduces the input exactly.
+/**
+ * Invisible formatting characters, dropped wherever they appear. A zero-width
+ * space has no business inside a word being moderated — `Dreck<ZWSP>sau` is
+ * only ever an attempt to break the match up.
+ */
+const FORMAT = /\p{Cf}/u;
+/**
+ * Combining marks. These are *composed* rather than dropped: `a` followed by a
+ * combining diaeresis becomes `ä`, which the letter classes already know about.
+ * Dropping the mark instead would leave a plain `a`, and `Dräcksau` written in
+ * decomposed form would need `e` to match `a` — far too loose a rule to want.
+ */
+const MARK = /\p{M}/u;
+/** What counts as a separator when letters have been pulled apart. */
+const SEPARATOR = /[\s._*+~|\-]/u;
+/**
+ * The spaced-out shape: at least three single letters, each pair split by
+ * separators.
+ *
+ * The lookarounds are what make this safe. Without them the run may start or
+ * end inside an ordinary word, and `next to a cockroach` collapses into
+ * `next toacockroach` — a false `cock` that the allowlist can no longer
+ * clear, because `cockroach\p{L}*` no longer covers the surrounding word.
+ * Every letter in the run has to be a whole one-letter token.
+ */
+const SPACED_RUN = /(?<!\p{L})(?:\p{L}[\s._*+~|\-]+){2,}\p{L}(?!\p{L})/gu;
+/** Runs of this many identical characters collapse to one. */
+const REPEAT_LIMIT = 3;
+/** Cheap pre-check, so untouched text never pays for the map. */
+const NEEDS_WORK = /[\p{Cf}\p{M}]|(.)\1{2,}|(?<!\p{L})(?:\p{L}[\s._*+~|\-]+){2,}\p{L}(?!\p{L})/u;
+/**
+ * Rewrites `text` for matching, or returns `null` when there is nothing to do —
+ * which is the common case, and lets the filter skip the whole mechanism.
+ */
+function normalizeForMatching(text) {
+    if (!NEEDS_WORK.test(text))
+        return null;
+    // 1. Which indices disappear? Separators only count inside a spaced-out run.
+    const dropped = new Set();
+    SPACED_RUN.lastIndex = 0;
+    let run;
+    while ((run = SPACED_RUN.exec(text)) !== null) {
+        for (let i = run.index; i < run.index + run[0].length; i++) {
+            if (SEPARATOR.test(text.charAt(i)))
+                dropped.add(i);
+        }
+    }
+    // 2. Keep what is left, remembering where each character came from.
+    const chars = [];
+    const starts = [];
+    const ends = [];
+    for (let i = 0; i < text.length; i++) {
+        const ch = text.charAt(i);
+        if (dropped.has(i) || FORMAT.test(ch))
+            continue;
+        if (MARK.test(ch))
+            continue; // a mark with no base character before it
+        // Pull any trailing combining marks into one cluster and compose it.
+        let end = i + 1;
+        while (end < text.length && !dropped.has(end) && MARK.test(text.charAt(end)))
+            end++;
+        if (end > i + 1) {
+            const composed = text.slice(i, end).normalize('NFC');
+            // A cluster with no precomposed form keeps just its base character.
+            chars.push([...composed].length === 1 ? composed : ch);
+            starts.push(i);
+            ends.push(end);
+            i = end - 1;
+            continue;
+        }
+        chars.push(ch);
+        starts.push(i);
+        ends.push(i + 1);
+    }
+    // 3. Collapse long runs. Doubles are left alone — `Klasse` and `Fässer` are
+    //    ordinary words, while three of the same character is not.
+    const outChars = [];
+    const outStarts = [];
+    const outEnds = [];
+    for (let i = 0; i < chars.length;) {
+        const here = chars[i].toLowerCase();
+        let j = i + 1;
+        while (j < chars.length && chars[j].toLowerCase() === here)
+            j++;
+        const length = j - i;
+        if (length >= REPEAT_LIMIT) {
+            // One character standing in for the whole run, covering all of it.
+            outChars.push(chars[i]);
+            outStarts.push(starts[i]);
+            outEnds.push(ends[j - 1]);
+        }
+        else {
+            for (let k = i; k < j; k++) {
+                outChars.push(chars[k]);
+                outStarts.push(starts[k]);
+                outEnds.push(ends[k]);
+            }
+        }
+        i = j;
+    }
+    return { text: outChars.join(''), starts: outStarts, ends: outEnds };
+}
+
 // ---- dist/lang/en.js ----
 // src/lang/en.ts — import from 'ts-profanity-filter/lang/en'
 //
@@ -1300,6 +1415,7 @@ seed();
 // src/filter.ts
 
 
+
 /** Characters that count as part of a word when looking up the allowlist. */
 const WORD_CHAR = /[\p{L}\p{M}\p{N}_]/u;
 /** Compiled regexes are reused across calls — building them is the slow part. */
@@ -1405,33 +1521,41 @@ function filterFWordsToSegments(text, options = {}) {
     }
     const profanityRegex = profanityRegexFor(profanity, aggressive);
     const allowRegex = allowRegexFor(allow, aggressive);
+    // Separators and repetition are stripped out for matching only. Every match
+    // is then mapped back onto the original text, so the segments still add up
+    // to the input exactly. `null` means there was nothing to strip.
+    const normalized = aggressive ? normalizeForMatching(text) : null;
+    const haystack = normalized ? normalized.text : text;
+    /** Original [start, end) of a match found at [from, to) in the haystack. */
+    const toOriginal = (from, to) => normalized ? [normalized.starts[from], normalized.ends[to - 1]] : [from, to];
     profanityRegex.lastIndex = 0;
     const segments = [];
     let lastIndex = 0;
     let match;
-    while ((match = profanityRegex.exec(text)) !== null) {
+    while ((match = profanityRegex.exec(haystack)) !== null) {
         // A pattern that can match the empty string would loop forever otherwise.
         if (match[0] === '') {
             profanityRegex.lastIndex++;
             continue;
         }
-        // The cross-check: is this hit part of a perfectly ordinary word?
+        const hitEnd = match.index + match[0].length;
+        // The cross-check: is this hit part of a perfectly ordinary word? Run it on
+        // the haystack, so a word that was spaced out is judged as the word it is.
         // Leaving lastIndex untouched lets the surrounding clean run absorb it.
-        if (allowRegex) {
-            const word = enclosingWord(text, match.index, match.index + match[0].length);
-            if (allowRegex.test(word))
-                continue;
+        if (allowRegex && allowRegex.test(enclosingWord(haystack, match.index, hitEnd))) {
+            continue;
         }
+        const [start, end] = toOriginal(match.index, hitEnd);
+        /* c8 ignore next */
+        if (start < lastIndex)
+            continue; // defensive: spans must not overlap
         // 1. The clean text *before* the match.
-        if (match.index > lastIndex) {
-            segments.push({
-                text: text.substring(lastIndex, match.index),
-                isProfane: false,
-            });
+        if (start > lastIndex) {
+            segments.push({ text: text.substring(lastIndex, start), isProfane: false });
         }
-        // 2. The profane match itself.
-        segments.push({ text: match[0], isProfane: true });
-        lastIndex = profanityRegex.lastIndex;
+        // 2. The profane match itself, sliced from the original text.
+        segments.push({ text: text.substring(start, end), isProfane: true });
+        lastIndex = end;
     }
     // 3. Whatever clean text is left after the last match.
     if (lastIndex < text.length) {

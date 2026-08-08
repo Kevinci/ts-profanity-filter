@@ -1,5 +1,6 @@
 // src/filter.ts
 import { toAggressivePattern } from './aggressive.js';
+import { normalizeForMatching } from './normalize.js';
 import { getLanguage, listLanguages, type Language } from './registry.js';
 
 /** A single segment of the analysed text. */
@@ -169,38 +170,51 @@ export function filterFWordsToSegments(
   const profanityRegex = profanityRegexFor(profanity, aggressive);
   const allowRegex = allowRegexFor(allow, aggressive);
 
+  // Separators and repetition are stripped out for matching only. Every match
+  // is then mapped back onto the original text, so the segments still add up
+  // to the input exactly. `null` means there was nothing to strip.
+  const normalized = aggressive ? normalizeForMatching(text) : null;
+  const haystack = normalized ? normalized.text : text;
+
+  /** Original [start, end) of a match found at [from, to) in the haystack. */
+  const toOriginal = (from: number, to: number): [number, number] =>
+    normalized ? [normalized.starts[from]!, normalized.ends[to - 1]!] : [from, to];
+
   profanityRegex.lastIndex = 0;
 
   const segments: TextSegment[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = profanityRegex.exec(text)) !== null) {
+  while ((match = profanityRegex.exec(haystack)) !== null) {
     // A pattern that can match the empty string would loop forever otherwise.
     if (match[0] === '') {
       profanityRegex.lastIndex++;
       continue;
     }
 
-    // The cross-check: is this hit part of a perfectly ordinary word?
+    const hitEnd = match.index + match[0].length;
+
+    // The cross-check: is this hit part of a perfectly ordinary word? Run it on
+    // the haystack, so a word that was spaced out is judged as the word it is.
     // Leaving lastIndex untouched lets the surrounding clean run absorb it.
-    if (allowRegex) {
-      const word = enclosingWord(text, match.index, match.index + match[0].length);
-      if (allowRegex.test(word)) continue;
+    if (allowRegex && allowRegex.test(enclosingWord(haystack, match.index, hitEnd))) {
+      continue;
     }
+
+    const [start, end] = toOriginal(match.index, hitEnd);
+    /* c8 ignore next */
+    if (start < lastIndex) continue; // defensive: spans must not overlap
 
     // 1. The clean text *before* the match.
-    if (match.index > lastIndex) {
-      segments.push({
-        text: text.substring(lastIndex, match.index),
-        isProfane: false,
-      });
+    if (start > lastIndex) {
+      segments.push({ text: text.substring(lastIndex, start), isProfane: false });
     }
 
-    // 2. The profane match itself.
-    segments.push({ text: match[0], isProfane: true });
+    // 2. The profane match itself, sliced from the original text.
+    segments.push({ text: text.substring(start, end), isProfane: true });
 
-    lastIndex = profanityRegex.lastIndex;
+    lastIndex = end;
   }
 
   // 3. Whatever clean text is left after the last match.

@@ -17,6 +17,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // Dependency order — these get concatenated into one classic <script> scope.
 const MODULES = [
   'dist/aggressive.js',
+  'dist/normalize.js',
   'dist/lang/en.js',
   'dist/lang/de.js',
   'dist/registry.js',
@@ -34,8 +35,26 @@ function deModule(source) {
 }
 
 const parts = [];
+const included = new Set(MODULES);
+
 for (const file of MODULES) {
   const source = await readFile(resolve(root, file), 'utf8');
+
+  // Every module this one imports has to be in the bundle too, and before it.
+  // Forgetting one produces a page that loads fine and then throws on the first
+  // keystroke, because the missing function is simply undefined.
+  for (const [, specifier] of source.matchAll(/^import\s[^;]*?from\s+'([^']+)'/gm)) {
+    const dependency = resolve(dirname(resolve(root, file)), specifier).slice(
+      resolve(root).length + 1,
+    );
+    if (!included.has(dependency)) {
+      throw new Error(`${file} imports ${dependency}, which is missing from MODULES`);
+    }
+    if (MODULES.indexOf(dependency) > MODULES.indexOf(file)) {
+      throw new Error(`${dependency} must come before ${file} in MODULES`);
+    }
+  }
+
   const code = deModule(source);
   if (/^\s*(import|export)\s/m.test(code)) {
     throw new Error(`${file} still contains module syntax after stripping`);

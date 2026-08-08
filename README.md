@@ -128,9 +128,24 @@ without it `ass` matches the `4ss` in `Kl4ssik` while the allow entry still
 only spells `klass`, and an ordinary word comes back flagged. `Kl4ssik`,
 `M4ssage`, `Cl4ss` and `Fässer` all stay clean.
 
-Not covered: separators and repetition (`D r e c k s a u`, `Dreeecksau`).
-Those change the length of the text, so catching them needs an offset map to
-keep segments lossless — a different piece of machinery.
+Separators, repetition and invisible characters are handled differently,
+because they change the *length* of the text and no character class can reach
+them. The text is rewritten for matching, and every rewritten character
+remembers which slice of the original it came from — so matches are found in
+the rewritten copy and sliced out of the original, and the segments still add
+up to the input exactly.
+
+| Kind | Example | Rule |
+| --- | --- | --- |
+| spaced out | `D r e c k s a u`, `D-r-e-c-k-s-a-u` | three or more whole one-letter words in a row |
+| repetition | `Dreeecksau`, `fuuuuck` | runs of three or more identical characters collapse |
+| invisible | `Dreck<ZWSP>sau` | formatting characters are dropped |
+| decomposed | `a` + combining diaeresis | composed into `ä` first |
+
+Doubles are left alone — `Klasse` and `Fässer` are ordinary spelling, and
+collapsing them would break the allowlist. The spaced-out rule needs *whole*
+one-letter words, which is what keeps `next to a cockroach` from collapsing
+into `next toacockroach` and inventing a `cock`.
 
 ## Languages
 
