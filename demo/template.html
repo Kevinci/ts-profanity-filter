@@ -472,6 +472,14 @@
     margin: 0;
     max-width: 72ch;
   }
+  .note a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .note a:hover { color: var(--ink); }
+  .note a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
   .note.flagged {
     background: var(--accent-soft);
     border-left: 2px solid var(--accent);
@@ -758,6 +766,14 @@
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
           <span>GitHub</span>
         </a>
+        <a class="btn" id="link-cdn" href="#" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 3h2v7h4l-5 6-5-6h4z"/><path d="M4 19h16v2H4z"/></svg>
+          <span>jsDelivr</span>
+        </a>
+        <a class="btn" id="link-fiddle" href="#" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4z"/><path d="M14.6 16.6 19.2 12l-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+          <span>JSFiddle</span>
+        </a>
       </div>
       <p class="legal" id="legal"></p>
     </div>
@@ -779,6 +795,8 @@
 const PROFILES = {
   npm: 'https://www.npmjs.com/~kevinciii',
   git: 'https://github.com/Kevinci',
+  cdn: 'https://www.jsdelivr.com/package/npm/ts-profanity-filter',
+  fiddle: 'https://jsfiddle.net/7x6mtawo/',
 };
 
 /* ============================== strings ================================= */
@@ -860,7 +878,11 @@ const I18N = {
       'The one line that matters is <code>node.textContent = seg.text</code> — the text being ' +
       'rendered is whatever a stranger typed, and putting it through <code>innerHTML</code> ' +
       'would hand them your page. Building the segments as nodes makes the safe route the ' +
-      'obvious one.',
+      'obvious one. The same example runs unchanged at ' +
+      '<a href="https://jsfiddle.net/7x6mtawo/" target="_blank" rel="noopener noreferrer">' +
+      'jsfiddle.net/7x6mtawo</a>, and every published file is browsable at ' +
+      '<a href="https://www.jsdelivr.com/package/npm/ts-profanity-filter" target="_blank" ' +
+      'rel="noopener noreferrer">jsdelivr.com</a>.',
     'fw.react.note':
       'Memoised by the <em>value</em> of the options, not their identity — an inline object ' +
       'literal will not re-run the filter on every render.',
@@ -880,6 +902,8 @@ const I18N = {
     'placeholder': 'Type something above.',
     'link.npm': 'npm profile',
     'link.git': 'GitHub profile',
+    'link.cdn': 'Package on jsDelivr',
+    'link.fiddle': 'Live example on JSFiddle',
     'legal.tpl': '© {year} {author} · {license} License · v{version}',
     caveats: [
       'Matching is substring-based, not word-based — that is exactly what catches ' +
@@ -974,7 +998,11 @@ const I18N = {
       'Die entscheidende Zeile ist <code>node.textContent = seg.text</code>: ' +
       'gerendert wird, was ein Fremder getippt hat, und über <code>innerHTML</code> würdest du ' +
       'ihm damit deine Seite überlassen. Die Segmente als Knoten zu bauen macht den sicheren Weg ' +
-      'zum naheliegenden.',
+      'zum naheliegenden. Dasselbe Beispiel läuft unverändert unter ' +
+      '<a href="https://jsfiddle.net/7x6mtawo/" target="_blank" rel="noopener noreferrer">' +
+      'jsfiddle.net/7x6mtawo</a>, und alle veröffentlichten Dateien lassen sich auf ' +
+      '<a href="https://www.jsdelivr.com/package/npm/ts-profanity-filter" target="_blank" ' +
+      'rel="noopener noreferrer">jsdelivr.com</a> durchsehen.',
     'fw.react.note':
       'Memoisiert über den <em>Wert</em> der Optionen, nicht über deren Identität — ein Inline-' +
       'Objektliteral löst also nicht bei jedem Render eine Neuberechnung aus.',
@@ -994,6 +1022,8 @@ const I18N = {
     'placeholder': 'Oben etwas eintippen.',
     'link.npm': 'npm-Profil',
     'link.git': 'GitHub-Profil',
+    'link.cdn': 'Paket auf jsDelivr',
+    'link.fiddle': 'Live-Beispiel auf JSFiddle',
     'legal.tpl': '© {year} {author} · {license}-Lizenz · v{version}',
     caveats: [
       'Gematcht wird auf Substring-Ebene, nicht wortweise — genau das fängt <code>asshole</code> ' +
@@ -1226,6 +1256,8 @@ const els = {
   copy: $('copy'),
   linkNpm: $('link-npm'),
   linkGit: $('link-git'),
+  linkCdn: $('link-cdn'),
+  linkFiddle: $('link-fiddle'),
   legal: $('legal'),
 };
 
@@ -1623,12 +1655,17 @@ function submitRegistration() {
 /* --- colophon --------------------------------------------------------- */
 
 function drawColophon() {
-  els.linkNpm.href = PROFILES.npm;
-  els.linkGit.href = PROFILES.git;
-  els.linkNpm.title = t('link.npm');
-  els.linkGit.title = t('link.git');
-  els.linkNpm.setAttribute('aria-label', t('link.npm'));
-  els.linkGit.setAttribute('aria-label', t('link.git'));
+  const links = [
+    [els.linkNpm, PROFILES.npm, 'link.npm'],
+    [els.linkGit, PROFILES.git, 'link.git'],
+    [els.linkCdn, PROFILES.cdn, 'link.cdn'],
+    [els.linkFiddle, PROFILES.fiddle, 'link.fiddle'],
+  ];
+  for (const [el, href, key] of links) {
+    el.href = href;
+    el.title = t(key);
+    el.setAttribute('aria-label', t(key));
+  }
 
   els.legal.textContent = t('legal.tpl')
     .replace('{year}', String(new Date().getFullYear()))
