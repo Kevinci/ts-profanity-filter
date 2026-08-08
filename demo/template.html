@@ -193,6 +193,15 @@
 
   .opt-row { display: flex; align-items: flex-start; gap: 11px; }
 
+  /* The two booleans read as a pair, so they sit as one. */
+  .opt-pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px 28px;
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+  }
+
   .opt-text { display: flex; flex-direction: column; gap: 3px; }
   .opt-name { font-size: 13.5px; }
   .opt-note {
@@ -569,75 +578,6 @@
       <textarea id="input" spellcheck="false" data-i18n-aria="input"></textarea>
     </div>
   </section>
-
-  <section class="panel">
-    <div class="panel-head"><span class="label" data-i18n="options">Options</span></div>
-    <div class="panel-body">
-      <div class="opts">
-
-        <div class="opt-text">
-          <span class="opt-name">languages</span>
-          <span class="opt-note" data-i18n-html="opt.lang.note"></span>
-          <div class="lang-boxes" id="lang-boxes"></div>
-        </div>
-
-        <div class="opt-row">
-          <input type="checkbox" id="crosscheck" checked />
-          <span class="opt-text">
-            <label class="opt-name" for="crosscheck">crossCheck</label>
-            <span class="opt-note" data-i18n-html="opt.crosscheck.note"></span>
-          </span>
-        </div>
-
-        <div class="opt-row">
-          <input type="checkbox" id="aggressive" checked />
-          <span class="opt-text">
-            <label class="opt-name" for="aggressive">aggressive</label>
-            <span class="opt-note" data-i18n-html="opt.aggressive.note"></span>
-          </span>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <section class="panel">
-    <div class="panel-head">
-      <span class="label" data-i18n="reg">Add a language</span>
-      <button class="copy" type="button" id="reg-reset" data-i18n="reg.reset"></button>
-    </div>
-    <div class="panel-body">
-      <p class="note" data-i18n-html="reg.note"></p>
-
-      <div class="reg-grid">
-        <label class="field">
-          <span class="field-label" data-i18n="reg.code">code</span>
-          <input type="text" id="reg-code" spellcheck="false" />
-        </label>
-        <label class="field">
-          <span class="field-label" data-i18n="reg.extends">extends</span>
-          <select id="reg-extends"></select>
-        </label>
-      </div>
-
-      <div class="reg-grid">
-        <label class="field">
-          <span class="field-label" data-i18n="reg.profanity">profanity — one regex per line</span>
-          <textarea id="reg-profanity" spellcheck="false"></textarea>
-        </label>
-        <label class="field">
-          <span class="field-label" data-i18n="reg.allow">allow — one regex per line</span>
-          <textarea id="reg-allow" spellcheck="false"></textarea>
-        </label>
-      </div>
-
-      <div class="reg-actions">
-        <button class="chip solid" type="button" id="reg-submit" data-i18n="reg.submit"></button>
-        <span class="reg-msg" id="reg-msg"></span>
-      </div>
-    </div>
-  </section>
-
   <section class="panel">
     <div class="panel-head">
       <span class="label" data-i18n="output">Rendered from segments</span>
@@ -652,7 +592,38 @@
       <p class="stats" id="stats"></p>
     </div>
   </section>
+  <section class="panel">
+    <div class="panel-head"><span class="label" data-i18n="options">Options</span></div>
+    <div class="panel-body">
+      <div class="opts">
 
+        <div class="opt-text">
+          <span class="opt-name">languages</span>
+          <span class="opt-note" data-i18n-html="opt.lang.note"></span>
+          <div class="lang-boxes" id="lang-boxes"></div>
+        </div>
+
+        <div class="opt-pair">
+          <div class="opt-row">
+            <input type="checkbox" id="crosscheck" checked />
+            <span class="opt-text">
+              <label class="opt-name" for="crosscheck">crossCheck</label>
+              <span class="opt-note" data-i18n-html="opt.crosscheck.note"></span>
+            </span>
+          </div>
+
+          <div class="opt-row">
+            <input type="checkbox" id="aggressive" checked />
+            <span class="opt-text">
+              <label class="opt-name" for="aggressive">aggressive</label>
+              <span class="opt-note" data-i18n-html="opt.aggressive.note"></span>
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
   <section class="panel">
     <div class="panel-head">
       <span class="label" data-i18n="xc">Suppressed by the cross-check</span>
@@ -715,6 +686,42 @@
       <p class="note" data-i18n-html="fw.intro"></p>
       <div class="samples" id="fw-samples"></div>
       <p class="note flagged" id="fw-note"></p>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" data-i18n="reg">Add a language</span>
+      <button class="copy" type="button" id="reg-reset" data-i18n="reg.reset"></button>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="reg.note"></p>
+
+      <div class="reg-grid">
+        <label class="field">
+          <span class="field-label" data-i18n="reg.code">code</span>
+          <input type="text" id="reg-code" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="reg.extends">extends</span>
+          <select id="reg-extends"></select>
+        </label>
+      </div>
+
+      <div class="reg-grid">
+        <label class="field">
+          <span class="field-label" data-i18n="reg.profanity">profanity — one regex per line</span>
+          <textarea id="reg-profanity" spellcheck="false"></textarea>
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="reg.allow">allow — one regex per line</span>
+          <textarea id="reg-allow" spellcheck="false"></textarea>
+        </label>
+      </div>
+
+      <div class="reg-actions">
+        <button class="chip solid" type="button" id="reg-submit" data-i18n="reg.submit"></button>
+        <span class="reg-msg" id="reg-msg"></span>
+      </div>
     </div>
   </section>
 
