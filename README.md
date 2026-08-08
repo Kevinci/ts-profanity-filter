@@ -235,7 +235,7 @@ import are the whole setup — no build step, nothing to install.
 </style>
 
 <script type="module">
-  import { filterFWordsToSegments } from 'https://esm.sh/ts-profanity-filter';
+  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.0.0/+esm';
 
   const draft = document.getElementById('draft');
   const output = document.getElementById('output');
@@ -262,6 +262,27 @@ import are the whole setup — no build step, nothing to install.
 is whatever a stranger typed, and pushing it through `innerHTML` would hand
 them your page. Because the API returns segments rather than a marked-up
 string, building nodes is both the safe route and the obvious one.
+
+### CDNs
+
+Nothing to set up — every npm CDN serves the package automatically, subpath
+imports included.
+
+| CDN | URL |
+| --- | --- |
+| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.0.0/+esm` |
+| esm.sh | `https://esm.sh/ts-profanity-filter@1.0.0` |
+| unpkg | `https://unpkg.com/ts-profanity-filter@1.0.0/dist/index.js` |
+
+```js
+import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.0.0/react';
+import { de } from 'https://esm.sh/ts-profanity-filter@1.0.0/lang/de';
+```
+
+**Pin the version.** An unpinned URL like `https://esm.sh/ts-profanity-filter`
+always resolves to the newest release, so your page starts running different
+code the next time this package is published — without you changing anything.
+Fine for a playground, not for production.
 
 To use a local install instead of a CDN, point an import map at it:
 
