@@ -695,7 +695,8 @@
     <div class="panel-head">
       <span class="label" data-i18n="fw">Framework integration</span>
       <div class="switch" role="group" id="fw-modes" data-i18n-aria-label="fw">
-        <button type="button" data-fw="react" aria-pressed="true">React</button>
+        <button type="button" data-fw="vanilla" aria-pressed="true">Vanilla JS</button>
+        <button type="button" data-fw="react" aria-pressed="false">React</button>
         <button type="button" data-fw="vue" aria-pressed="false">Vue</button>
         <button type="button" data-fw="angular" aria-pressed="false">Angular</button>
       </div>
@@ -1662,6 +1663,12 @@ const I18N = {
     'fw.intro':
       'The core entry point has no dependencies. Each framework adapter is a separate subpath ' +
       'import, so nothing you do not use reaches your bundle.',
+    'fw.vanilla.note':
+      'No build step, no dependency to install: a module script and a CDN import are enough. ' +
+      'The one line that matters is <code>node.textContent = seg.text</code> — the text being ' +
+      'rendered is whatever a stranger typed, and putting it through <code>innerHTML</code> ' +
+      'would hand them your page. Building the segments as nodes makes the safe route the ' +
+      'obvious one.',
     'fw.react.note':
       'Memoised by the <em>value</em> of the options, not their identity — an inline object ' +
       'literal will not re-run the filter on every render.',
@@ -1767,6 +1774,12 @@ const I18N = {
     'fw.intro':
       'Der Kern-Einstiegspunkt hat keine Abhängigkeiten. Jeder Framework-Adapter ist ein eigener ' +
       'Subpath-Import — was du nicht nutzt, landet auch nicht im Bundle.',
+    'fw.vanilla.note':
+      'Kein Build-Schritt, keine Abhängigkeit zu installieren — ein Modul-Script und ein ' +
+      'CDN-Import genügen. Die entscheidende Zeile ist <code>node.textContent = seg.text</code>: ' +
+      'gerendert wird, was ein Fremder getippt hat, und über <code>innerHTML</code> würdest du ' +
+      'ihm damit deine Seite überlassen. Die Segmente als Knoten zu bauen macht den sicheren Weg ' +
+      'zum naheliegenden.',
     'fw.react.note':
       'Memoisiert über den <em>Wert</em> der Optionen, nicht über deren Identität — ein Inline-' +
       'Objektliteral löst also nicht bei jedem Render eine Neuberechnung aus.',
@@ -1846,6 +1859,68 @@ const PRESETS = [
 ];
 
 const SAMPLES = {
+  vanilla: [
+    {
+      file: 'index.html — the whole thing, no build step',
+      code: `<textarea id="draft"></textarea>
+<p id="output"></p>
+
+<style>
+  .redacted { background: currentColor; border-radius: 1px; }
+</style>
+
+<script type="module">
+  import { filterFWordsToSegments } from 'https://esm.sh/ts-profanity-filter';
+
+  const draft = document.getElementById('draft');
+  const output = document.getElementById('output');
+
+  function render() {
+    const segments = filterFWordsToSegments(draft.value, { languages: ['en', 'de'] });
+
+    output.replaceChildren(
+      ...segments.map((seg) => {
+        const node = document.createElement('span');
+        if (seg.isProfane) node.className = 'redacted';
+        node.textContent = seg.text;   // textContent, never innerHTML
+        return node;
+      }),
+    );
+  }
+
+  draft.addEventListener('input', render);
+  render();
+<\/script>`,
+    },
+    {
+      file: 'installed locally instead of from a CDN',
+      code: `<script type="importmap">
+  {
+    "imports": {
+      "ts-profanity-filter": "/node_modules/ts-profanity-filter/dist/index.js"
+    }
+  }
+<\/script>
+
+<script type="module">
+  import { filterFWordsToSegments } from 'ts-profanity-filter';
+<\/script>`,
+    },
+    {
+      file: 'just the boolean, or a masked string',
+      code: `import { filterFWordsToSegments } from 'ts-profanity-filter';
+
+const segments = filterFWordsToSegments(text, { languages: ['en', 'de'] });
+
+const isProfane = segments.some((seg) => seg.isProfane);
+
+const masked = segments
+  .map((seg) => (seg.isProfane ? '*'.repeat(seg.text.length) : seg.text))
+  .join('');
+`,
+    },
+  ],
+
   react: [
     {
       file: 'Comment.tsx',
@@ -1961,7 +2036,7 @@ const els = {
 
 let ui = 'en';
 let mode = 'redact';
-let framework = 'react';
+let framework = 'vanilla';
 
 const t = (key) => I18N[ui][key];
 

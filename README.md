@@ -221,6 +221,72 @@ registerLanguage('en-custom', { extends: 'en', profanity: ourExtraWords });
 Both are registered by the main entry point, so they are in your bundle whether
 or not you use them — `unregisterLanguage` changes behaviour, not bundle size.
 
+## No framework
+
+The package is plain ESM with no dependencies, so a module script and a CDN
+import are the whole setup — no build step, nothing to install.
+
+```html
+<textarea id="draft"></textarea>
+<p id="output"></p>
+
+<style>
+  .redacted { background: currentColor; border-radius: 1px; }
+</style>
+
+<script type="module">
+  import { filterFWordsToSegments } from 'https://esm.sh/ts-profanity-filter';
+
+  const draft = document.getElementById('draft');
+  const output = document.getElementById('output');
+
+  function render() {
+    const segments = filterFWordsToSegments(draft.value, { languages: ['en', 'de'] });
+
+    output.replaceChildren(
+      ...segments.map((seg) => {
+        const node = document.createElement('span');
+        if (seg.isProfane) node.className = 'redacted';
+        node.textContent = seg.text;   // textContent, never innerHTML
+        return node;
+      }),
+    );
+  }
+
+  draft.addEventListener('input', render);
+  render();
+</script>
+```
+
+`node.textContent = seg.text` is the line that matters. What you are rendering
+is whatever a stranger typed, and pushing it through `innerHTML` would hand
+them your page. Because the API returns segments rather than a marked-up
+string, building nodes is both the safe route and the obvious one.
+
+To use a local install instead of a CDN, point an import map at it:
+
+```html
+<script type="importmap">
+  {
+    "imports": {
+      "ts-profanity-filter": "/node_modules/ts-profanity-filter/dist/index.js"
+    }
+  }
+</script>
+```
+
+If all you need is the verdict or a masked string:
+
+```js
+const segments = filterFWordsToSegments(text, { languages: ['en', 'de'] });
+
+const isProfane = segments.some((seg) => seg.isProfane);
+
+const masked = segments
+  .map((seg) => (seg.isProfane ? '*'.repeat(seg.text.length) : seg.text))
+  .join('');
+```
+
 ## Framework adapters
 
 Each adapter is a separate subpath import, so nothing you do not use reaches
