@@ -119,6 +119,65 @@ function parseVerdict(json: string, allowed: readonly AiCategory[]): AiVerdict {
 }
 
 /**
+ * Lower-level API for running a generic AI completion with provider dispatch.
+ * Used by compliance module and other library consumers.
+ *
+ * Returns the raw JSON (no parsing), or null on error. Refusals and errors
+ * are logged to console but don't throw (unless onError: 'throw').
+ */
+export async function runAiCompletion(
+  request: { text: string; system: string; schema: Record<string, unknown> },
+  options: AiOptions & { provider?: AiProvider; model?: string } = {},
+): Promise<{ json: string; model?: string } | null> {
+  const provider = PROVIDERS[options.provider ?? DEFAULTS.provider];
+  const apiKey = options.apiKey ?? process.env[provider.envVar];
+  const complete = options.complete ?? provider.complete;
+
+  try {
+    if (!options.complete && provider.needsKey && !apiKey) {
+      throw new Error(
+        `No API key. Pass ai.apiKey, set ${provider.envVar}, supply ai.complete ` +
+          "to use your own model, or switch to provider: 'ollama' to run one locally.",
+      );
+    }
+
+    const response = await complete({
+      system: request.system,
+      text: request.text,
+      schema: request.schema,
+      model: options.model ?? provider.model,
+      effort: options.effort ?? DEFAULTS.effort,
+      maxTokens: options.maxTokens ?? DEFAULTS.maxTokens,
+      timeoutMs: options.timeoutMs ?? provider.timeoutMs,
+      apiKey,
+      ...(options.baseUrl !== undefined ? { baseUrl: options.baseUrl } : {}),
+      fallback: options.fallback ?? true,
+    });
+
+    if (response.refused) {
+      if (options.onError === 'throw') {
+        throw new Error(response.refusalReason ?? 'Provider declined the request.');
+      }
+      console.error(
+        '[runAiCompletion] refused',
+        response.refusalReason ?? 'no reason given',
+      );
+      return null;
+    }
+
+    if (response.json === undefined) {
+      throw new Error('The provider returned neither a result nor a refusal.');
+    }
+
+    return { json: response.json, model: response.model };
+  } catch (error) {
+    if (options.onError === 'throw') throw error;
+    console.error('[runAiCompletion]', redact(error, apiKey));
+    return null;
+  }
+}
+
+/**
  * Asks a model whether the text is racist, hateful, threatening, harassing,
  * obscene, sexually predatory, or pushing someone toward self-harm.
  *

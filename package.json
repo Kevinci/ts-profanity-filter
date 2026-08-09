@@ -35,6 +35,10 @@
       "types": "./dist/ai/index.d.ts",
       "default": "./dist/ai/index.js"
     },
+    "./compliance": {
+      "types": "./dist/compliance/index.d.ts",
+      "default": "./dist/compliance/index.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
