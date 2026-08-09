@@ -90,7 +90,8 @@
     "llm",
     "claude",
     "content-moderation",
-    "hate-speech"
+    "hate-speech",
+    "gemini"
   ],
   "author": "Kevin Imig <kevinci.coding@gmail.com>",
   "license": "MIT",
