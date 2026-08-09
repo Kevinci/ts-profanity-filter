@@ -7,6 +7,8 @@ import {
   buildSchema,
   buildSystemPrompt,
   moderateText,
+  AI_MODELS,
+  toGeminiSchema,
 } from '../dist/ai/index.js';
 import type { AiCompletion, AiRequest } from '../dist/ai/index.js';
 
@@ -316,4 +318,55 @@ test('the schema is strict enough for structured outputs', () => {
     'confidence',
     'reason',
   ]);
+});
+
+/* ------------------------------- gemini -------------------------------- */
+
+test('gemini is selectable and brings its own defaults', async () => {
+  const capture: { request?: AiRequest } = {};
+  await analyzeWithAi('…', {
+    provider: 'gemini',
+    apiKey: 'AIza-test',
+    complete: stubModel(CLEAN, capture),
+  });
+  assert.equal(capture.request!.model, 'gemini-2.5-flash');
+});
+
+test('each provider reads its own environment variable', async () => {
+  const saved = { a: process.env['ANTHROPIC_API_KEY'], g: process.env['GEMINI_API_KEY'] };
+  delete process.env['ANTHROPIC_API_KEY'];
+  delete process.env['GEMINI_API_KEY'];
+  try {
+    const anthropic = await analyzeWithAi('…', { enabled: true });
+    assert.match(anthropic.error!, /ANTHROPIC_API_KEY/);
+
+    const gemini = await analyzeWithAi('…', { provider: 'gemini', enabled: true });
+    assert.match(gemini.error!, /GEMINI_API_KEY/);
+  } finally {
+    if (saved.a !== undefined) process.env['ANTHROPIC_API_KEY'] = saved.a;
+    if (saved.g !== undefined) process.env['GEMINI_API_KEY'] = saved.g;
+  }
+});
+
+test('the gemini schema drops what its API rejects', () => {
+  const converted = toGeminiSchema(buildSchema()) as Record<string, unknown>;
+  assert.equal('additionalProperties' in converted, false, 'Gemini rejects this outright');
+  assert.deepEqual(converted['required'], [
+    'flagged',
+    'severity',
+    'categories',
+    'confidence',
+    'reason',
+  ]);
+  const properties = converted['properties'] as Record<string, Record<string, unknown>>;
+  assert.deepEqual(properties['categories']!['items'], {
+    type: 'string',
+    enum: [...AI_CATEGORIES],
+  });
+});
+
+test('AI_MODELS lists something for every provider', () => {
+  for (const provider of ['anthropic', 'gemini'] as const) {
+    assert.equal(AI_MODELS[provider].length > 0, true, provider);
+  }
 });

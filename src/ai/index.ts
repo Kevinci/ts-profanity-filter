@@ -7,10 +7,12 @@
 
 import { filterFWordsToSegments } from '../filter.js';
 import { anthropicCompletion } from './anthropic.js';
+import { geminiCompletion } from './gemini.js';
 import { buildSchema, buildSystemPrompt } from './prompt.js';
 import {
   AI_CATEGORIES,
   type AiCategory,
+  type AiProvider,
   type AiOptions,
   type AiSeverity,
   type AiVerdict,
@@ -18,8 +20,22 @@ import {
   type ModerationResult,
 } from './types.js';
 
+/** Per-provider defaults. Both are the cheap, fast tier — this is a classifier. */
+const PROVIDERS = {
+  anthropic: {
+    complete: anthropicCompletion,
+    model: 'claude-opus-5',
+    envVar: 'ANTHROPIC_API_KEY',
+  },
+  gemini: {
+    complete: geminiCompletion,
+    model: 'gemini-2.5-flash',
+    envVar: 'GEMINI_API_KEY',
+  },
+} as const satisfies Record<AiProvider, { complete: unknown; model: string; envVar: string }>;
+
 const DEFAULTS = {
-  model: 'claude-opus-5',
+  provider: 'anthropic',
   effort: 'low',
   maxTokens: 4096,
   timeoutMs: 20_000,
@@ -94,13 +110,14 @@ export async function analyzeWithAi(
   if (!text || text.trim() === '') return verdict({ status: 'skipped' });
 
   const categories = options.categories?.length ? options.categories : AI_CATEGORIES;
-  const apiKey = options.apiKey ?? process.env['ANTHROPIC_API_KEY'];
-  const complete = options.complete ?? anthropicCompletion;
+  const provider = PROVIDERS[options.provider ?? DEFAULTS.provider];
+  const apiKey = options.apiKey ?? process.env[provider.envVar];
+  const complete = options.complete ?? provider.complete;
 
   try {
     if (!options.complete && !apiKey) {
       throw new Error(
-        'No API key. Pass ai.apiKey, set ANTHROPIC_API_KEY, or supply ai.complete ' +
+        `No API key. Pass ai.apiKey, set ${provider.envVar}, or supply ai.complete ` +
           'to use your own model.',
       );
     }
@@ -119,7 +136,7 @@ export async function analyzeWithAi(
         }),
       text,
       schema: buildSchema(categories),
-      model: options.model ?? DEFAULTS.model,
+      model: options.model ?? provider.model,
       effort: options.effort ?? DEFAULTS.effort,
       maxTokens: options.maxTokens ?? DEFAULTS.maxTokens,
       timeoutMs: options.timeoutMs ?? DEFAULTS.timeoutMs,
@@ -189,12 +206,14 @@ export async function moderateText(
 }
 
 export { anthropicCompletion } from './anthropic.js';
+export { geminiCompletion, toGeminiSchema } from './gemini.js';
 export { buildSchema, buildSystemPrompt } from './prompt.js';
-export { AI_CATEGORIES } from './types.js';
+export { AI_CATEGORIES, AI_MODELS } from './types.js';
 export type {
   AiCategory,
   AiCompletion,
   AiOptions,
+  AiProvider,
   AiRequest,
   AiResponse,
   AiSeverity,

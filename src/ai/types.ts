@@ -108,7 +108,31 @@ export interface AiResponse {
  */
 export type AiCompletion = (request: AiRequest) => Promise<AiResponse>;
 
+/** Which built-in provider to call. Ignored when you supply your own `complete`. */
+export type AiProvider = 'anthropic' | 'gemini';
+
+/**
+ * A few known model ids per provider, for populating a picker. Not a closed
+ * set — `ai.model` takes any string the provider accepts, and providers add
+ * models faster than a package can track them.
+ */
+export const AI_MODELS: Readonly<Record<AiProvider, readonly string[]>> = {
+  anthropic: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
+  gemini: [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-pro',
+  ],
+};
+
 export interface AiOptions {
+  /**
+   * Defaults to `anthropic`. `gemini` needs no SDK at all — it is a plain
+   * `fetch` — and Google's free tier covers this use case, which makes it the
+   * cheapest way to try the feature.
+   */
+  provider?: AiProvider;
   /**
    * The on/off switch. Defaults to `true` whenever this object is present, so
    * passing no `ai` at all means no model is ever called. Set `false` to keep
@@ -116,13 +140,18 @@ export interface AiOptions {
    */
   enabled?: boolean;
   /**
-   * Anthropic API key. Falls back to `ANTHROPIC_API_KEY` in the environment.
+   * The API key. Falls back to `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` in the
+   * environment, whichever matches the provider.
    *
    * **Keep this server-side.** A key shipped to a browser is readable by
    * everyone who loads the page and can be spent by them.
    */
   apiKey?: string;
-  /** Defaults to `claude-opus-5`. */
+  /**
+   * Any model id the provider accepts. Defaults to `claude-opus-5` or
+   * `gemini-2.5-flash`, whichever matches the provider. See {@link AI_MODELS}
+   * for a starting point.
+   */
   model?: string;
   /** Reasoning depth. Defaults to `low` — this is a classification, not an essay. */
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';

@@ -338,6 +338,29 @@ result.flagged        // either of the two
 and `moderateText` is then just the local filter in a wrapper. `enabled: false`
 keeps the configuration around with the check switched off.
 
+### Two providers
+
+```ts
+ai: { provider: 'gemini', enabled: true }   // key from GEMINI_API_KEY
+ai: { enabled: true }                        // anthropic, key from ANTHROPIC_API_KEY
+```
+
+| | Needs | Default model | Key from |
+| --- | --- | --- | --- |
+| `gemini` | nothing — plain `fetch` | `gemini-2.5-flash` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — free tier |
+| `anthropic` | `@anthropic-ai/sdk` | `claude-opus-5` | [console.anthropic.com](https://console.anthropic.com/settings/keys) — paid |
+
+Gemini is the cheapest way to try this: its free tier covers the use case and it
+adds no dependency at all. `ai.model` takes any id the provider accepts;
+`AI_MODELS` lists a few per provider for populating a picker.
+
+One thing worth knowing about the Gemini provider: it sends `BLOCK_NONE` for
+Google's own safety categories. For a moderation classifier that default is
+backwards — the text you need it to read is exactly the text it otherwise
+refuses to look at. It is safe here *because* the output is a verdict rather
+than generated content: the model labels text you already have, it never
+produces any.
+
 ### What the model reports
 
 | Category | Covers |
@@ -427,7 +450,7 @@ on your server and send the verdict to the client, never the key. The word-list
 half of this library runs happily in the browser; the model half does not belong
 there.
 
-Defaults worth knowing: model `claude-opus-5`, `effort: 'low'` (this is a
+Defaults worth knowing: `effort: 'low'` (this is a
 classification, not an essay), a 20-second timeout, and provider-side retry on
 another model if Anthropic's own safety layer declines the request — moderation
 text is exactly the kind of input that trips those classifiers, and a refusal is

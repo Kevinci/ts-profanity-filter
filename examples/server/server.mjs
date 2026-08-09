@@ -4,10 +4,11 @@
 // talks to the model. The API key stays in this process and is never sent to
 // the client — the client only ever receives a verdict.
 //
-//   browser  ──POST /api/moderate──▶  this server  ──▶  Anthropic
+//   browser  ──POST /api/moderate──▶  this server  ──▶  Gemini / Claude
 //            ◀──── verdict JSON ────                 (key lives here only)
 //
-// Run:  ANTHROPIC_API_KEY=sk-ant-... node server.mjs
+// Run:  PROVIDER=gemini GEMINI_API_KEY=AIza... node server.mjs
+//   or: ANTHROPIC_API_KEY=sk-ant-...            node server.mjs
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -19,8 +20,13 @@ import { moderateText } from 'ts-profanity-filter/ai';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('ANTHROPIC_API_KEY is not set. See .env.example.');
+// PROVIDER=gemini is the cheap way in: Google's free tier covers this, and the
+// provider is a plain fetch with no SDK to install.
+const PROVIDER = process.env.PROVIDER === 'gemini' ? 'gemini' : 'anthropic';
+const KEY_VAR = PROVIDER === 'gemini' ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY';
+
+if (!process.env[KEY_VAR]) {
+  console.error(`${KEY_VAR} is not set (PROVIDER=${PROVIDER}). See .env.example.`);
   process.exit(1);
 }
 
@@ -98,6 +104,7 @@ async function moderate(req, res) {
   const result = await moderateText(body.text, {
     languages: Array.isArray(body.languages) ? body.languages : ['en', 'de'],
     ai: {
+      provider: PROVIDER,
       enabled: body.ai !== false,
       // No apiKey here on purpose — it is read from the environment, so it
       // cannot be smuggled in from the request body.
@@ -151,6 +158,6 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Moderation endpoint on http://localhost:${PORT}`);
+  console.log(`Moderation endpoint on http://localhost:${PORT} (provider: ${PROVIDER})`);
   console.log(`  POST /api/moderate  { "text": "..." }`);
 });

@@ -24,6 +24,7 @@ const MODULES = [
   'dist/filter.js',
   'dist/ai/types.js',
   'dist/ai/prompt.js',
+  'dist/ai/gemini.js',
 ];
 
 /** Turns an ES module into plain script-scope code. */
