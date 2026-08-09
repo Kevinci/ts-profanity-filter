@@ -1,0 +1,16 @@
+{
+  "name": "ts-profanity-filter-server-example",
+  "private": true,
+  "type": "module",
+  "description": "A moderation endpoint that keeps the API key on the server.",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
+    "ts-profanity-filter": "file:../.."
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  }
+}

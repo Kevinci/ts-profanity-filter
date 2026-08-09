@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Moderation endpoint — example client</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto;
+    padding: 40px 24px;
+    max-width: 720px;
+    font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  h1 { font-size: 20px; letter-spacing: -0.02em; }
+  p { font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  textarea {
+    width: 100%;
+    min-height: 110px;
+    padding: 12px;
+    font: inherit;
+    border-radius: 3px;
+  }
+  button { font: inherit; padding: 7px 16px; border-radius: 3px; cursor: pointer; }
+  pre {
+    padding: 14px;
+    border-radius: 3px;
+    overflow-x: auto;
+    background: rgba(127, 127, 127, 0.14);
+  }
+  .redacted { background: currentColor; border-radius: 1px; }
+  .row { display: flex; gap: 10px; align-items: center; margin: 14px 0; }
+</style>
+</head>
+<body>
+
+<h1>Moderation endpoint</h1>
+<p>
+  This page holds no API key. It posts the text to <code>/api/moderate</code> on
+  the same origin; the server calls the model and returns only the verdict.
+</p>
+
+<textarea id="input">Das ist doch alles Quatsch, aber sonst alles gut.</textarea>
+
+<div class="row">
+  <button id="check" type="button">Check</button>
+  <span id="status"></span>
+</div>
+
+<p><strong>Rendered from the returned segments</strong></p>
+<p id="rendered"></p>
+
+<p><strong>Raw verdict</strong></p>
+<pre id="output">—</pre>
+
+<script type="module">
+  const input = document.getElementById('input');
+  const button = document.getElementById('check');
+  const status = document.getElementById('status');
+  const rendered = document.getElementById('rendered');
+  const output = document.getElementById('output');
+
+  async function check() {
+    button.disabled = true;
+    status.textContent = 'checking…';
+
+    try {
+      const response = await fetch('/api/moderate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: input.value, languages: ['en', 'de'] }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error ?? response.statusText);
+
+      // textContent, never innerHTML — this is somebody else's text.
+      rendered.replaceChildren(
+        ...result.segments.map((seg) => {
+          const node = document.createElement('span');
+          if (seg.isProfane) node.className = 'redacted';
+          node.textContent = seg.text;
+          return node;
+        }),
+      );
+
+      output.textContent = JSON.stringify(result.ai, null, 2);
+      status.textContent = result.flagged ? 'flagged' : 'clean';
+    } catch (error) {
+      status.textContent = 'failed';
+      output.textContent = String(error.message ?? error);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  button.addEventListener('click', check);
+  check();
+</script>
+
+</body>
+</html>

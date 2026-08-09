@@ -403,6 +403,22 @@ const myModel: AiCompletion = async ({ system, text, schema }) => ({
 });
 ```
 
+### A runnable server endpoint
+
+`examples/server` is the whole shape in one file: a browser page, an endpoint,
+and the key staying in the server process.
+
+```bash
+cd examples/server
+cp .env.example .env        # put your key in it — .env is gitignored
+npm install && npm start    # http://localhost:8787
+```
+
+It reads the key from the environment rather than the request body, returns a
+verdict rather than the machinery behind it, caps the body size, and rate-limits
+per IP — an endpoint that spends money per call needs all four. See its README
+for what it deliberately leaves out (auth, above all).
+
 ### Keep the key server-side
 
 An API key shipped to a browser is readable by everyone who loads the page and

@@ -22,6 +22,8 @@ const MODULES = [
   'dist/lang/de.js',
   'dist/registry.js',
   'dist/filter.js',
+  'dist/ai/types.js',
+  'dist/ai/prompt.js',
 ];
 
 /** Turns an ES module into plain script-scope code. */
