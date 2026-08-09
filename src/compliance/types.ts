@@ -1,5 +1,5 @@
 // src/compliance/types.ts — DSA Art. 17 compliance data structures
-import type { AiCompletion, AiProvider } from '../ai/types.js';
+import type { AiCompletion, AiProvider, AiSeverity } from '../ai/types.js';
 
 /** The action taken against content or an account. */
 export type ComplianceAction =
@@ -25,6 +25,11 @@ export interface FactsContext {
   quote: string;
   /** Detected categories (from AI or rule matches) */
   categories: string[];
+  /**
+   * How heavily the violation weighs. This is the grading the assessment
+   * explains — `none` when no model was asked and only a word list matched.
+   */
+  severity: AiSeverity;
   /** Confidence level in the decision, 0–1 */
   confidence: number;
   /** Whether the decision was influenced by automated systems */
@@ -45,6 +50,16 @@ export interface ComplianceJustification {
   action: ComplianceAction;
   /** One-line reason in the user's language */
   reason: string;
+  /**
+   * How the violation is to be weighed, in prose: how serious it is and why it
+   * lands there, what the wording does, whom it targets, which rule it crosses,
+   * and where the call is uncertain.
+   *
+   * Art. 17 asks for the facts *and the grounds* — the excerpt alone says what
+   * was found, never why it was enough. This is the paragraph the reader will
+   * quote back at you in an appeal.
+   */
+  assessment: string;
   /** The legal/policy bases for the decision */
   policyBases: PolicyBasis[];
   /** Detailed explanation of the facts */

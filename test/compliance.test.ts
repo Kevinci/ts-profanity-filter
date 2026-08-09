@@ -5,6 +5,8 @@ import {
   generateJustification,
   exportJustification,
   formatJustificationAsText,
+  buildJustificationPrompt,
+  buildJustificationSchema,
   InMemoryJustificationStore,
   type ComplianceJustification,
 } from '../dist/compliance/index.js';
@@ -299,6 +301,135 @@ test('model-only fields appear once a model has answered', async () => {
 
   assert.equal(text.includes('Categories: hate'), true);
   assert.equal(text.includes('Confidence: 75%'), true);
+});
+
+/* ---------------------- how the violation is weighed ---------------------- */
+
+test('every justification carries an assessment, model or not', async () => {
+  const result = await moderateText('you are an ass', {
+    languages: ['en'],
+    ai: { enabled: false },
+  });
+
+  const justification = await generateJustification('you are an ass', result, {
+    language: 'en',
+  });
+
+  assert.equal(typeof justification.assessment, 'string');
+  assert.equal(justification.assessment.length > 40, true, 'a sentence, not a label');
+  assert.equal(
+    formatJustificationAsText(justification).includes('Assessment:'),
+    true,
+    'and it is printed in the notice',
+  );
+});
+
+test('the word-list assessment does not claim a judgement it never made', async () => {
+  const result = await moderateText('you are an ass', {
+    languages: ['en'],
+    ai: { enabled: false },
+  });
+  const { assessment } = await generateJustification('you are an ass', result, {
+    language: 'en',
+  });
+
+  // The list knows which words were used, never what the sentence did with
+  // them. A notice that claims otherwise is inventing its own grounds.
+  assert.match(assessment, /does not establish what the/);
+  assert.match(assessment, /appeal/, 'and it points at the way out');
+});
+
+test('the severity is carried into the record and the notice', async () => {
+  const result = await moderateText('some text', {
+    languages: ['en'],
+    ai: {
+      complete: stubModel({
+        ...CLEAN,
+        flagged: true,
+        severity: 'high',
+        categories: ['harassment'],
+        confidence: 0.9,
+        quote: 'some',
+      }),
+    },
+  });
+
+  const justification = await generateJustification('some text', result, { language: 'en' });
+
+  assert.equal(justification.facts.severity, 'high');
+  assert.match(justification.assessment, /weighs heavily/);
+  assert.equal(formatJustificationAsText(justification).includes('Severity: high'), true);
+});
+
+test('an uncertain classification says so instead of overstating', async () => {
+  const result = await moderateText('some text', {
+    languages: ['en'],
+    ai: {
+      complete: stubModel({
+        ...CLEAN,
+        flagged: true,
+        severity: 'medium',
+        categories: ['hate'],
+        confidence: 0.4,
+        quote: 'some',
+      }),
+    },
+  });
+
+  const { assessment } = await generateJustification('some text', result, { language: 'en' });
+  assert.match(assessment, /uncertain/);
+});
+
+test('a refused verdict is not graded as harmless', async () => {
+  const result = await moderateText('some text', {
+    languages: ['en'],
+    ai: { complete: async () => ({ refused: true, refusalReason: 'declined' }) },
+  });
+  assert.equal(result.ai.status, 'refused');
+
+  const justification = await generateJustification('some text', result, { language: 'en' });
+
+  assert.equal(justification.facts.severity, 'none');
+  // 'none' here means "never graded", not "found harmless" — so the notice must
+  // not print a severity line at all.
+  assert.equal(formatJustificationAsText(justification).includes('Severity:'), false);
+});
+
+test('the model writes the assessment when one is asked for', async () => {
+  const result = await moderateText('some text', {
+    languages: ['en'],
+    ai: { complete: stubModel({ ...CLEAN, flagged: true, severity: 'high', categories: ['hate'], confidence: 0.9 }) },
+  });
+
+  const justification = await generateJustification('some text', result, {
+    language: 'de',
+    ai: { complete: stubModel({ reason: 'Kurzer Grund.', assessment: 'Die ausführliche Bewertung.' }) },
+  });
+
+  assert.equal(justification.assessment, 'Die ausführliche Bewertung.');
+  assert.equal(justification.facts.severity, 'high', 'the grading is still the code’s');
+});
+
+test('the prompt asks for a graded assessment and forbids new facts', () => {
+  const prompt = buildJustificationPrompt({
+    action: 'ACCOUNT_SUSPENSION',
+    categories: ['harassment'],
+    language: 'de',
+    severity: 'high',
+  });
+
+  assert.match(prompt, /assessment/);
+  assert.match(prompt, /how serious/i);
+  assert.match(prompt, /Never add a category/);
+  assert.match(prompt, /"high"/, 'the grading is named in the prompt');
+  assert.match(prompt, /German/, 'and so is the language');
+
+  const schema = buildJustificationSchema() as {
+    required: string[];
+    additionalProperties: boolean;
+  };
+  assert.deepEqual(schema.required, ['reason', 'assessment']);
+  assert.equal(schema.additionalProperties, false);
 });
 
 /* ---------------------- storage ---------------------- */

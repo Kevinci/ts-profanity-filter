@@ -423,6 +423,18 @@
     max-width: 70ch;
   }
   .verdict-cats { display: flex; gap: 6px; flex-wrap: wrap; }
+  /* The grounds, under the verdict they justify. Set back a step so the one
+     sentence that says what happened still lands first. */
+  .verdict-assess {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--muted);
+    max-width: 70ch;
+    padding-left: 12px;
+    border-left: 2px solid var(--rule);
+  }
 
   .ai-try {
     display: flex;
@@ -1110,6 +1122,7 @@
             <span class="verdict-meta" id="compliance-meta"></span>
           </div>
           <p class="verdict-reason" id="compliance-reason"></p>
+          <p class="verdict-assess" id="compliance-assessment"></p>
           <div class="verdict-cats" id="compliance-cats"></div>
         </div>
 
@@ -1366,7 +1379,8 @@ const I18N = {
     'compliance.noKey': 'No key — the wording comes from the built-in templates.',
     'compliance.byModel': 'worded by the model',
     'compliance.byTemplate': 'worded by the template',
-    'compliance.meta': '{action} · automated: {automated} · {model}',
+    'compliance.meta': '{action} · {severity} · automated: {automated} · {model}',
+    'compliance.ungraded': 'not graded',
     'compliance.noModel': 'no model contacted',
     'compliance.yes': 'yes',
     'compliance.no': 'no',
@@ -1587,7 +1601,8 @@ const I18N = {
     'compliance.noKey': 'Ohne Key: Die Formulierung kommt aus den eingebauten Vorlagen.',
     'compliance.byModel': 'vom Modell formuliert',
     'compliance.byTemplate': 'aus der Vorlage formuliert',
-    'compliance.meta': '{action} · automatisiert: {automated} · {model}',
+    'compliance.meta': '{action} · {severity} · automatisiert: {automated} · {model}',
+    'compliance.ungraded': 'nicht bewertet',
     'compliance.noModel': 'kein Modell kontaktiert',
     'compliance.yes': 'ja',
     'compliance.no': 'nein',
@@ -1998,6 +2013,7 @@ const els = {
   complianceSource: $('compliance-source'),
   complianceMeta: $('compliance-meta'),
   complianceReason: $('compliance-reason'),
+  complianceAssessment: $('compliance-assessment'),
   complianceCats: $('compliance-cats'),
   complianceOut: $('compliance-out'),
   complianceText: $('compliance-text'),
@@ -3062,11 +3078,17 @@ function drawJustification(justification, model) {
 
   els.complianceMeta.textContent = fill(t('compliance.meta'), {
     action: justification.action,
+    // 'none' means the sentence was never graded, not that it was found
+    // harmless — two different things, and the notice must not blur them.
+    severity: justification.facts.severity === 'none'
+      ? t('compliance.ungraded')
+      : justification.facts.severity,
     automated: t(justification.facts.automatedDetection ? 'compliance.yes' : 'compliance.no'),
     model: model || t('compliance.noModel'),
   });
 
   els.complianceReason.textContent = justification.reason;
+  els.complianceAssessment.textContent = justification.assessment;
 
   els.complianceCats.textContent = '';
   for (const category of justification.facts.categories) {
