@@ -329,7 +329,7 @@ test('gemini is selectable and brings its own defaults', async () => {
     apiKey: 'AIza-test',
     complete: stubModel(CLEAN, capture),
   });
-  assert.equal(capture.request!.model, 'gemini-2.5-flash');
+  assert.equal(capture.request!.model, 'gemini-flash-lite-latest');
 });
 
 test('each provider reads its own environment variable', async () => {

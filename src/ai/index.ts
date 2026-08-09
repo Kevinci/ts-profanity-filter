@@ -29,7 +29,7 @@ const PROVIDERS = {
   },
   gemini: {
     complete: geminiCompletion,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-flash-lite-latest',
     envVar: 'GEMINI_API_KEY',
   },
 } as const satisfies Record<AiProvider, { complete: unknown; model: string; envVar: string }>;

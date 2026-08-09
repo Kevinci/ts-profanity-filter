@@ -118,11 +118,17 @@ export type AiProvider = 'anthropic' | 'gemini';
  */
 export const AI_MODELS: Readonly<Record<AiProvider, readonly string[]>> = {
   anthropic: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
+  // Verified against a fresh free-tier key: gemini-2.5-flash is listed by the
+  // models endpoint but rejected for new accounts ("no longer available to new
+  // users"), and gemini-2.0-flash is out of free quota. The -latest aliases
+  // never go stale, which is why one of them is the default.
   gemini: [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-pro',
+    'gemini-flash-lite-latest',
+    'gemini-flash-latest',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
   ],
 };
 
@@ -149,7 +155,7 @@ export interface AiOptions {
   apiKey?: string;
   /**
    * Any model id the provider accepts. Defaults to `claude-opus-5` or
-   * `gemini-2.5-flash`, whichever matches the provider. See {@link AI_MODELS}
+   * `gemini-flash-lite-latest`, whichever matches the provider. See {@link AI_MODELS}
    * for a starting point.
    */
   model?: string;

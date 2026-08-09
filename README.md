@@ -347,12 +347,18 @@ ai: { enabled: true }                        // anthropic, key from ANTHROPIC_AP
 
 | | Needs | Default model | Key from |
 | --- | --- | --- | --- |
-| `gemini` | nothing — plain `fetch` | `gemini-2.5-flash` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — free tier |
+| `gemini` | nothing — plain `fetch` | `gemini-flash-lite-latest` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — free tier |
 | `anthropic` | `@anthropic-ai/sdk` | `claude-opus-5` | [console.anthropic.com](https://console.anthropic.com/settings/keys) — paid |
 
 Gemini is the cheapest way to try this: its free tier covers the use case and it
 adds no dependency at all. `ai.model` takes any id the provider accepts;
 `AI_MODELS` lists a few per provider for populating a picker.
+
+The Gemini list is the one verified against a fresh free-tier key, which is not
+the same as the list the models endpoint returns: `gemini-2.5-flash` is
+advertised there but rejected for new accounts ("no longer available to new
+users"), and `gemini-2.0-flash` is out of free quota. The default is
+`gemini-flash-lite-latest` because an alias cannot go stale that way.
 
 One thing worth knowing about the Gemini provider: it sends `BLOCK_NONE` for
 Google's own safety categories. For a moderation classifier that default is

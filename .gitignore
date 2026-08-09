@@ -3,6 +3,11 @@ dist/
 *.tgz
 .DS_Store
 
+# Local secrets — never committed
+.env
+.env.local
+.env.*.local
+
 # IDE
 .idea/
 *.iml
