@@ -4,11 +4,11 @@ A benchmark that tries to defeat profanity filters, and reports **two numbers,
 never one**.
 
 ```bash
-npx profanity-adversarial --preset obscenity
+npx profanity-adversarial ./my-adapter.mjs
 ```
 
 ```
-  obscenity@0.4.6   en, de · 81 attacks
+  my-filter   en, de · 81 attacks
 
   evasion resistance  ████████████████░░░░░░░░  65%   11/17 disguises caught
   precision           █████████████████████░░░  89%   16/18 innocent texts left alone
@@ -40,24 +40,18 @@ This benchmark is written by the author of `ts-profanity-filter`, which is one
 of the filters it measures. That is a conflict of interest and you should treat
 it as one.
 
-Three things are in place because of it. The corpus contains attacks that
+Four things are in place because of it. The corpus contains attacks that
 `ts-profanity-filter` **fails** — they are in there because they are real, and
 removing them would be the exact fraud this notice exists to prevent. The
 false-positive half is scored with equal weight, which is where an
-aggressively-matching filter (like this author's) looks worst. And every attack
-is a plain string in [`src/corpus.ts`](src/corpus.ts): if one looks unfair,
-it is one line to read and one issue to open.
+aggressively-matching filter (like this author's) looks worst. Every attack is a
+plain string in [`src/corpus.ts`](src/corpus.ts): if one looks unfair, it is one
+line to read and one issue to open. And this package publishes no scores for
+anybody else's filter — measure your own, or write an adapter and measure mine.
 
 ## Running it
 
-Against a built-in adapter:
-
-```bash
-npx profanity-adversarial --preset obscenity
-npx profanity-adversarial --preset bad-words --preset leo-profanity   # compare
-```
-
-Against your own filter — an adapter is a module with a default export:
+An adapter is a module with a default export:
 
 ```js
 // my-adapter.mjs
@@ -72,6 +66,7 @@ export default {
 
 ```bash
 npx profanity-adversarial ./my-adapter.mjs
+npx profanity-adversarial ./a.mjs ./b.mjs    # several, side by side
 ```
 
 `detect` may be async. If it throws, that attack counts as failed and the run
@@ -81,7 +76,7 @@ continues — crashing on hostile input is itself a result.
 
 | | |
 | --- | --- |
-| `--preset <name>` | built-in adapter; repeat it to compare several |
+| `--preset ts-profanity-filter` | the built-in adapter |
 | `--lang en,de` | only attacks written for these languages |
 | `--category <a,b>` | only these categories |
 | `--json` | machine-readable output |
@@ -90,13 +85,16 @@ continues — crashing on hostile input is itself a result.
 | `--min-precision <n>` | exit non-zero below this percentage |
 | `--list` | print the corpus and exit |
 
-Presets: `ts-profanity-filter`, `obscenity`, `bad-words`, `leo-profanity`,
-`@2toad/profanity`. None is a dependency — each is imported when asked for, and
-a missing one says `npm install` rather than crashing.
+The only built-in preset is `ts-profanity-filter`, the filter this repository
+ships. There are deliberately no adapters for anyone else's: a benchmark written
+by the author of one of the things it measures should be pointed at that thing,
+not used to publish scores for other people's work. Anyone can write the
+three-line adapter above and check for themselves — which is worth more than a
+table I could have tuned.
 
-**Only benchmark English-only filters on `--lang en`.** Scoring one against the
-German half measures whether it ships a German word list, not whether it
-resists evasion.
+**Benchmark English-only filters on `--lang en`.** Scoring one against the
+German half measures whether it ships a German word list, not whether it resists
+evasion.
 
 ## What it tests
 

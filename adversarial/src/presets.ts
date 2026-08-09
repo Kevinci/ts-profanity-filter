@@ -1,30 +1,17 @@
-// Ready-made adapters for filters people actually use.
+// The one adapter that ships ready-made: the filter in this repository.
 //
-// None of them is a dependency: each is imported at the moment it is asked for,
-// and a missing one turns into "npm install x", not a crash. That keeps this
-// package installable without dragging in every filter it can measure.
+// There are deliberately no adapters for other people's filters. Naming a
+// competitor in a benchmark you wrote yourself turns a measurement into a
+// claim about somebody else, and this tool is meant to be pointed at whatever
+// you are responsible for. Writing one is three lines — see the README.
 
 import type { FilterAdapter } from './types.js';
 
-export const PRESET_NAMES = [
-  'ts-profanity-filter',
-  'obscenity',
-  'bad-words',
-  'leo-profanity',
-  '@2toad/profanity',
-] as const;
+export const PRESET_NAMES = ['ts-profanity-filter'] as const;
 
 export type PresetName = (typeof PRESET_NAMES)[number];
 
-async function load(specifier: string): Promise<any> {
-  try {
-    return await import(specifier);
-  } catch {
-    throw new Error(`${specifier} is not installed here. Try: npm install ${specifier}`);
-  }
-}
-
-/** Its own version, when the package exposes one — results move between releases. */
+/** Its own version, since results move between releases. */
 async function versionOf(name: string): Promise<string> {
   try {
     const { createRequire } = await import('node:module');
@@ -36,62 +23,25 @@ async function versionOf(name: string): Promise<string> {
 }
 
 export async function preset(name: string): Promise<FilterAdapter> {
-  switch (name) {
-    case 'ts-profanity-filter': {
-      const mod = await load('ts-profanity-filter');
-      return {
-        name: `ts-profanity-filter${await versionOf('ts-profanity-filter')}`,
-        detect: (text) =>
-          mod
-            .filterFWordsToSegments(text, { languages: ['en', 'de'] })
-            .some((segment: { isProfane: boolean }) => segment.isProfane),
-      };
-    }
-
-    case 'obscenity': {
-      const mod = await load('obscenity');
-      const matcher = new mod.RegExpMatcher({
-        ...mod.englishDataset.build(),
-        ...mod.englishRecommendedTransformers,
-      });
-      return {
-        name: `obscenity${await versionOf('obscenity')}`,
-        detect: (text) => matcher.hasMatch(text),
-      };
-    }
-
-    case 'bad-words': {
-      const mod = await load('bad-words');
-      // v3 default-exports the class, v4 names it.
-      const Filter = mod.Filter ?? mod.default;
-      const filter = new Filter();
-      return {
-        name: `bad-words${await versionOf('bad-words')}`,
-        detect: (text) => filter.isProfane(text),
-      };
-    }
-
-    case 'leo-profanity': {
-      const mod = await load('leo-profanity');
-      const leo = mod.default ?? mod;
-      return {
-        name: `leo-profanity${await versionOf('leo-profanity')}`,
-        detect: (text) => leo.check(text),
-      };
-    }
-
-    case '@2toad/profanity': {
-      const mod = await load('@2toad/profanity');
-      return {
-        name: `@2toad/profanity${await versionOf('@2toad/profanity')}`,
-        detect: (text) => mod.profanity.exists(text),
-      };
-    }
-
-    default:
-      throw new Error(
-        `Unknown preset '${name}'. Known: ${PRESET_NAMES.join(', ')}. ` +
-          'For anything else, write a two-line adapter file — see the README.',
-      );
+  if (name !== 'ts-profanity-filter') {
+    throw new Error(
+      `Unknown preset '${name}'. The only built-in one is 'ts-profanity-filter'. ` +
+        'For any other filter, write a three-line adapter file — see the README.',
+    );
   }
+
+  let mod: any;
+  try {
+    mod = await import('ts-profanity-filter');
+  } catch {
+    throw new Error('ts-profanity-filter is not installed here. Try: npm install ts-profanity-filter');
+  }
+
+  return {
+    name: `ts-profanity-filter${await versionOf('ts-profanity-filter')}`,
+    detect: (text) =>
+      mod
+        .filterFWordsToSegments(text, { languages: ['en', 'de'] })
+        .some((segment: { isProfane: boolean }) => segment.isProfane),
+  };
 }

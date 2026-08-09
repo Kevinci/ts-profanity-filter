@@ -13,7 +13,7 @@ const USAGE = `
 
   Usage
     npx profanity-adversarial <adapter.mjs> [options]
-    npx profanity-adversarial --preset <name> [--preset <name> ...]
+    npx profanity-adversarial ./a.mjs ./b.mjs        # several, side by side
     npx profanity-adversarial --list
 
   An adapter is a module with a default export:
@@ -24,7 +24,7 @@ const USAGE = `
     };
 
   Options
-    --preset <name>     use a built-in adapter (repeatable, for comparison)
+    --preset <name>     use the built-in adapter (ts-profanity-filter)
     --lang <en,de>      only attacks written for these languages
     --category <a,b>    only these categories
     --json              machine-readable output
