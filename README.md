@@ -9,9 +9,6 @@ string.
 words and repetition are matched; a cross-check keeps ordinary words like
 `Klassik` and `classic` out of the results.
 
-**Optionally, a model reads the whole sentence** for what no word list can see —
-hate, threats, harassment — via Gemini or Claude. Off unless you ask for it.
-
 Zero runtime dependencies. Optional adapters for React, Vue and Angular.
 
 **[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/)**
@@ -19,6 +16,45 @@ Zero runtime dependencies. Optional adapters for React, Vue and Angular.
 ```bash
 npm install ts-profanity-filter
 ```
+
+---
+
+## New in 1.1.0 · AI integration
+
+**Optionally, a model reads the whole sentence** — for what no word list can
+see. A message can be a threat without containing a single listed word, and it
+can be full of them and still be a quotation. Word lists cannot tell the
+difference; this can.
+
+It reports hate, threats, harassment, racism, obscenity, sexual content
+involving minors and pressure toward self-harm — with a severity, a confidence,
+one sentence of reasoning in the language of the text, and the exact stretch it
+objected to, so you can highlight it.
+
+```ts
+import { moderateText } from 'ts-profanity-filter/ai';
+
+const result = await moderateText(comment, {
+  languages: ['en', 'de'],
+  ai: { provider: 'gemini', enabled: true },   // key from GEMINI_API_KEY
+});
+
+result.matchedList   // a word list matched
+result.ai.flagged    // the model flagged the sentence as a whole
+result.flagged       // either of the two
+```
+
+**Google Gemini** needs nothing installed — it is a plain `fetch`, and the free
+tier covers this. **Anthropic Claude** works through the optional SDK. Or bring
+any model at all with `ai.complete`.
+
+**Off unless you ask for it.** No `ai` option means no model is contacted and
+nothing leaves your machine — the word-list half never calls out at all.
+
+[The full section →](#ai-check-optional) ·
+[Try it with your own key →](https://kevinci.github.io/ts-profanity-filter/#sec-ai)
+
+---
 
 ## Usage
 
