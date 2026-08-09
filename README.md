@@ -1,7 +1,7 @@
 # ts-profanity-filter
 
 [![npm version](https://img.shields.io/npm/v/ts-profanity-filter)](https://www.npmjs.com/package/ts-profanity-filter)
-[![bundle size](https://img.shields.io/bundlejs/size/ts-profanity-filter)](https://bundlejs.com/?q=ts-profanity-filter)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/ts-profanity-filter)](https://bundlephobia.com/package/ts-profanity-filter)
 [![license](https://img.shields.io/npm/l/ts-profanity-filter)](https://github.com/Kevinci/ts-profanity-filter/blob/main/LICENSE)
 
 A strict TypeScript profanity filter that splits text into segments so your UI
