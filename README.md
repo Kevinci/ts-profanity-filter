@@ -603,6 +603,37 @@ open docs/index.html
 Edit `demo/template.html`, never `docs/index.html` — the latter is generated.
 GitHub Pages serves it straight from `main`, so a push updates the live page.
 
+## Engine support
+
+The core needs Unicode property escapes (`\p{L}`) — Chrome 64, Firefox 78,
+Safari 11.1, Node 10. That is a hard floor: they are used throughout, and
+nothing can degrade without them.
+
+Lookbehind is the one construct beyond that, and it is optional. It powers the
+spaced-out detection (`D r e c k s a u`), and engines shipped it late — Safari
+only from 16.4. So it is compiled with `new RegExp` inside a `try`, never
+written as a literal:
+
+| | Safari 16.4+, Chrome 62+, Firefox 78+, Node 18+ | older engines |
+| --- | --- | --- |
+| word lists, cross-check, leet, lookalikes, repetition, zero-width | ✅ | ✅ |
+| spaced-out words (`D r e c k s a u`) | ✅ | not detected |
+
+The distinction matters more than it looks. A regex literal is compiled when
+the *script* is parsed, so one the engine cannot handle is a syntax error for
+the whole module — importing the package would fail outright rather than
+losing one feature. A test asserts that no shipped file contains such a
+literal.
+
+**React Native / Hermes is untested.** Hermes has had gaps in Unicode regex
+support; verify before shipping.
+
+**ESM only.** `require()` works on Node 20.19+ / 22.12+; on Node 18 a
+CommonJS caller cannot load it.
+
+**The AI check belongs on a server.** A key shipped to a browser is readable
+and spendable by every visitor.
+
 ## Known limitations
 
 - **German compounding** forces permissive allow entries like

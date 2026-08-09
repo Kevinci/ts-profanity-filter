@@ -1087,6 +1087,26 @@ const MARK = /\p{M}/u;
 /** What counts as a separator when letters have been pulled apart. */
 const SEPARATOR = /[\s._*+~|\-]/u;
 /**
+ * Compiles at runtime instead of as a literal, and reports failure rather than
+ * raising it.
+ *
+ * A regex literal is compiled when the *script* is parsed, so one the engine
+ * cannot handle is a syntax error for the whole module — importing this package
+ * would fail outright, not just this feature. Lookbehind is the one modern
+ * construct here that some engines still lack (Safari only from 16.4), so the
+ * patterns that need it are built this way and degrade on their own.
+ */
+function compile(source, flags) {
+    try {
+        return new RegExp(source, flags);
+    }
+    catch {
+        return null;
+    }
+}
+/** The spaced-out run, as source so it can be reused in the pre-check. */
+const SPACED_RUN_SOURCE = '(?<!\\p{L})(?:\\p{L}[\\s._*+~|\\-]+){2,}\\p{L}(?!\\p{L})';
+/**
  * The spaced-out shape: at least three single letters, each pair split by
  * separators.
  *
@@ -1095,12 +1115,21 @@ const SEPARATOR = /[\s._*+~|\-]/u;
  * `next toacockroach` — a false `cock` that the allowlist can no longer
  * clear, because `cockroach\p{L}*` no longer covers the surrounding word.
  * Every letter in the run has to be a whole one-letter token.
+ *
+ * `null` on an engine without lookbehind: spaced-out text is then simply not
+ * un-spaced, and everything else keeps working.
  */
-const SPACED_RUN = /(?<!\p{L})(?:\p{L}[\s._*+~|\-]+){2,}\p{L}(?!\p{L})/gu;
+const SPACED_RUN = compile(SPACED_RUN_SOURCE, 'gu');
 /** Runs of this many identical characters collapse to one. */
 const REPEAT_LIMIT = 3;
-/** Cheap pre-check, so untouched text never pays for the map. */
-const NEEDS_WORK = /[\p{Cf}\p{M}]|(.)\1{2,}|(?<!\p{L})(?:\p{L}[\s._*+~|\-]+){2,}\p{L}(?!\p{L})/u;
+/**
+ * Cheap pre-check, so untouched text never pays for the map. Falls back in
+ * step with {@link SPACED_RUN} — without lookbehind it stops asking about
+ * spaced runs, because nothing downstream could act on the answer.
+ */
+const NEEDS_WORK = compile(`[\\p{Cf}\\p{M}]|(.)\\1{2,}|${SPACED_RUN_SOURCE}`, 'u') ??
+    compile('[\\p{Cf}\\p{M}]|(.)\\1{2,}', 'u') ??
+    /(.)\1{2,}/;
 /**
  * Rewrites `text` for matching, or returns `null` when there is nothing to do —
  * which is the common case, and lets the filter skip the whole mechanism.
@@ -1108,14 +1137,17 @@ const NEEDS_WORK = /[\p{Cf}\p{M}]|(.)\1{2,}|(?<!\p{L})(?:\p{L}[\s._*+~|\-]+){2,}
 function normalizeForMatching(text) {
     if (!NEEDS_WORK.test(text))
         return null;
-    // 1. Which indices disappear? Separators only count inside a spaced-out run.
+    // 1. Which indices disappear? Separators only count inside a spaced-out run,
+    //    and only on an engine that can recognise one.
     const dropped = new Set();
-    SPACED_RUN.lastIndex = 0;
-    let run;
-    while ((run = SPACED_RUN.exec(text)) !== null) {
-        for (let i = run.index; i < run.index + run[0].length; i++) {
-            if (SEPARATOR.test(text.charAt(i)))
-                dropped.add(i);
+    if (SPACED_RUN !== null) {
+        SPACED_RUN.lastIndex = 0;
+        let run;
+        while ((run = SPACED_RUN.exec(text)) !== null) {
+            for (let i = run.index; i < run.index + run[0].length; i++) {
+                if (SEPARATOR.test(text.charAt(i)))
+                    dropped.add(i);
+            }
         }
     }
     // 2. Keep what is left, remembering where each character came from.

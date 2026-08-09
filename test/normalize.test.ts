@@ -114,3 +114,31 @@ test('a mixed sentence keeps clean and flagged spans in the right places', () =>
   assert.equal(segments[0]!.text, 'Hallo ');
   assert.equal(segments.at(-1)!.text, ', bis morgen.');
 });
+
+/* --------------------------- engine support ---------------------------- */
+
+test('no shipped file contains a lookbehind regex literal', async () => {
+  // A regex literal is compiled when the script is parsed, so one the engine
+  // cannot handle is a syntax error for the whole module — importing the
+  // package would fail outright rather than losing one feature. Lookbehind is
+  // the last construct engines shipped (Safari only from 16.4), so it must be
+  // built with `new RegExp` and allowed to fail on its own.
+  const { readdir, readFile } = await import('node:fs/promises');
+  const { join } = await import('node:path');
+
+  const offenders: string[] = [];
+  const walk = async (dir: string): Promise<void> => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (entry.name.endsWith('.js')) {
+        const source = await readFile(path, 'utf8');
+        // A literal starts with `/`; `new RegExp('(?<…` is the allowed form.
+        if (/\/[^\n'"`]*\(\?<[=!]/.test(source)) offenders.push(path);
+      }
+    }
+  };
+  await walk('dist');
+
+  assert.deepEqual(offenders, [], 'these would break the whole module on Safari < 16.4');
+});
