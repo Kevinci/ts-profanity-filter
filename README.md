@@ -5,7 +5,12 @@ can render the redaction itself — the library never mutates or masks your
 string.
 
 **English and German ship pre-registered; any other language is a
-`registerLanguage()` call away.**
+`registerLanguage()` call away.** Leet spellings, lookalike letters, spaced-out
+words and repetition are matched; a cross-check keeps ordinary words like
+`Klassik` and `classic` out of the results.
+
+**Optionally, a model reads the whole sentence** for what no word list can see —
+hate, threats, harassment — via Gemini or Claude. Off unless you ask for it.
 
 Zero runtime dependencies. Optional adapters for React, Vue and Angular.
 
@@ -317,16 +322,15 @@ Word lists catch **words**. They cannot tell that a sentence containing no
 listed word at all is a threat, or that one full of them is a quotation. That
 judgement is what a model adds.
 
-```bash
-npm install @anthropic-ai/sdk    # optional peer dependency
-```
+Nothing to install for the Gemini path — it is a plain `fetch`, and Google's
+free tier covers this use case:
 
 ```ts
 import { moderateText } from 'ts-profanity-filter/ai';
 
 const result = await moderateText(comment, {
   languages: ['en', 'de'],
-  ai: { enabled: true },        // key read from ANTHROPIC_API_KEY
+  ai: { provider: 'gemini', enabled: true },   // key read from GEMINI_API_KEY
 });
 
 result.matchedList    // a word list matched
@@ -381,6 +385,28 @@ produces any.
 
 Alongside them: a `severity` (`none` … `critical`), a `confidence`, and one
 sentence of `reason` in the language of the text.
+
+### `ai` options
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | `true` when `ai` is present | The switch. No `ai` at all means no model is contacted. |
+| `provider` | `'anthropic' \| 'gemini'` | `'anthropic'` | `gemini` needs no SDK and has a free tier. |
+| `apiKey` | `string` | `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | Keep it server-side. |
+| `model` | `string` | per provider | Any id the provider accepts; `AI_MODELS` lists a few. |
+| `categories` | `AiCategory[]` | all seven | Narrow what is checked. |
+| `prompt` | `string` | built-in | Replaces the system prompt entirely. |
+| `extraInstructions` | `string` | — | Appended to the built-in prompt. |
+| `languageHint` | `string` | auto-detect | e.g. `'German'`. |
+| `effort` | `'low'…'max'` | `'low'` | Anthropic only. This is a classification, not an essay. |
+| `maxTokens` | `number` | `4096` | |
+| `timeoutMs` | `number` | `20000` | |
+| `fallback` | `boolean` | `true` | Anthropic only: retry on another model if its safety layer declines. |
+| `onError` | `'return' \| 'throw'` | `'return'` | A failed check is a decision, not an exception. |
+| `complete` | `AiCompletion` | — | Bring your own model; bypasses both built-in providers. |
+
+Both functions are exported: `moderateText(text, options)` runs the local
+filter *and* the model, `analyzeWithAi(text, aiOptions)` runs only the model.
 
 ### Your own prompt
 
@@ -550,6 +576,12 @@ Bilingual UI (English/German), live segmentation, three render modes, and a
 table showing exactly which false positives the cross-check suppressed and
 which allowlist rule cleared them.
 
+The AI panel runs the check from the page itself: pick a provider and model,
+paste your **own** key, and see both signals for the same sentence — what the
+word lists caught, and what the model made of it. The key is never stored and
+goes only to the provider. That is a playground pattern, not a production one;
+see *Keep the key server-side* above.
+
 The page is a single self-contained file generated from the compiled `dist/`,
 so it always runs the same code npm ships. To work on it locally:
 
@@ -578,6 +610,19 @@ GitHub Pages serves it straight from `main`, so a push updates the live page.
   Write patterns as plain words, or turn `aggressive` off for hand-written
   regexes.
 - **Word lists are a starting point, not a policy.** Extend them for your domain.
+- **The AI check costs money or quota, and adds latency.** It is one network
+  round trip per call. Run the local filter first and reach for the model only
+  when it matters — or use `ai: false` on the cheap path.
+- **A model verdict is a second opinion, not ground truth.** It has a
+  `confidence` for a reason. Treat a flag as a reason to hold a message for
+  review, not as a conviction, and keep a human in the loop for anything
+  consequential.
+- **A failed or refused check reports `flagged: false`.** Absence of a verdict
+  is not a clean bill of health — branch on `ai.status`, do not read
+  `ai.flagged` alone.
+- **The Gemini provider disables Google's own safety filtering.** It has to:
+  the text a moderation classifier must read is the text those filters refuse to
+  look at. Safe here because the output is a verdict, never generated content.
 
 ## Scripts
 

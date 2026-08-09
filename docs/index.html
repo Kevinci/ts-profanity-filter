@@ -450,7 +450,7 @@
 
   /* ---------- segmented switch ---------- */
 
-  .switch { display: flex; gap: 2px; background: var(--sunken); padding: 2px; border-radius: var(--r); }
+  .switch { display: flex; align-self: start; gap: 2px; background: var(--sunken); padding: 2px; border-radius: var(--r); }
 
   .switch button {
     font-family: var(--mono);
@@ -766,13 +766,13 @@
   <section class="panel" id="sec-output">
     <div class="panel-head">
       <span class="label" data-i18n="output">Rendered from segments</span>
+    </div>
+    <div class="panel-body">
       <div class="switch" role="group" id="modes" data-i18n-aria-label="output">
         <button type="button" data-mode="redact" aria-pressed="true" data-i18n="mode.redact"></button>
         <button type="button" data-mode="mark" aria-pressed="false" data-i18n="mode.mark"></button>
         <button type="button" data-mode="stars" aria-pressed="false" data-i18n="mode.stars"></button>
       </div>
-    </div>
-    <div class="panel-body">
       <div id="output" aria-live="polite"></div>
       <p class="stats" id="stats"></p>
     </div>
@@ -3149,6 +3149,11 @@ async function runAiCheck() {
   if (key === '') return sayAi(t('ai.needKey'), 'err');
   if (text.trim() === '') return sayAi(t('ai.needText'), 'err');
 
+  // The mode buttons and the language boxes may have moved since the last
+  // keystroke; re-render before asking, so both halves describe the same text
+  // under the same settings.
+  drawAiSegments();
+
   els.aiRun.disabled = true;
   sayAi(t('ai.running'), '');
   els.aiOut.hidden = true;
@@ -3238,6 +3243,7 @@ async function runAiCheck() {
     }
 
     const verdict = JSON.parse(json);
+    drawAiSegments();
     drawVerdict(verdict, model);
     els.aiOut.textContent = JSON.stringify(verdict, null, 2);
     els.aiOut.hidden = false;
@@ -3420,6 +3426,7 @@ for (const btn of document.querySelectorAll('#modes button')) {
       b.setAttribute('aria-pressed', String(b === btn));
     }
     run();
+    drawAiSegments();
   });
 }
 
