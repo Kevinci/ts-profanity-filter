@@ -23,7 +23,30 @@ npm install ts-profanity-filter
 
 ---
 
-## New in 1.1.0 · AI integration
+## New in 1.2.0 · Unicode hardening
+
+**Evasion is a Unicode problem**, and the matching path now treats it as one.
+Compatibility spellings fold with NFKC to the letters the patterns are written
+in, so `Ｄｒｅｃｋｓａｕ`, `𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮` and `Ⓓⓡⓔⓒⓚⓢⓐⓤ` stop walking past the
+list. Whole-word anchors use Unicode boundaries instead of `\b` — which is
+defined in terms of `\w` and stays ASCII even under the `u` flag, so every
+umlaut and every `ß` read as a word boundary and `Straußschwanz` came back
+flagged.
+
+Iteration is by code point rather than code unit, and the offset map carries one
+entry per output character, so a folded character that expands still points back
+at the one it came from — and a segment boundary can no longer land inside a
+surrogate pair.
+
+Seventeen cases assert the **offsets**, not the round trip. Rebuilding the
+string intact proves only that nothing was dropped; it says nothing about
+whether the flagged span still covers the right characters, which is exactly
+where a filter holding three representations of the input — original, folded
+haystack, segments — goes wrong.
+
+---
+
+## AI integration
 
 **Optionally, a model reads the whole sentence** — for what no word list can
 see. A message can be a threat without containing a single listed word, and it
