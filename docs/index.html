@@ -1041,44 +1041,78 @@
   <section class="panel" id="sec-compliance">
     <div class="panel-head">
       <span class="label" data-i18n="compliance">Justification (DSA Art. 17)</span>
+      <span class="pill" data-i18n="ai.optional">optional</span>
     </div>
     <div class="panel-body">
       <p class="note" data-i18n-html="compliance.note"></p>
 
-      <div class="compliance-controls">
-        <label class="field">
-          <span class="field-label" data-i18n="compliance.action">Action</span>
-          <select id="compliance-action">
-            <option value="CONTENT_REMOVED">Content Removed</option>
-            <option value="CONTENT_DEMOTION">Content Demotion</option>
-            <option value="ACCOUNT_SUSPENSION">Account Suspension</option>
-            <option value="ACCOUNT_TERMINATION">Account Termination</option>
-            <option value="FEATURE_RESTRICTION">Feature Restriction</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span class="field-label" data-i18n="compliance.duration">Duration</span>
-          <input type="text" id="compliance-duration" value="permanent" />
-        </label>
-
-        <label class="field">
-          <span class="field-label" data-i18n="compliance.appealUrl">Appeal URL</span>
-          <input type="url" id="compliance-appealUrl" />
-        </label>
-      </div>
-
-      <button class="chip solid" type="button" id="compliance-generate" data-i18n="compliance.generate"></button>
-
-      <div id="compliance-result" hidden>
-        <div class="verdict" id="compliance-verdict">
-          <div class="verdict-reason" id="compliance-reason"></div>
+      <div class="ai-try">
+        <div class="reg-grid">
+          <label class="field">
+            <span class="field-label" data-i18n="compliance.action">Action</span>
+            <select id="compliance-action">
+              <option value="CONTENT_REMOVED">CONTENT_REMOVED</option>
+              <option value="CONTENT_DEMOTION">CONTENT_DEMOTION</option>
+              <option value="ACCOUNT_SUSPENSION">ACCOUNT_SUSPENSION</option>
+              <option value="ACCOUNT_TERMINATION">ACCOUNT_TERMINATION</option>
+              <option value="FEATURE_RESTRICTION">FEATURE_RESTRICTION</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="compliance.duration">Duration</span>
+            <input type="text" id="compliance-duration" spellcheck="false" value="permanent" />
+          </label>
         </div>
 
-        <pre id="compliance-out" class="sample" hidden></pre>
+        <div class="field">
+          <label class="field-label" for="compliance-appeal"
+                 data-i18n="compliance.appealUrl">Appeal URL</label>
+          <input type="url" id="compliance-appeal" spellcheck="false"
+                 placeholder="https://example.com/appeals" />
+        </div>
 
-        <pre id="compliance-text" class="sample"></pre>
+        <div class="reg-grid">
+          <label class="field">
+            <span class="field-label" data-i18n="ai.provider">Provider</span>
+            <select id="compliance-provider">
+              <option value="gemini">Google Gemini — free tier</option>
+              <option value="anthropic">Anthropic Claude</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="ai.model">Model</span>
+            <select id="compliance-model"></select>
+          </label>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="compliance-key" data-i18n="compliance.key">
+            API key — leave empty for the template wording
+          </label>
+          <input type="password" id="compliance-key" autocomplete="off" spellcheck="false"
+                 placeholder="AIza…" />
+        </div>
+
+        <div class="reg-actions">
+          <button class="chip solid" type="button" id="compliance-generate"
+                  data-i18n="compliance.generate"></button>
+          <span class="reg-msg" id="compliance-msg"></span>
+        </div>
+
+        <div class="verdict" id="compliance-verdict" hidden>
+          <div class="verdict-head">
+            <span class="pill" id="compliance-source"></span>
+            <span class="verdict-meta" id="compliance-meta"></span>
+          </div>
+          <p class="verdict-reason" id="compliance-reason"></p>
+          <div class="verdict-cats" id="compliance-cats"></div>
+        </div>
+
+        <pre id="compliance-text" class="sample" hidden></pre>
+        <pre id="compliance-out" class="sample" hidden></pre>
       </div>
+
+      <p class="note flagged" data-i18n-html="ai.warning"></p>
     </div>
   </section>
 
@@ -2242,6 +2276,78 @@ function buildSchema(categories) {
     };
 }
 
+// ---- dist/ai/anthropic.js ----
+// src/ai/anthropic.ts
+//
+// The built-in provider. `@anthropic-ai/sdk` is an optional peer dependency and
+// is imported lazily, so a caller who supplies their own `complete` never needs
+// it installed at all.
+/** Text blocks carry the answer; everything else in the response is ignored. */
+function extractText(content) {
+    return content
+        .filter((block) => block.type === 'text' && typeof block.text === 'string')
+        .map((block) => block.text)
+        .join('');
+}
+/**
+ * Calls Claude with structured outputs, so the answer is schema-valid rather
+ * than merely JSON-shaped.
+ *
+ * Two things here are not boilerplate:
+ *
+ * - **`stop_reason` is checked before the content is read.** The provider's own
+ *   safety layer can decline a request and still return HTTP 200 with an empty
+ *   `content` — and moderation input is exactly the kind of text that trips it.
+ *   Reading `content[0]` first would throw on the one case this feature exists
+ *   to handle.
+ * - **A declined request is retried on another model server-side** (`fallbacks`),
+ *   because a refusal is not a verdict. Turn it off with `ai.fallback: false`.
+ */
+const anthropicCompletion = async (request) => {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk');
+    const client = new Anthropic({
+        ...(request.apiKey ? { apiKey: request.apiKey } : {}),
+        timeout: request.timeoutMs,
+        maxRetries: 2,
+    });
+    const response = await client.beta.messages.create({
+        model: request.model,
+        max_tokens: request.maxTokens,
+        system: request.system,
+        // Adaptive rather than disabled: with thinking off, Claude Opus 5 can leak
+        // internal tags into the answer. Low effort keeps it cheap instead.
+        thinking: { type: 'adaptive' },
+        output_config: {
+            effort: request.effort,
+            format: { type: 'json_schema', schema: request.schema },
+        },
+        ...(request.fallback
+            ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }
+            : {}),
+        messages: [
+            {
+                role: 'user',
+                content: `<text_to_review>\n${request.text}\n</text_to_review>`,
+            },
+        ],
+    });
+    if (response.stop_reason === 'refusal') {
+        return {
+            refused: true,
+            refusalReason: response.stop_details?.explanation ?? undefined,
+            model: response.model,
+        };
+    }
+    if (response.stop_reason === 'max_tokens') {
+        throw new Error('The model hit max_tokens before finishing its answer — raise ai.maxTokens.');
+    }
+    const json = extractText(response.content);
+    if (json.trim() === '') {
+        throw new Error(`The model returned no text (stop_reason: ${response.stop_reason}).`);
+    }
+    return { json, model: response.model };
+};
+
 // ---- dist/ai/gemini.js ----
 // src/ai/gemini.ts
 //
@@ -2348,6 +2454,600 @@ const geminiCompletion = async (request) => {
         clearTimeout(timer);
     }
 };
+
+// ---- dist/ai/ollama.js ----
+// src/ai/ollama.ts
+//
+// A model on your own machine, over plain `fetch` — no SDK, no key, no request
+// leaving the building.
+//
+// This is the answer to the objection that makes the whole AI layer a
+// non-starter for some deployments: that moderating a message means sending it
+// to a third party. Point this at a local Ollama and the text never leaves the
+// host. Everything else — the prompt, the schema, the verdict shape — is
+// identical to the hosted providers, so the decision is a one-line config
+// change rather than a different code path.
+/** Ollama's default. Override with `ai.baseUrl` or the OLLAMA_HOST variable. */
+const OLLAMA_DEFAULT_HOST = 'http://localhost:11434';
+function hostFrom(request) {
+    const raw = request.baseUrl ??
+        (typeof process !== 'undefined' ? process.env?.['OLLAMA_HOST'] : undefined) ??
+        OLLAMA_DEFAULT_HOST;
+    // OLLAMA_HOST is commonly set bare, as `localhost:11434`.
+    const withScheme = /^https?:\/\//.test(raw) ? raw : `http://${raw}`;
+    return withScheme.replace(/\/+$/, '');
+}
+const ollamaCompletion = async (request) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), request.timeoutMs);
+    const host = hostFrom(request);
+    try {
+        const response = await fetch(`${host}/api/chat`, {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                'content-type': 'application/json',
+                // Plain Ollama needs no key. A key only appears when someone has put
+                // the server behind a proxy, which is a sensible thing to do.
+                ...(request.apiKey ? { authorization: `Bearer ${request.apiKey}` } : {}),
+            },
+            body: JSON.stringify({
+                model: request.model,
+                stream: false,
+                messages: [
+                    { role: 'system', content: request.system },
+                    { role: 'user', content: `<text_to_review>\n${request.text}\n</text_to_review>` },
+                ],
+                // Ollama takes a JSON Schema here directly and constrains decoding to
+                // it — the same guarantee the hosted providers give, locally.
+                format: request.schema,
+                options: {
+                    // A classifier should give the same answer twice.
+                    temperature: 0,
+                    num_predict: request.maxTokens,
+                },
+            }),
+        });
+        const data = (await response.json());
+        if (!response.ok) {
+            // The overwhelmingly common failure is a model that was never pulled,
+            // and Ollama's own message for it is genuinely useful — pass it through
+            // rather than replacing it with something vaguer.
+            throw new Error(data.error ?? `Ollama returned ${response.status} ${response.statusText}.`);
+        }
+        const json = data.message?.content ?? '';
+        if (json.trim() === '') {
+            throw new Error(`Ollama returned no content (done_reason: ${data.done_reason ?? 'unknown'}).`);
+        }
+        return { json, model: request.model };
+    }
+    catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error(`Ollama at ${host} did not answer within ${request.timeoutMs} ms. ` +
+                'A first call also pays for loading the model into memory — raise ai.timeoutMs.');
+        }
+        // A refused connection is the other everyday case, and the default message
+        // for it says nothing about what to do.
+        if (error instanceof TypeError) {
+            throw new Error(`Could not reach Ollama at ${host}. Is it running? ` +
+                'Start it with `ollama serve`, or point ai.baseUrl somewhere else.');
+        }
+        throw error;
+    }
+    finally {
+        clearTimeout(timer);
+    }
+};
+
+// ---- dist/ai/index.js ----
+// src/ai/index.ts — import from 'ts-profanity-filter/ai'
+//
+// Word lists catch words. They cannot tell that a sentence with no listed word
+// in it is a threat, or that a sentence full of them is a quotation. That
+// judgement is what a model adds, and it is the only part of this package that
+// leaves your machine — so it is off unless you ask for it.
+
+
+
+
+
+
+/**
+ * Per-provider defaults. The hosted two are the cheap, fast tier — this is a
+ * classification, not an essay — and `ollama` is the same job on your own
+ * machine, where `needsKey` is false because there is nobody to authenticate to.
+ */
+const PROVIDERS = {
+    anthropic: {
+        complete: anthropicCompletion,
+        model: 'claude-opus-5',
+        envVar: 'ANTHROPIC_API_KEY',
+        needsKey: true,
+        timeoutMs: 20000,
+    },
+    gemini: {
+        complete: geminiCompletion,
+        model: 'gemini-flash-lite-latest',
+        envVar: 'GEMINI_API_KEY',
+        needsKey: true,
+        timeoutMs: 20000,
+    },
+    ollama: {
+        complete: ollamaCompletion,
+        model: 'llama3.2',
+        // Only read when someone has put the server behind an authenticating proxy.
+        envVar: 'OLLAMA_API_KEY',
+        needsKey: false,
+        // Measured, not guessed: a first call also pays for loading the weights
+        // into memory, and a 9 GB model took 34 s on a warm laptop. Twenty seconds
+        // would fail every cold start, which reads as "local models do not work".
+        timeoutMs: 120000,
+    },
+};
+const DEFAULTS = {
+    provider: 'anthropic',
+    effort: 'low',
+    maxTokens: 4096,
+};
+const SEVERITIES = ['none', 'low', 'medium', 'high', 'critical'];
+/**
+ * The key from the environment, when there is an environment to read.
+ *
+ * `process` does not exist in a browser, and a bare `process.env[...]` there is
+ * a ReferenceError rather than `undefined` — which would take down the whole
+ * call before the caller's own `apiKey` was ever considered.
+ */
+function envKey(name) {
+    return typeof process !== 'undefined' ? process.env?.[name] : undefined;
+}
+function verdict(partial) {
+    return {
+        flagged: false,
+        severity: 'none',
+        categories: [],
+        confidence: 0,
+        reason: '',
+        quote: '',
+        ...partial,
+    };
+}
+/**
+ * Never let a provider's error text carry the key. Messages get logged, and a
+ * key in a log is a key in everyone's log.
+ */
+function redact(error, apiKey) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!apiKey || apiKey.length < 8)
+        return message;
+    return message.split(apiKey).join('[redacted]');
+}
+/** Trust the schema, but not blindly — a custom `complete` has no schema at all. */
+function parseVerdict(json, allowed) {
+    const raw = JSON.parse(json);
+    if (raw === null || typeof raw !== 'object') {
+        throw new Error('The model did not return a JSON object.');
+    }
+    const value = raw;
+    const categories = Array.isArray(value['categories'])
+        ? value['categories'].filter((c) => allowed.includes(c))
+        : [];
+    const severity = SEVERITIES.includes(value['severity'])
+        ? value['severity']
+        : 'none';
+    const confidence = typeof value['confidence'] === 'number' ? value['confidence'] : 0;
+    return {
+        status: 'ok',
+        flagged: value['flagged'] === true,
+        severity,
+        categories,
+        confidence: Math.min(1, Math.max(0, confidence)),
+        reason: typeof value['reason'] === 'string' ? value['reason'] : '',
+        quote: typeof value['quote'] === 'string' ? value['quote'] : '',
+    };
+}
+/**
+ * Lower-level API for running a generic AI completion with provider dispatch.
+ * Used by compliance module and other library consumers.
+ *
+ * Returns the raw JSON (no parsing), or null on error. Refusals and errors
+ * are logged to console but don't throw (unless onError: 'throw').
+ */
+async function runAiCompletion(request, options = {}) {
+    const provider = PROVIDERS[options.provider ?? DEFAULTS.provider];
+    const apiKey = options.apiKey ?? envKey(provider.envVar);
+    const complete = options.complete ?? provider.complete;
+    try {
+        if (!options.complete && provider.needsKey && !apiKey) {
+            throw new Error(`No API key. Pass ai.apiKey, set ${provider.envVar}, supply ai.complete ` +
+                "to use your own model, or switch to provider: 'ollama' to run one locally.");
+        }
+        const response = await complete({
+            system: request.system,
+            text: request.text,
+            schema: request.schema,
+            model: options.model ?? provider.model,
+            effort: options.effort ?? DEFAULTS.effort,
+            maxTokens: options.maxTokens ?? DEFAULTS.maxTokens,
+            timeoutMs: options.timeoutMs ?? provider.timeoutMs,
+            apiKey,
+            ...(options.baseUrl !== undefined ? { baseUrl: options.baseUrl } : {}),
+            fallback: options.fallback ?? true,
+        });
+        if (response.refused) {
+            if (options.onError === 'throw') {
+                throw new Error(response.refusalReason ?? 'Provider declined the request.');
+            }
+            console.error('[runAiCompletion] refused', response.refusalReason ?? 'no reason given');
+            return null;
+        }
+        if (response.json === undefined) {
+            throw new Error('The provider returned neither a result nor a refusal.');
+        }
+        return { json: response.json, model: response.model };
+    }
+    catch (error) {
+        if (options.onError === 'throw')
+            throw error;
+        console.error('[runAiCompletion]', redact(error, apiKey));
+        return null;
+    }
+}
+/**
+ * Asks a model whether the text is racist, hateful, threatening, harassing,
+ * obscene, sexually predatory, or pushing someone toward self-harm.
+ *
+ * Returns a verdict rather than throwing: a moderation call that fails should
+ * be a decision you make, not an exception that takes down the request. Set
+ * `onError: 'throw'` if you would rather it stopped.
+ */
+async function analyzeWithAi(text, options = {}) {
+    if (options.enabled === false)
+        return verdict({ status: 'disabled' });
+    if (!text || text.trim() === '')
+        return verdict({ status: 'skipped' });
+    const categories = options.categories?.length ? options.categories : AI_CATEGORIES;
+    const provider = PROVIDERS[options.provider ?? DEFAULTS.provider];
+    const apiKey = options.apiKey ?? envKey(provider.envVar);
+    const complete = options.complete ?? provider.complete;
+    try {
+        if (!options.complete && provider.needsKey && !apiKey) {
+            throw new Error(`No API key. Pass ai.apiKey, set ${provider.envVar}, supply ai.complete ` +
+                "to use your own model, or switch to provider: 'ollama' to run one locally.");
+        }
+        const response = await complete({
+            system: options.prompt ??
+                buildSystemPrompt({
+                    categories,
+                    ...(options.extraInstructions !== undefined
+                        ? { extraInstructions: options.extraInstructions }
+                        : {}),
+                    ...(options.languageHint !== undefined
+                        ? { languageHint: options.languageHint }
+                        : {}),
+                }),
+            text,
+            schema: buildSchema(categories),
+            model: options.model ?? provider.model,
+            effort: options.effort ?? DEFAULTS.effort,
+            maxTokens: options.maxTokens ?? DEFAULTS.maxTokens,
+            timeoutMs: options.timeoutMs ?? provider.timeoutMs,
+            apiKey,
+            ...(options.baseUrl !== undefined ? { baseUrl: options.baseUrl } : {}),
+            fallback: options.fallback ?? true,
+        });
+        if (response.refused) {
+            return verdict({
+                status: 'refused',
+                ...(response.model !== undefined ? { model: response.model } : {}),
+                error: response.refusalReason ??
+                    "The provider's own safety layer declined the request.",
+            });
+        }
+        if (response.json === undefined) {
+            throw new Error('The provider returned neither a result nor a refusal.');
+        }
+        const parsed = parseVerdict(response.json, categories);
+        return response.model !== undefined ? { ...parsed, model: response.model } : parsed;
+    }
+    catch (error) {
+        if (options.onError === 'throw')
+            throw error;
+        return verdict({ status: 'error', error: redact(error, apiKey) });
+    }
+}
+/**
+ * Both signals in one call: the local word lists (synchronous, free, offline)
+ * and the model's read of the whole sentence.
+ *
+ * Without an `ai` option no model is contacted and this is just
+ * {@link filterFWordsToSegments} in a wrapper — which is the point: the network
+ * call is something you opt into, not something you have to remember to remove.
+ *
+ * ```ts
+ * const result = await moderateText(comment, {
+ *   languages: ['en', 'de'],
+ *   ai: { enabled: true },        // key from ANTHROPIC_API_KEY
+ * });
+ *
+ * if (result.flagged) hold(result.ai.reason);
+ * else publish(result.segments);
+ * ```
+ */
+async function moderateText(text, options = {}) {
+    const { ai, ...filterOptions } = options;
+    const segments = filterFWordsToSegments(text, filterOptions);
+    const matchedList = segments.some((segment) => segment.isProfane);
+    const aiVerdict = ai
+        ? await analyzeWithAi(text, ai)
+        : verdict({ status: 'disabled' });
+    return {
+        segments,
+        matchedList,
+        ai: aiVerdict,
+        flagged: matchedList || aiVerdict.flagged,
+    };
+}
+
+// ---- dist/compliance/prompt.js ----
+// src/compliance/prompt.ts — System prompts for DSA Art. 17 justifications
+/**
+ * Build a system prompt for generating user-facing justifications.
+ * The facts are already determined; the model's job is only to phrase them.
+ */
+function buildJustificationPrompt(options = {}) {
+    const languageNames = {
+        en: 'English',
+        de: 'German',
+    };
+    const lang = languageNames[options.language] || 'English';
+    const parts = [
+        'You are helping generate a legally compliant user notification for a moderation decision.',
+        '',
+        'The facts are FIXED and provided to you — do not invent, alter, or add new facts:',
+        '- action: what was done',
+        '- categories: what was found',
+        '- quote: the exact problematic text',
+        '- policyBases: which rules were broken',
+        '- duration: how long the measure lasts',
+        '',
+        'Your only job is to phrase `reason` (one sentence explaining the action)',
+        'and `factsSummary` (one or two sentences explaining what was found and why).',
+        'Write in ' + lang + ', as a user facing explanation.',
+        '',
+        'Never invent categories, rules, or facts.',
+        'Never apologize or soften the message.',
+        'Be direct, clear, and respectful.',
+        '',
+        'Answer with the JSON object the schema describes and nothing else.',
+    ];
+    if (options.extraInstructions) {
+        parts.push('', 'Additional rules:', options.extraInstructions);
+    }
+    return parts.join('\n');
+}
+/**
+ * JSON schema for the justification prompt output.
+ */
+function buildJustificationSchema() {
+    return {
+        type: 'object',
+        properties: {
+            reason: {
+                type: 'string',
+                description: 'One sentence explaining the action taken.',
+            },
+            factsSummary: {
+                type: 'string',
+                description: 'One or two sentences explaining what was found and why.',
+            },
+        },
+        required: ['reason', 'factsSummary'],
+        additionalProperties: false,
+    };
+}
+
+// ---- dist/compliance/generator.js ----
+// src/compliance/generator.ts — DSA Art. 17 justification generation
+
+
+/**
+ * Stands in for `facts.quote` when neither the model nor the word lists could
+ * point at anything — a decision taken on something this library never saw.
+ * The field stays populated so the record has no empty holes in it.
+ */
+const NO_EXCERPT = '[content]';
+function normalizePolicy(basis) {
+    if (typeof basis === 'string') {
+        return { name: basis };
+    }
+    return basis;
+}
+function detectLanguage(text, hint) {
+    if (hint)
+        return hint;
+    const germanWords = /\b(der|die|das|und|ist|zu|von|ein|in|für|mit|nicht|auch|sich)\b/gi;
+    const germanMatch = (text.match(germanWords) || []).length;
+    return germanMatch / (text.split(/\s+/).length || 1) > 0.15 ? 'de' : 'en';
+}
+function buildDefaultReason(action, language) {
+    const translations = {
+        en: {
+            CONTENT_REMOVED: 'Your content was removed for violating community standards.',
+            CONTENT_DEMOTION: 'Your content visibility was restricted.',
+            ACCOUNT_SUSPENSION: 'Your account has been suspended.',
+            ACCOUNT_TERMINATION: 'Your account has been terminated.',
+            FEATURE_RESTRICTION: 'Some features have been restricted on your account.',
+        },
+        de: {
+            CONTENT_REMOVED: 'Ihr Inhalt wurde entfernt, da er gegen die Gemeinschaftsstandards verstößt.',
+            CONTENT_DEMOTION: 'Die Sichtbarkeit Ihres Inhalts wurde eingeschränkt.',
+            ACCOUNT_SUSPENSION: 'Ihr Konto wurde gesperrt.',
+            ACCOUNT_TERMINATION: 'Ihr Konto wurde beendet.',
+            FEATURE_RESTRICTION: 'Einige Funktionen auf Ihrem Konto wurden eingeschränkt.',
+        },
+    };
+    return translations[language]?.[action] ?? translations.en[action];
+}
+/**
+ * Generate a DSA Art. 17 compliant justification for a moderation action.
+ *
+ * If AI is enabled, the reason and facts summary will be generated by the model
+ * from the pre-determined facts. If disabled or fails, falls back to templates.
+ * Never throws — a failed KI should not prevent a legal notification.
+ */
+async function generateJustification(text, result, options = {}) {
+    const language = options.language || detectLanguage(text);
+    const action = options.action || 'CONTENT_REMOVED';
+    const policyBases = (options.policyBases || ['Community Guidelines']).map(normalizePolicy);
+    // The template wording is the floor, not the fallback of last resort: it is a
+    // complete justification on its own, and it is what stays if the model is
+    // slow, refuses, or was never configured.
+    let reason = buildDefaultReason(action, language);
+    // No `ai` option at all means no model is contacted — same rule as
+    // `moderateText`. The network call is opted into, never inherited.
+    const ai = options.ai;
+    if (ai && ai.enabled !== false) {
+        const aiOptions = {
+            effort: 'low',
+            maxTokens: 512,
+            onError: 'return',
+            ...(ai.provider !== undefined ? { provider: ai.provider } : {}),
+            ...(ai.apiKey !== undefined ? { apiKey: ai.apiKey } : {}),
+            ...(ai.model !== undefined ? { model: ai.model } : {}),
+            ...(ai.complete !== undefined ? { complete: ai.complete } : {}),
+        };
+        const response = await runAiCompletion({
+            system: buildJustificationPrompt({
+                action,
+                categories: result.ai.categories,
+                language,
+                ...(ai.extraInstructions !== undefined
+                    ? { extraInstructions: ai.extraInstructions }
+                    : {}),
+            }),
+            // The facts, handed over as data. The model rewrites them; it never
+            // gets to decide what they are.
+            text: [
+                `Action: ${action}`,
+                `Categories: ${result.ai.categories.join(', ') || '(none)'}`,
+                `Policy bases: ${policyBases
+                    .map((p) => `${p.name}${p.section ? ' ' + p.section : ''}`)
+                    .join(', ')}`,
+                `Quote: ${JSON.stringify(result.ai.quote)}`,
+                `Confidence: ${Math.round(result.ai.confidence * 100)}%`,
+                `Duration: ${options.duration || 'permanent'}`,
+            ].join('\n'),
+            schema: buildJustificationSchema(),
+        }, aiOptions);
+        if (response) {
+            try {
+                const parsed = JSON.parse(response.json);
+                const value = (parsed ?? {});
+                if (typeof value['reason'] === 'string' && value['reason'].trim() !== '') {
+                    reason = value['reason'];
+                }
+            }
+            catch {
+                // Unparseable wording is not a reason to withhold the notification.
+            }
+        }
+    }
+    const timestamp = new Date().toISOString();
+    return {
+        action,
+        reason,
+        policyBases,
+        facts: {
+            // The model's own excerpt when there is one, otherwise the words the
+            // lists actually matched — whichever it was, it is what the decision
+            // rests on and the notice has to be able to name it.
+            quote: result.ai.quote ||
+                result.segments
+                    .filter((s) => s.isProfane)
+                    .map((s) => s.text)
+                    .join(', ') ||
+                NO_EXCERPT,
+            categories: result.ai.categories,
+            confidence: result.ai.confidence,
+            automatedDetection: result.ai.status === 'ok' || result.matchedList,
+            humanReview: false,
+        },
+        timestamp,
+        duration: options.duration || 'permanent',
+        language,
+        appealUrl: options.appealUrl,
+        additionalNotes: options.additionalNotes,
+    };
+}
+function exportJustification(justification) {
+    return JSON.stringify(justification, null, 2);
+}
+function formatJustificationAsText(justification) {
+    const translations = {
+        en: {
+            action: 'Action taken:',
+            reason: 'Reason:',
+            policies: 'Policy bases:',
+            categories: 'Categories:',
+            confidence: 'Confidence:',
+            automated: 'Automated detection:',
+            humanReview: 'Human review:',
+            facts: 'Facts:',
+            timestamp: 'Date:',
+            duration: 'Duration:',
+            appeal: 'To appeal:',
+            yes: 'Yes',
+            no: 'No',
+        },
+        de: {
+            action: 'Getroffene Maßnahme:',
+            reason: 'Grund:',
+            policies: 'Grundlagen:',
+            categories: 'Kategorien:',
+            confidence: 'Sicherheit:',
+            automated: 'Automatische Erkennung:',
+            humanReview: 'Menschliche Überprüfung:',
+            facts: 'Tatsachen:',
+            timestamp: 'Datum:',
+            duration: 'Dauer:',
+            appeal: 'Um zu protestieren:',
+            yes: 'Ja',
+            no: 'Nein',
+        },
+    };
+    const t = translations[justification.language] ?? translations.en;
+    const facts = justification.facts;
+    const lines = [
+        `${t.action} ${justification.action}`,
+        `${t.reason} ${justification.reason}`,
+    ];
+    // Art. 17 wants the facts the decision rests on, and the excerpt *is* the
+    // fact. A notice that says "you broke the rules" without saying which words
+    // is exactly the notice the article was written against.
+    if (facts.quote && facts.quote !== NO_EXCERPT) {
+        lines.push(`${t.facts} ${JSON.stringify(facts.quote)}`);
+    }
+    lines.push(`${t.policies} ${justification.policyBases
+        .map((p) => `${p.name}${p.section ? ' ' + p.section : ''}`)
+        .join(', ')}`);
+    // Categories and confidence come from a model. When none was asked, printing
+    // "(none)" and "0%" reads as an uncertain decision rather than an unasked
+    // question — so those lines are simply absent instead.
+    if (facts.categories.length > 0) {
+        lines.push(`${t.categories} ${facts.categories.join(', ')}`);
+    }
+    if (facts.confidence > 0) {
+        lines.push(`${t.confidence} ${Math.round(facts.confidence * 100)}%`);
+    }
+    lines.push(`${t.automated} ${facts.automatedDetection ? t.yes : t.no}`, `${t.humanReview} ${facts.humanReview ? t.yes : t.no}`, `${t.timestamp} ${new Date(justification.timestamp).toLocaleString(justification.language)}`, `${t.duration} ${justification.duration}`);
+    if (justification.appealUrl) {
+        lines.push(`${t.appeal} ${justification.appealUrl}`);
+    }
+    if (justification.additionalNotes) {
+        lines.push(`\n${justification.additionalNotes}`);
+    }
+    return lines.join('\n');
+}
 
 /* ---- name, version, license and author, injected from package.json ---- */
 const META = {"name":"ts-profanity-filter","version":"1.2.0","license":"MIT","author":"Kevin Imig"};
@@ -2500,12 +3200,30 @@ const I18N = {
       '<code>examples/server</code>.',
     compliance: 'Justification (DSA Art. 17)',
     'compliance.note':
-      'The <a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank">Digital Services Act</a> requires platforms to explain moderation decisions to users on a permanent medium. ' +
-      'Use the AI verdict above to generate a DSA-compliant justification. This always succeeds, even if the model is unavailable.',
+      'Deciding to act is half the job. Article 17 of the ' +
+      '<a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank" ' +
+      'rel="noopener noreferrer">Digital Services Act</a> makes the other half a duty: the ' +
+      'person affected has to be told what was done, on what facts, under which rule, whether ' +
+      'software was involved, and how to contest it — in language they read, on something they ' +
+      'can keep. This runs the text from the <a href="#sec-input">Input</a> panel through the ' +
+      'filter and turns the outcome into that notice. ' +
+      '<strong>The key is optional.</strong> Leave it empty and the wording comes from the ' +
+      'built-in templates; paste one and a model both judges the sentence and writes the ' +
+      'notice — two calls. Either way the facts are the code’s: the model is never asked ' +
+      'what happened, only how to say it.',
     'compliance.action': 'Action',
     'compliance.duration': 'Duration',
-    'compliance.appealUrl': 'Appeal URL',
-    'compliance.generate': 'Generate Justification',
+    'compliance.appealUrl': 'Appeal URL — where the user can contest this',
+    'compliance.key': 'API key — leave empty for the template wording',
+    'compliance.generate': 'Generate justification',
+    'compliance.running': 'Judging the text, then wording the notice…',
+    'compliance.noKey': 'No key — the wording comes from the built-in templates.',
+    'compliance.byModel': 'worded by the model',
+    'compliance.byTemplate': 'worded by the template',
+    'compliance.meta': '{action} · automated: {automated} · {model}',
+    'compliance.noModel': 'no model contacted',
+    'compliance.yes': 'yes',
+    'compliance.no': 'no',
     fw: 'Framework integration',
     'fw.intro':
       'The core entry point has no dependencies. Each framework adapter is a separate subpath ' +
@@ -2700,12 +3418,31 @@ const I18N = {
       'lauffähiges Beispiel liegt unter <code>examples/server</code>.',
     compliance: 'Begründung (DSA Art. 17)',
     'compliance.note':
-      'Der <a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank">Digital Services Act</a> verpflichtet Plattformen, Moderationsentscheidungen den Nutzern zu erklären. ' +
-      'Nutze das KI-Ergebnis oben, um eine DSA-konforme Begründung zu generieren. Dies funktioniert auch, wenn das Modell nicht verfügbar ist.',
+      'Die Entscheidung zu treffen ist die halbe Arbeit. Artikel 17 des ' +
+      '<a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank" ' +
+      'rel="noopener noreferrer">Digital Services Act</a> macht die andere Hälfte zur Pflicht: ' +
+      'Die betroffene Person muss erfahren, was getan wurde, auf welche Tatsachen gestützt, ' +
+      'nach welcher Regel, ob Software beteiligt war und wie sie sich dagegen wehren kann — ' +
+      'in einer Sprache, die sie versteht, auf einem dauerhaften Medium. Hier läuft der Text ' +
+      'aus dem Feld <a href="#sec-input">Eingabe</a> durch den Filter, und das Ergebnis wird ' +
+      'zu genau dieser Mitteilung. <strong>Der Key ist optional.</strong> Bleibt er leer, ' +
+      'kommt die Formulierung aus den eingebauten Vorlagen; mit Key beurteilt ein Modell den ' +
+      'Satz und formuliert anschließend die Mitteilung — zwei Aufrufe. So oder so stammen die ' +
+      'Tatsachen aus dem Code: Das Modell wird nie gefragt, <em>was</em> passiert ist, nur wie ' +
+      'man es sagt.',
     'compliance.action': 'Maßnahme',
     'compliance.duration': 'Dauer',
-    'compliance.appealUrl': 'Einspruchs-URL',
-    'compliance.generate': 'Begründung generieren',
+    'compliance.appealUrl': 'Einspruchs-URL — wo sich die Person wehren kann',
+    'compliance.key': 'API-Key — leer lassen für die Vorlagen-Formulierung',
+    'compliance.generate': 'Begründung erzeugen',
+    'compliance.running': 'Beurteile den Text, formuliere dann die Mitteilung…',
+    'compliance.noKey': 'Kein Key — die Formulierung kommt aus den eingebauten Vorlagen.',
+    'compliance.byModel': 'vom Modell formuliert',
+    'compliance.byTemplate': 'aus der Vorlage formuliert',
+    'compliance.meta': '{action} · automatisiert: {automated} · {model}',
+    'compliance.noModel': 'kein Modell kontaktiert',
+    'compliance.yes': 'ja',
+    'compliance.no': 'nein',
     fw: 'Framework-Anbindung',
     'fw.intro':
       'Der Kern-Einstiegspunkt hat keine Abhängigkeiten. Jeder Framework-Adapter ist ein eigener ' +
@@ -3102,11 +3839,17 @@ const els = {
   aiOut: $('ai-out'),
   complianceAction: $('compliance-action'),
   complianceDuration: $('compliance-duration'),
-  complianceAppealUrl: $('compliance-appealUrl'),
+  complianceAppeal: $('compliance-appeal'),
+  complianceProvider: $('compliance-provider'),
+  complianceModel: $('compliance-model'),
+  complianceKey: $('compliance-key'),
   complianceGenerate: $('compliance-generate'),
-  complianceResult: $('compliance-result'),
+  complianceMsg: $('compliance-msg'),
   complianceVerdict: $('compliance-verdict'),
+  complianceSource: $('compliance-source'),
+  complianceMeta: $('compliance-meta'),
   complianceReason: $('compliance-reason'),
+  complianceCats: $('compliance-cats'),
   complianceOut: $('compliance-out'),
   complianceText: $('compliance-text'),
   fwNote: $('fw-note'),
@@ -3907,17 +4650,111 @@ function submitRegistration() {
  * what runs on your server.
  */
 /** The model picker is rebuilt whenever the provider changes. */
-function drawModels() {
-  const provider = els.aiProvider.value;
-  els.aiModel.textContent = '';
+function fillModels(select, provider) {
+  select.textContent = '';
   for (const id of AI_MODELS[provider]) {
     const option = document.createElement('option');
     option.value = id;
     option.textContent = id;
-    els.aiModel.append(option);
+    select.append(option);
   }
+}
+
+function drawModels() {
+  const provider = els.aiProvider.value;
+  fillModels(els.aiModel, provider);
   els.aiKey.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
   sayAi(t('ai.where.' + provider), '');
+}
+
+/** Raised when the provider's own safety layer declines, so callers can say so. */
+class ModelRefused extends Error {}
+
+/**
+ * One model call, straight from the page.
+ *
+ * Both sections need this and neither can use the package's own providers here:
+ * the Anthropic one loads its SDK through a dynamic import that nothing on a
+ * static page resolves. So the transport lives here and the *prompts and schemas
+ * still come from the package* — which is the half that decides what the model
+ * is asked and what shape the answer has to take.
+ */
+async function callModel({ provider, model, key, system, schema, text }) {
+  const wrapped = '<text_to_review>\n' + text + '\n</text_to_review>';
+
+  const call = provider === 'gemini'
+    ? {
+        url: 'https://generativelanguage.googleapis.com/v1beta/models/' +
+          encodeURIComponent(model) + ':generateContent',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+        body: {
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: wrapped }] }],
+          // Gemini blocks unsafe content by default, which for a classifier
+          // is backwards: the text it must read is the text it refuses to
+          // look at. It labels, it never generates.
+          safetySettings: [
+            'HARM_CATEGORY_HARASSMENT',
+            'HARM_CATEGORY_HATE_SPEECH',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'HARM_CATEGORY_DANGEROUS_CONTENT',
+          ].map((category) => ({ category, threshold: 'BLOCK_NONE' })),
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: toGeminiSchema(schema),
+            maxOutputTokens: 4096,
+            temperature: 0,
+          },
+        },
+      }
+    : {
+        url: 'https://api.anthropic.com/v1/messages',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          // Anthropic blocks browser calls unless you opt in, and names the
+          // header after what it is. That name is the honest summary.
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: {
+          model: model,
+          max_tokens: 4096,
+          system: system,
+          thinking: { type: 'adaptive' },
+          output_config: { effort: 'low', format: { type: 'json_schema', schema: schema } },
+          messages: [{ role: 'user', content: wrapped }],
+        },
+      };
+
+  const response = await fetch(call.url, {
+    method: 'POST',
+    headers: call.headers,
+    body: JSON.stringify(call.body),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data && data.error && data.error.message ? data.error.message : response.statusText,
+    );
+  }
+
+  if (provider === 'gemini') {
+    // Checked before the content is read: a blocked prompt returns 200 with
+    // no candidate at all.
+    if (data.promptFeedback && data.promptFeedback.blockReason) throw new ModelRefused();
+    const candidate = (data.candidates || [])[0];
+    if (!candidate || candidate.finishReason === 'SAFETY') throw new ModelRefused();
+    return (candidate.content && candidate.content.parts || []).map((p) => p.text || '').join('');
+  }
+
+  if (data.stop_reason === 'refusal') throw new ModelRefused();
+  return (data.content || [])
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
 }
 
 async function runAiCheck() {
@@ -3939,87 +4776,15 @@ async function runAiCheck() {
   els.aiVerdict.hidden = true;
 
   try {
-    const provider = els.aiProvider.value;
     const model = els.aiModel.value;
-    const system = buildSystemPrompt({});
-    const schema = buildSchema();
-    const wrapped = '<text_to_review>\n' + text + '\n</text_to_review>';
-
-    const call = provider === 'gemini'
-      ? {
-          url: 'https://generativelanguage.googleapis.com/v1beta/models/' +
-            encodeURIComponent(model) + ':generateContent',
-          headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-          body: {
-            systemInstruction: { parts: [{ text: system }] },
-            contents: [{ role: 'user', parts: [{ text: wrapped }] }],
-            // Gemini blocks unsafe content by default, which for a classifier
-            // is backwards: the text it must read is the text it refuses to
-            // look at. It labels, it never generates.
-            safetySettings: [
-              'HARM_CATEGORY_HARASSMENT',
-              'HARM_CATEGORY_HATE_SPEECH',
-              'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-              'HARM_CATEGORY_DANGEROUS_CONTENT',
-            ].map((category) => ({ category, threshold: 'BLOCK_NONE' })),
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: toGeminiSchema(schema),
-              maxOutputTokens: 4096,
-              temperature: 0,
-            },
-          },
-        }
-      : {
-          url: 'https://api.anthropic.com/v1/messages',
-          headers: {
-            'content-type': 'application/json',
-            'x-api-key': key,
-            'anthropic-version': '2023-06-01',
-            // Anthropic blocks browser calls unless you opt in, and names the
-            // header after what it is. That name is the honest summary.
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
-          body: {
-            model: model,
-            max_tokens: 4096,
-            system: system,
-            thinking: { type: 'adaptive' },
-            output_config: { effort: 'low', format: { type: 'json_schema', schema: schema } },
-            messages: [{ role: 'user', content: wrapped }],
-          },
-        };
-
-    const response = await fetch(call.url, {
-      method: 'POST',
-      headers: call.headers,
-      body: JSON.stringify(call.body),
+    const json = await callModel({
+      provider: els.aiProvider.value,
+      model: model,
+      key: key,
+      system: buildSystemPrompt({}),
+      schema: buildSchema(),
+      text: text,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      const detail = data && data.error && data.error.message ? data.error.message : response.statusText;
-      return sayAi(detail, 'err');
-    }
-
-    let json;
-    if (provider === 'gemini') {
-      // Checked before the content is read: a blocked prompt returns 200 with
-      // no candidate at all.
-      if (data.promptFeedback && data.promptFeedback.blockReason) {
-        return sayAi(t('ai.refused'), 'err');
-      }
-      const candidate = (data.candidates || [])[0];
-      if (!candidate || candidate.finishReason === 'SAFETY') return sayAi(t('ai.refused'), 'err');
-      json = (candidate.content && candidate.content.parts || []).map((p) => p.text || '').join('');
-    } else {
-      if (data.stop_reason === 'refusal') return sayAi(t('ai.refused'), 'err');
-      json = (data.content || [])
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text)
-        .join('');
-    }
 
     const verdict = JSON.parse(json);
     aiQuote = typeof verdict.quote === 'string' ? verdict.quote : '';
@@ -4029,6 +4794,7 @@ async function runAiCheck() {
     els.aiOut.hidden = false;
     sayAi('', '');
   } catch (error) {
+    if (error instanceof ModelRefused) return sayAi(t('ai.refused'), 'err');
     sayAi(String(error && error.message ? error.message : error), 'err');
   } finally {
     els.aiRun.disabled = false;
@@ -4064,45 +4830,110 @@ function sayAi(message, kind) {
   els.aiMsg.className = 'reg-msg' + (kind ? ' ' + kind : '');
 }
 
+function drawComplianceModels() {
+  const provider = els.complianceProvider.value;
+  fillModels(els.complianceModel, provider);
+  els.complianceKey.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
+  sayCompliance(t('ai.where.' + provider), '');
+}
+
+function sayCompliance(message, kind) {
+  els.complianceMsg.textContent = message;
+  els.complianceMsg.className = 'reg-msg' + (kind ? ' ' + kind : '');
+}
+
+/**
+ * The whole chain, on the text from the Input panel: moderate it, then turn the
+ * decision into the notice Art. 17 says the user has to receive.
+ *
+ * With a key that is two model calls — one to judge the sentence, one to word
+ * the notice. Without a key it is neither, and you still get a justification:
+ * the facts are the code's, only the phrasing was ever the model's.
+ */
 async function generateCompliance() {
-  const action = els.complianceAction.value || 'CONTENT_REMOVED';
-  const duration = els.complianceDuration.value || 'permanent';
-  const appealUrl = els.complianceAppealUrl.value || undefined;
-  const language = ui === 'de' ? 'de' : 'en';
   const text = els.input.value;
+  if (text.trim() === '') return sayCompliance(t('ai.needText'), 'err');
 
-  if (text.trim() === '') {
-    els.complianceReason.textContent = 'Type something in the input first.';
-    els.complianceResult.hidden = false;
-    return;
-  }
+  const key = els.complianceKey.value.trim();
+  const provider = els.complianceProvider.value;
+  const model = els.complianceModel.value;
 
-  els.complianceResult.hidden = true;
+  // The package's bring-your-own-model seam. Everything above it — prompt,
+  // schema, retries, fallback wording — stays inside the package.
+  const complete = key === ''
+    ? null
+    : async (request) => ({
+        json: await callModel({
+          provider: provider,
+          model: model,
+          key: key,
+          system: request.system,
+          schema: request.schema,
+          text: request.text,
+        }),
+        model: model,
+      });
+
+  els.complianceGenerate.disabled = true;
+  els.complianceVerdict.hidden = true;
+  els.complianceText.hidden = true;
+  els.complianceOut.hidden = true;
+  sayCompliance(t(complete ? 'compliance.running' : 'compliance.noKey'), '');
 
   try {
-    // Run moderation using the library (word lists only, no AI for compliance demo)
     const result = await moderateText(text, {
-      languages: currentOptions().languages || ['en'],
-      ai: { enabled: false },
+      ...currentOptions(),
+      ...(complete ? { ai: { complete: complete } } : {}),
     });
 
-    // Generate justification
     const justification = await generateJustification(text, result, {
-      action,
-      duration,
-      appealUrl,
-      language,
+      action: els.complianceAction.value,
+      duration: els.complianceDuration.value.trim() || 'permanent',
+      language: ui === 'de' ? 'de' : 'en',
+      ...(els.complianceAppeal.value.trim() !== ''
+        ? { appealUrl: els.complianceAppeal.value.trim() }
+        : {}),
+      ...(complete ? { ai: { complete: complete, model: model } } : {}),
     });
 
-    els.complianceReason.textContent = justification.reason;
-    els.complianceOut.textContent = JSON.stringify(justification, null, 2);
-    els.complianceOut.hidden = false;
-    els.complianceText.textContent = formatJustificationAsText(justification);
-    els.complianceResult.hidden = false;
+    drawJustification(justification, complete ? model : null);
+    sayCompliance('', '');
   } catch (error) {
-    els.complianceReason.textContent = 'Error: ' + (error.message || error);
-    els.complianceResult.hidden = false;
+    if (error instanceof ModelRefused) return sayCompliance(t('ai.refused'), 'err');
+    sayCompliance(String(error && error.message ? error.message : error), 'err');
+  } finally {
+    els.complianceGenerate.disabled = false;
   }
+}
+
+/** The notice as the user would read it, with the stored record underneath. */
+function drawJustification(justification, model) {
+  els.complianceSource.textContent = t(model ? 'compliance.byModel' : 'compliance.byTemplate');
+  els.complianceSource.className = 'pill' + (model ? ' yes' : '');
+
+  els.complianceMeta.textContent = fill(t('compliance.meta'), {
+    action: justification.action,
+    automated: t(justification.facts.automatedDetection ? 'compliance.yes' : 'compliance.no'),
+    model: model || t('compliance.noModel'),
+  });
+
+  els.complianceReason.textContent = justification.reason;
+
+  els.complianceCats.textContent = '';
+  for (const category of justification.facts.categories) {
+    const pill = document.createElement('span');
+    pill.className = 'pill yes';
+    pill.textContent = category;
+    els.complianceCats.append(pill);
+  }
+
+  els.complianceVerdict.hidden = false;
+
+  els.complianceText.textContent = formatJustificationAsText(justification);
+  els.complianceText.hidden = false;
+
+  els.complianceOut.textContent = JSON.stringify(justification, null, 2);
+  els.complianceOut.hidden = false;
 }
 
 /* --- section navigation ------------------------------------------------ */
@@ -4226,6 +5057,7 @@ function applyLanguage() {
   drawColophon();
   drawSamples(els.aiSamples, AI_SAMPLES);
   drawModels();
+  drawComplianceModels();
   seedAiExample();
   drawAiPresets();
   drawCoverage();
@@ -4289,6 +5121,7 @@ els.aiInput.addEventListener('input', () => {
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);
 
+els.complianceProvider.addEventListener('change', drawComplianceModels);
 els.complianceGenerate.addEventListener('click', generateCompliance);
 
 els.regSubmit.addEventListener('click', submitRegistration);

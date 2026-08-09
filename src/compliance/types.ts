@@ -1,4 +1,5 @@
 // src/compliance/types.ts — DSA Art. 17 compliance data structures
+import type { AiCompletion, AiProvider } from '../ai/types.js';
 
 /** The action taken against content or an account. */
 export type ComplianceAction =
@@ -73,12 +74,24 @@ export interface GenerateJustificationOptions {
   language?: string;
   /** Additional house rules or context for justification */
   additionalNotes?: string;
-  /** AI options for richer reasoning (omit to use defaults from moderation) */
+  /**
+   * Ask a model to phrase the explanation. Omit it entirely and no model is
+   * contacted — the wording falls back to the built-in templates, which is a
+   * complete justification in its own right, just a blunter one.
+   *
+   * The facts never come from the model: action, policy bases, categories,
+   * quote, confidence and timestamp are all decided by the code above it. The
+   * model only writes the sentence a human reads.
+   */
   ai?: {
+    /** Set `false` to keep the configuration around while the call is off. */
     enabled?: boolean;
-    provider?: 'anthropic' | 'gemini' | 'ollama';
+    provider?: AiProvider;
     apiKey?: string;
     model?: string;
+    /** House rules for the wording — tone, house terms, a signature line. */
     extraInstructions?: string;
+    /** Bring your own model, exactly as in `AiOptions`. Bypasses the providers. */
+    complete?: AiCompletion;
   };
 }

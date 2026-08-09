@@ -1041,44 +1041,78 @@
   <section class="panel" id="sec-compliance">
     <div class="panel-head">
       <span class="label" data-i18n="compliance">Justification (DSA Art. 17)</span>
+      <span class="pill" data-i18n="ai.optional">optional</span>
     </div>
     <div class="panel-body">
       <p class="note" data-i18n-html="compliance.note"></p>
 
-      <div class="compliance-controls">
-        <label class="field">
-          <span class="field-label" data-i18n="compliance.action">Action</span>
-          <select id="compliance-action">
-            <option value="CONTENT_REMOVED">Content Removed</option>
-            <option value="CONTENT_DEMOTION">Content Demotion</option>
-            <option value="ACCOUNT_SUSPENSION">Account Suspension</option>
-            <option value="ACCOUNT_TERMINATION">Account Termination</option>
-            <option value="FEATURE_RESTRICTION">Feature Restriction</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span class="field-label" data-i18n="compliance.duration">Duration</span>
-          <input type="text" id="compliance-duration" value="permanent" />
-        </label>
-
-        <label class="field">
-          <span class="field-label" data-i18n="compliance.appealUrl">Appeal URL</span>
-          <input type="url" id="compliance-appealUrl" />
-        </label>
-      </div>
-
-      <button class="chip solid" type="button" id="compliance-generate" data-i18n="compliance.generate"></button>
-
-      <div id="compliance-result" hidden>
-        <div class="verdict" id="compliance-verdict">
-          <div class="verdict-reason" id="compliance-reason"></div>
+      <div class="ai-try">
+        <div class="reg-grid">
+          <label class="field">
+            <span class="field-label" data-i18n="compliance.action">Action</span>
+            <select id="compliance-action">
+              <option value="CONTENT_REMOVED">CONTENT_REMOVED</option>
+              <option value="CONTENT_DEMOTION">CONTENT_DEMOTION</option>
+              <option value="ACCOUNT_SUSPENSION">ACCOUNT_SUSPENSION</option>
+              <option value="ACCOUNT_TERMINATION">ACCOUNT_TERMINATION</option>
+              <option value="FEATURE_RESTRICTION">FEATURE_RESTRICTION</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="compliance.duration">Duration</span>
+            <input type="text" id="compliance-duration" spellcheck="false" value="permanent" />
+          </label>
         </div>
 
-        <pre id="compliance-out" class="sample" hidden></pre>
+        <div class="field">
+          <label class="field-label" for="compliance-appeal"
+                 data-i18n="compliance.appealUrl">Appeal URL</label>
+          <input type="url" id="compliance-appeal" spellcheck="false"
+                 placeholder="https://example.com/appeals" />
+        </div>
 
-        <pre id="compliance-text" class="sample"></pre>
+        <div class="reg-grid">
+          <label class="field">
+            <span class="field-label" data-i18n="ai.provider">Provider</span>
+            <select id="compliance-provider">
+              <option value="gemini">Google Gemini — free tier</option>
+              <option value="anthropic">Anthropic Claude</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="ai.model">Model</span>
+            <select id="compliance-model"></select>
+          </label>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="compliance-key" data-i18n="compliance.key">
+            API key — leave empty for the template wording
+          </label>
+          <input type="password" id="compliance-key" autocomplete="off" spellcheck="false"
+                 placeholder="AIza…" />
+        </div>
+
+        <div class="reg-actions">
+          <button class="chip solid" type="button" id="compliance-generate"
+                  data-i18n="compliance.generate"></button>
+          <span class="reg-msg" id="compliance-msg"></span>
+        </div>
+
+        <div class="verdict" id="compliance-verdict" hidden>
+          <div class="verdict-head">
+            <span class="pill" id="compliance-source"></span>
+            <span class="verdict-meta" id="compliance-meta"></span>
+          </div>
+          <p class="verdict-reason" id="compliance-reason"></p>
+          <div class="verdict-cats" id="compliance-cats"></div>
+        </div>
+
+        <pre id="compliance-text" class="sample" hidden></pre>
+        <pre id="compliance-out" class="sample" hidden></pre>
       </div>
+
+      <p class="note flagged" data-i18n-html="ai.warning"></p>
     </div>
   </section>
 
@@ -1307,12 +1341,30 @@ const I18N = {
       '<code>examples/server</code>.',
     compliance: 'Justification (DSA Art. 17)',
     'compliance.note':
-      'The <a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank">Digital Services Act</a> requires platforms to explain moderation decisions to users on a permanent medium. ' +
-      'Use the AI verdict above to generate a DSA-compliant justification. This always succeeds, even if the model is unavailable.',
+      'Deciding to act is half the job. Article 17 of the ' +
+      '<a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank" ' +
+      'rel="noopener noreferrer">Digital Services Act</a> makes the other half a duty: the ' +
+      'person affected has to be told what was done, on what facts, under which rule, whether ' +
+      'software was involved, and how to contest it — in language they read, on something they ' +
+      'can keep. This runs the text from the <a href="#sec-input">Input</a> panel through the ' +
+      'filter and turns the outcome into that notice. ' +
+      '<strong>The key is optional.</strong> Leave it empty and the wording comes from the ' +
+      'built-in templates; paste one and a model both judges the sentence and writes the ' +
+      'notice — two calls. Either way the facts are the code’s: the model is never asked ' +
+      'what happened, only how to say it.',
     'compliance.action': 'Action',
     'compliance.duration': 'Duration',
-    'compliance.appealUrl': 'Appeal URL',
-    'compliance.generate': 'Generate Justification',
+    'compliance.appealUrl': 'Appeal URL — where the user can contest this',
+    'compliance.key': 'API key — leave empty for the template wording',
+    'compliance.generate': 'Generate justification',
+    'compliance.running': 'Judging the text, then wording the notice…',
+    'compliance.noKey': 'No key — the wording comes from the built-in templates.',
+    'compliance.byModel': 'worded by the model',
+    'compliance.byTemplate': 'worded by the template',
+    'compliance.meta': '{action} · automated: {automated} · {model}',
+    'compliance.noModel': 'no model contacted',
+    'compliance.yes': 'yes',
+    'compliance.no': 'no',
     fw: 'Framework integration',
     'fw.intro':
       'The core entry point has no dependencies. Each framework adapter is a separate subpath ' +
@@ -1507,12 +1559,31 @@ const I18N = {
       'lauffähiges Beispiel liegt unter <code>examples/server</code>.',
     compliance: 'Begründung (DSA Art. 17)',
     'compliance.note':
-      'Der <a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank">Digital Services Act</a> verpflichtet Plattformen, Moderationsentscheidungen den Nutzern zu erklären. ' +
-      'Nutze das KI-Ergebnis oben, um eine DSA-konforme Begründung zu generieren. Dies funktioniert auch, wenn das Modell nicht verfügbar ist.',
+      'Die Entscheidung zu treffen ist die halbe Arbeit. Artikel 17 des ' +
+      '<a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank" ' +
+      'rel="noopener noreferrer">Digital Services Act</a> macht die andere Hälfte zur Pflicht: ' +
+      'Die betroffene Person muss erfahren, was getan wurde, auf welche Tatsachen gestützt, ' +
+      'nach welcher Regel, ob Software beteiligt war und wie sie sich dagegen wehren kann — ' +
+      'in einer Sprache, die sie versteht, auf einem dauerhaften Medium. Hier läuft der Text ' +
+      'aus dem Feld <a href="#sec-input">Eingabe</a> durch den Filter, und das Ergebnis wird ' +
+      'zu genau dieser Mitteilung. <strong>Der Key ist optional.</strong> Bleibt er leer, ' +
+      'kommt die Formulierung aus den eingebauten Vorlagen; mit Key beurteilt ein Modell den ' +
+      'Satz und formuliert anschließend die Mitteilung — zwei Aufrufe. So oder so stammen die ' +
+      'Tatsachen aus dem Code: Das Modell wird nie gefragt, <em>was</em> passiert ist, nur wie ' +
+      'man es sagt.',
     'compliance.action': 'Maßnahme',
     'compliance.duration': 'Dauer',
-    'compliance.appealUrl': 'Einspruchs-URL',
-    'compliance.generate': 'Begründung generieren',
+    'compliance.appealUrl': 'Einspruchs-URL — wo sich die Person wehren kann',
+    'compliance.key': 'API-Key — leer lassen für die Vorlagen-Formulierung',
+    'compliance.generate': 'Begründung erzeugen',
+    'compliance.running': 'Beurteile den Text, formuliere dann die Mitteilung…',
+    'compliance.noKey': 'Kein Key — die Formulierung kommt aus den eingebauten Vorlagen.',
+    'compliance.byModel': 'vom Modell formuliert',
+    'compliance.byTemplate': 'aus der Vorlage formuliert',
+    'compliance.meta': '{action} · automatisiert: {automated} · {model}',
+    'compliance.noModel': 'kein Modell kontaktiert',
+    'compliance.yes': 'ja',
+    'compliance.no': 'nein',
     fw: 'Framework-Anbindung',
     'fw.intro':
       'Der Kern-Einstiegspunkt hat keine Abhängigkeiten. Jeder Framework-Adapter ist ein eigener ' +
@@ -1909,11 +1980,17 @@ const els = {
   aiOut: $('ai-out'),
   complianceAction: $('compliance-action'),
   complianceDuration: $('compliance-duration'),
-  complianceAppealUrl: $('compliance-appealUrl'),
+  complianceAppeal: $('compliance-appeal'),
+  complianceProvider: $('compliance-provider'),
+  complianceModel: $('compliance-model'),
+  complianceKey: $('compliance-key'),
   complianceGenerate: $('compliance-generate'),
-  complianceResult: $('compliance-result'),
+  complianceMsg: $('compliance-msg'),
   complianceVerdict: $('compliance-verdict'),
+  complianceSource: $('compliance-source'),
+  complianceMeta: $('compliance-meta'),
   complianceReason: $('compliance-reason'),
+  complianceCats: $('compliance-cats'),
   complianceOut: $('compliance-out'),
   complianceText: $('compliance-text'),
   fwNote: $('fw-note'),
@@ -2714,17 +2791,111 @@ function submitRegistration() {
  * what runs on your server.
  */
 /** The model picker is rebuilt whenever the provider changes. */
-function drawModels() {
-  const provider = els.aiProvider.value;
-  els.aiModel.textContent = '';
+function fillModels(select, provider) {
+  select.textContent = '';
   for (const id of AI_MODELS[provider]) {
     const option = document.createElement('option');
     option.value = id;
     option.textContent = id;
-    els.aiModel.append(option);
+    select.append(option);
   }
+}
+
+function drawModels() {
+  const provider = els.aiProvider.value;
+  fillModels(els.aiModel, provider);
   els.aiKey.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
   sayAi(t('ai.where.' + provider), '');
+}
+
+/** Raised when the provider's own safety layer declines, so callers can say so. */
+class ModelRefused extends Error {}
+
+/**
+ * One model call, straight from the page.
+ *
+ * Both sections need this and neither can use the package's own providers here:
+ * the Anthropic one loads its SDK through a dynamic import that nothing on a
+ * static page resolves. So the transport lives here and the *prompts and schemas
+ * still come from the package* — which is the half that decides what the model
+ * is asked and what shape the answer has to take.
+ */
+async function callModel({ provider, model, key, system, schema, text }) {
+  const wrapped = '<text_to_review>\n' + text + '\n</text_to_review>';
+
+  const call = provider === 'gemini'
+    ? {
+        url: 'https://generativelanguage.googleapis.com/v1beta/models/' +
+          encodeURIComponent(model) + ':generateContent',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+        body: {
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: wrapped }] }],
+          // Gemini blocks unsafe content by default, which for a classifier
+          // is backwards: the text it must read is the text it refuses to
+          // look at. It labels, it never generates.
+          safetySettings: [
+            'HARM_CATEGORY_HARASSMENT',
+            'HARM_CATEGORY_HATE_SPEECH',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'HARM_CATEGORY_DANGEROUS_CONTENT',
+          ].map((category) => ({ category, threshold: 'BLOCK_NONE' })),
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: toGeminiSchema(schema),
+            maxOutputTokens: 4096,
+            temperature: 0,
+          },
+        },
+      }
+    : {
+        url: 'https://api.anthropic.com/v1/messages',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          // Anthropic blocks browser calls unless you opt in, and names the
+          // header after what it is. That name is the honest summary.
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: {
+          model: model,
+          max_tokens: 4096,
+          system: system,
+          thinking: { type: 'adaptive' },
+          output_config: { effort: 'low', format: { type: 'json_schema', schema: schema } },
+          messages: [{ role: 'user', content: wrapped }],
+        },
+      };
+
+  const response = await fetch(call.url, {
+    method: 'POST',
+    headers: call.headers,
+    body: JSON.stringify(call.body),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data && data.error && data.error.message ? data.error.message : response.statusText,
+    );
+  }
+
+  if (provider === 'gemini') {
+    // Checked before the content is read: a blocked prompt returns 200 with
+    // no candidate at all.
+    if (data.promptFeedback && data.promptFeedback.blockReason) throw new ModelRefused();
+    const candidate = (data.candidates || [])[0];
+    if (!candidate || candidate.finishReason === 'SAFETY') throw new ModelRefused();
+    return (candidate.content && candidate.content.parts || []).map((p) => p.text || '').join('');
+  }
+
+  if (data.stop_reason === 'refusal') throw new ModelRefused();
+  return (data.content || [])
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
 }
 
 async function runAiCheck() {
@@ -2746,87 +2917,15 @@ async function runAiCheck() {
   els.aiVerdict.hidden = true;
 
   try {
-    const provider = els.aiProvider.value;
     const model = els.aiModel.value;
-    const system = buildSystemPrompt({});
-    const schema = buildSchema();
-    const wrapped = '<text_to_review>\n' + text + '\n</text_to_review>';
-
-    const call = provider === 'gemini'
-      ? {
-          url: 'https://generativelanguage.googleapis.com/v1beta/models/' +
-            encodeURIComponent(model) + ':generateContent',
-          headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-          body: {
-            systemInstruction: { parts: [{ text: system }] },
-            contents: [{ role: 'user', parts: [{ text: wrapped }] }],
-            // Gemini blocks unsafe content by default, which for a classifier
-            // is backwards: the text it must read is the text it refuses to
-            // look at. It labels, it never generates.
-            safetySettings: [
-              'HARM_CATEGORY_HARASSMENT',
-              'HARM_CATEGORY_HATE_SPEECH',
-              'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-              'HARM_CATEGORY_DANGEROUS_CONTENT',
-            ].map((category) => ({ category, threshold: 'BLOCK_NONE' })),
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: toGeminiSchema(schema),
-              maxOutputTokens: 4096,
-              temperature: 0,
-            },
-          },
-        }
-      : {
-          url: 'https://api.anthropic.com/v1/messages',
-          headers: {
-            'content-type': 'application/json',
-            'x-api-key': key,
-            'anthropic-version': '2023-06-01',
-            // Anthropic blocks browser calls unless you opt in, and names the
-            // header after what it is. That name is the honest summary.
-            'anthropic-dangerous-direct-browser-access': 'true',
-          },
-          body: {
-            model: model,
-            max_tokens: 4096,
-            system: system,
-            thinking: { type: 'adaptive' },
-            output_config: { effort: 'low', format: { type: 'json_schema', schema: schema } },
-            messages: [{ role: 'user', content: wrapped }],
-          },
-        };
-
-    const response = await fetch(call.url, {
-      method: 'POST',
-      headers: call.headers,
-      body: JSON.stringify(call.body),
+    const json = await callModel({
+      provider: els.aiProvider.value,
+      model: model,
+      key: key,
+      system: buildSystemPrompt({}),
+      schema: buildSchema(),
+      text: text,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      const detail = data && data.error && data.error.message ? data.error.message : response.statusText;
-      return sayAi(detail, 'err');
-    }
-
-    let json;
-    if (provider === 'gemini') {
-      // Checked before the content is read: a blocked prompt returns 200 with
-      // no candidate at all.
-      if (data.promptFeedback && data.promptFeedback.blockReason) {
-        return sayAi(t('ai.refused'), 'err');
-      }
-      const candidate = (data.candidates || [])[0];
-      if (!candidate || candidate.finishReason === 'SAFETY') return sayAi(t('ai.refused'), 'err');
-      json = (candidate.content && candidate.content.parts || []).map((p) => p.text || '').join('');
-    } else {
-      if (data.stop_reason === 'refusal') return sayAi(t('ai.refused'), 'err');
-      json = (data.content || [])
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text)
-        .join('');
-    }
 
     const verdict = JSON.parse(json);
     aiQuote = typeof verdict.quote === 'string' ? verdict.quote : '';
@@ -2836,6 +2935,7 @@ async function runAiCheck() {
     els.aiOut.hidden = false;
     sayAi('', '');
   } catch (error) {
+    if (error instanceof ModelRefused) return sayAi(t('ai.refused'), 'err');
     sayAi(String(error && error.message ? error.message : error), 'err');
   } finally {
     els.aiRun.disabled = false;
@@ -2871,45 +2971,110 @@ function sayAi(message, kind) {
   els.aiMsg.className = 'reg-msg' + (kind ? ' ' + kind : '');
 }
 
+function drawComplianceModels() {
+  const provider = els.complianceProvider.value;
+  fillModels(els.complianceModel, provider);
+  els.complianceKey.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
+  sayCompliance(t('ai.where.' + provider), '');
+}
+
+function sayCompliance(message, kind) {
+  els.complianceMsg.textContent = message;
+  els.complianceMsg.className = 'reg-msg' + (kind ? ' ' + kind : '');
+}
+
+/**
+ * The whole chain, on the text from the Input panel: moderate it, then turn the
+ * decision into the notice Art. 17 says the user has to receive.
+ *
+ * With a key that is two model calls — one to judge the sentence, one to word
+ * the notice. Without a key it is neither, and you still get a justification:
+ * the facts are the code's, only the phrasing was ever the model's.
+ */
 async function generateCompliance() {
-  const action = els.complianceAction.value || 'CONTENT_REMOVED';
-  const duration = els.complianceDuration.value || 'permanent';
-  const appealUrl = els.complianceAppealUrl.value || undefined;
-  const language = ui === 'de' ? 'de' : 'en';
   const text = els.input.value;
+  if (text.trim() === '') return sayCompliance(t('ai.needText'), 'err');
 
-  if (text.trim() === '') {
-    els.complianceReason.textContent = 'Type something in the input first.';
-    els.complianceResult.hidden = false;
-    return;
-  }
+  const key = els.complianceKey.value.trim();
+  const provider = els.complianceProvider.value;
+  const model = els.complianceModel.value;
 
-  els.complianceResult.hidden = true;
+  // The package's bring-your-own-model seam. Everything above it — prompt,
+  // schema, retries, fallback wording — stays inside the package.
+  const complete = key === ''
+    ? null
+    : async (request) => ({
+        json: await callModel({
+          provider: provider,
+          model: model,
+          key: key,
+          system: request.system,
+          schema: request.schema,
+          text: request.text,
+        }),
+        model: model,
+      });
+
+  els.complianceGenerate.disabled = true;
+  els.complianceVerdict.hidden = true;
+  els.complianceText.hidden = true;
+  els.complianceOut.hidden = true;
+  sayCompliance(t(complete ? 'compliance.running' : 'compliance.noKey'), '');
 
   try {
-    // Run moderation using the library (word lists only, no AI for compliance demo)
     const result = await moderateText(text, {
-      languages: currentOptions().languages || ['en'],
-      ai: { enabled: false },
+      ...currentOptions(),
+      ...(complete ? { ai: { complete: complete } } : {}),
     });
 
-    // Generate justification
     const justification = await generateJustification(text, result, {
-      action,
-      duration,
-      appealUrl,
-      language,
+      action: els.complianceAction.value,
+      duration: els.complianceDuration.value.trim() || 'permanent',
+      language: ui === 'de' ? 'de' : 'en',
+      ...(els.complianceAppeal.value.trim() !== ''
+        ? { appealUrl: els.complianceAppeal.value.trim() }
+        : {}),
+      ...(complete ? { ai: { complete: complete, model: model } } : {}),
     });
 
-    els.complianceReason.textContent = justification.reason;
-    els.complianceOut.textContent = JSON.stringify(justification, null, 2);
-    els.complianceOut.hidden = false;
-    els.complianceText.textContent = formatJustificationAsText(justification);
-    els.complianceResult.hidden = false;
+    drawJustification(justification, complete ? model : null);
+    sayCompliance('', '');
   } catch (error) {
-    els.complianceReason.textContent = 'Error: ' + (error.message || error);
-    els.complianceResult.hidden = false;
+    if (error instanceof ModelRefused) return sayCompliance(t('ai.refused'), 'err');
+    sayCompliance(String(error && error.message ? error.message : error), 'err');
+  } finally {
+    els.complianceGenerate.disabled = false;
   }
+}
+
+/** The notice as the user would read it, with the stored record underneath. */
+function drawJustification(justification, model) {
+  els.complianceSource.textContent = t(model ? 'compliance.byModel' : 'compliance.byTemplate');
+  els.complianceSource.className = 'pill' + (model ? ' yes' : '');
+
+  els.complianceMeta.textContent = fill(t('compliance.meta'), {
+    action: justification.action,
+    automated: t(justification.facts.automatedDetection ? 'compliance.yes' : 'compliance.no'),
+    model: model || t('compliance.noModel'),
+  });
+
+  els.complianceReason.textContent = justification.reason;
+
+  els.complianceCats.textContent = '';
+  for (const category of justification.facts.categories) {
+    const pill = document.createElement('span');
+    pill.className = 'pill yes';
+    pill.textContent = category;
+    els.complianceCats.append(pill);
+  }
+
+  els.complianceVerdict.hidden = false;
+
+  els.complianceText.textContent = formatJustificationAsText(justification);
+  els.complianceText.hidden = false;
+
+  els.complianceOut.textContent = JSON.stringify(justification, null, 2);
+  els.complianceOut.hidden = false;
 }
 
 /* --- section navigation ------------------------------------------------ */
@@ -3033,6 +3198,7 @@ function applyLanguage() {
   drawColophon();
   drawSamples(els.aiSamples, AI_SAMPLES);
   drawModels();
+  drawComplianceModels();
   seedAiExample();
   drawAiPresets();
   drawCoverage();
@@ -3096,6 +3262,7 @@ els.aiInput.addEventListener('input', () => {
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);
 
+els.complianceProvider.addEventListener('change', drawComplianceModels);
 els.complianceGenerate.addEventListener('click', generateCompliance);
 
 els.regSubmit.addEventListener('click', submitRegistration);

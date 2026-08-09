@@ -65,6 +65,17 @@ const DEFAULTS = {
 
 const SEVERITIES: readonly AiSeverity[] = ['none', 'low', 'medium', 'high', 'critical'];
 
+/**
+ * The key from the environment, when there is an environment to read.
+ *
+ * `process` does not exist in a browser, and a bare `process.env[...]` there is
+ * a ReferenceError rather than `undefined` — which would take down the whole
+ * call before the caller's own `apiKey` was ever considered.
+ */
+function envKey(name: string): string | undefined {
+  return typeof process !== 'undefined' ? process.env?.[name] : undefined;
+}
+
 function verdict(partial: Partial<AiVerdict> & Pick<AiVerdict, 'status'>): AiVerdict {
   return {
     flagged: false,
@@ -130,7 +141,7 @@ export async function runAiCompletion(
   options: AiOptions & { provider?: AiProvider; model?: string } = {},
 ): Promise<{ json: string; model?: string } | null> {
   const provider = PROVIDERS[options.provider ?? DEFAULTS.provider];
-  const apiKey = options.apiKey ?? process.env[provider.envVar];
+  const apiKey = options.apiKey ?? envKey(provider.envVar);
   const complete = options.complete ?? provider.complete;
 
   try {
@@ -194,7 +205,7 @@ export async function analyzeWithAi(
 
   const categories = options.categories?.length ? options.categories : AI_CATEGORIES;
   const provider = PROVIDERS[options.provider ?? DEFAULTS.provider];
-  const apiKey = options.apiKey ?? process.env[provider.envVar];
+  const apiKey = options.apiKey ?? envKey(provider.envVar);
   const complete = options.complete ?? provider.complete;
 
   try {

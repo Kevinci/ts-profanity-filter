@@ -186,6 +186,121 @@ test('formats as human-readable text in German', async () => {
   assert.equal(text.includes('Grund'), true);
 });
 
+/* ---------------------- the model, and its absence ---------------------- */
+
+const WORDING = { reason: 'Modellformulierung.', factsSummary: 'Zusammenfassung.' };
+
+test('no ai option means the wording comes from the template', async () => {
+  // Mirrors moderateText: leaving `ai` out entirely is how you say "no model".
+  // There is no key set in the test environment either, so a model call would
+  // surface as an error rather than a sentence.
+  const result = await moderateText('hello world', { languages: ['en'], ai: { enabled: false } });
+  const justification = await generateJustification('hello world', result, { language: 'en' });
+
+  assert.match(justification.reason, /removed for violating/);
+});
+
+test('the model writes the wording, never the facts', async () => {
+  const result = await moderateText('some text', {
+    languages: ['en'],
+    ai: { complete: stubModel({ ...CLEAN, flagged: true, categories: ['harassment'], confidence: 0.8, quote: 'some' }) },
+  });
+
+  const justification = await generateJustification('some text', result, {
+    action: 'ACCOUNT_SUSPENSION',
+    duration: '7 days',
+    policyBases: [{ name: 'Code of Conduct', section: '§3.1' }],
+    language: 'de',
+    ai: { complete: stubModel(WORDING) },
+  });
+
+  assert.equal(justification.reason, WORDING.reason, 'the sentence is the model’s');
+  assert.equal(justification.action, 'ACCOUNT_SUSPENSION', 'the action is not');
+  assert.equal(justification.duration, '7 days');
+  assert.deepEqual(justification.facts.categories, ['harassment']);
+  assert.equal(justification.facts.confidence, 0.8);
+  assert.equal(justification.policyBases[0]!.section, '§3.1');
+});
+
+test('a failing model does not withhold the justification', async () => {
+  const result = await moderateText('text', { languages: ['en'], ai: { enabled: false } });
+
+  const justification = await generateJustification('text', result, {
+    language: 'en',
+    ai: { complete: async () => { throw new Error('network down'); } },
+  });
+
+  assert.match(justification.reason, /removed for violating/, 'fell back to the template');
+  assert.equal(justification.action, 'CONTENT_REMOVED');
+});
+
+test('ai.enabled false keeps the config and skips the call', async () => {
+  let called = false;
+  const result = await moderateText('text', { languages: ['en'], ai: { enabled: false } });
+
+  const justification = await generateJustification('text', result, {
+    language: 'en',
+    ai: {
+      enabled: false,
+      complete: async () => { called = true; return { json: JSON.stringify(WORDING) }; },
+    },
+  });
+
+  assert.equal(called, false);
+  assert.match(justification.reason, /removed for violating/);
+});
+
+/* ---------------------- what the notice must say ---------------------- */
+
+test('the excerpt the decision rests on is in the notice', async () => {
+  // No model here: the word list is the only thing that matched, so the quote
+  // has to come from the flagged segments.
+  const result = await moderateText('you are an ass', {
+    languages: ['en'],
+    ai: { enabled: false },
+  });
+  assert.equal(result.matchedList, true, 'precondition: the list matched');
+
+  const justification = await generateJustification('you are an ass', result, { language: 'en' });
+  assert.equal(justification.facts.quote.length > 0, true);
+  assert.notEqual(justification.facts.quote, '[content]');
+
+  const text = formatJustificationAsText(justification);
+  assert.equal(text.includes('Facts:'), true);
+  assert.equal(text.includes(justification.facts.quote), true, 'the excerpt is printed');
+});
+
+test('model-only fields are absent when no model was asked', async () => {
+  const result = await moderateText('you are an ass', {
+    languages: ['en'],
+    ai: { enabled: false },
+  });
+
+  const text = formatJustificationAsText(
+    await generateJustification('you are an ass', result, { language: 'en' }),
+  );
+
+  // "0%" confidence reads as an uncertain decision rather than an unasked
+  // question, and "(none)" categories reads as a search that found nothing.
+  assert.equal(text.includes('Confidence:'), false);
+  assert.equal(text.includes('Categories:'), false);
+  assert.equal(text.includes('Automated detection: Yes'), true, 'the list is still automation');
+});
+
+test('model-only fields appear once a model has answered', async () => {
+  const result = await moderateText('some text', {
+    languages: ['en'],
+    ai: { complete: stubModel({ ...CLEAN, flagged: true, categories: ['hate'], confidence: 0.75, quote: 'some' }) },
+  });
+
+  const text = formatJustificationAsText(
+    await generateJustification('some text', result, { language: 'en' }),
+  );
+
+  assert.equal(text.includes('Categories: hate'), true);
+  assert.equal(text.includes('Confidence: 75%'), true);
+});
+
 /* ---------------------- storage ---------------------- */
 
 test('in-memory store saves and retrieves justifications', async () => {

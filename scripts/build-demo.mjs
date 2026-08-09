@@ -24,15 +24,32 @@ const MODULES = [
   'dist/filter.js',
   'dist/ai/types.js',
   'dist/ai/prompt.js',
+  // The three providers are here because ai/index.js imports them at the top
+  // level. Only gemini's plain fetch can actually run on a page: anthropic
+  // loads its SDK through a dynamic import that no import map resolves here,
+  // and ollama talks to localhost. The demo never routes through either — it
+  // passes its own `complete` — so their presence costs bytes, nothing else.
+  'dist/ai/anthropic.js',
   'dist/ai/gemini.js',
+  'dist/ai/ollama.js',
+  'dist/ai/index.js',
+  'dist/compliance/prompt.js',
+  'dist/compliance/generator.js',
 ];
+
+/** Every `from '…'` in a module, whether it is an import or a re-export. */
+const SPECIFIER = /^(?:import|export)\s[^;]*?from\s+'([^']+)'/gm;
 
 /** Turns an ES module into plain script-scope code. */
 function deModule(source) {
   return source
     .replace(/^import\s[^;]*;$/gm, '') // drop cross-file imports
-    .replace(/^export\s*\{[^}]*\}\s*;$/gm, '') // drop re-export statements
-    .replace(/^export\s+(?=const |function |class |let )/gm, '') // unwrap declarations
+    // Both shapes of re-export. `export { x } from './y.js'` is pure module
+    // plumbing here: in one shared scope the binding is already the declaration
+    // in y.js, so the line has nothing left to do.
+    .replace(/^export\s*\{[^}]*\}\s*(?:from\s+'[^']*'\s*)?;$/gm, '')
+    // Unwrap declarations, `async function` among them.
+    .replace(/^export\s+(?=(?:async\s+)?(?:const|function|class|let)\s)/gm, '')
     .replace(/^\/\/# sourceMappingURL=.*$/gm, '')
     .trim();
 }
@@ -43,10 +60,10 @@ const included = new Set(MODULES);
 for (const file of MODULES) {
   const source = await readFile(resolve(root, file), 'utf8');
 
-  // Every module this one imports has to be in the bundle too, and before it.
+  // Every module this one names has to be in the bundle too, and before it.
   // Forgetting one produces a page that loads fine and then throws on the first
   // keystroke, because the missing function is simply undefined.
-  for (const [, specifier] of source.matchAll(/^import\s[^;]*?from\s+'([^']+)'/gm)) {
+  for (const [, specifier] of source.matchAll(SPECIFIER)) {
     const dependency = resolve(dirname(resolve(root, file)), specifier).slice(
       resolve(root).length + 1,
     );

@@ -154,13 +154,18 @@ async function generateJustifications(req, res) {
     },
   });
 
-  // Generate justification (DSA Art. 17 compliant explanation)
+  // Generate justification (DSA Art. 17 compliant explanation). The model only
+  // words the notice — the action, rules and facts below are the caller's and
+  // this server's, and it never gets to change them.
   const justification = await generateJustification(body.text, result, {
     action: body.action || 'CONTENT_REMOVED',
     policyBases: body.policyBases || ['Community Guidelines'],
     duration: body.duration,
     appealUrl: body.appealUrl,
     language: body.language,
+    // Same rule as above: the key is read from the environment, never taken
+    // from the request body.
+    ...(body.ai === false ? {} : { ai: { provider: PROVIDER } }),
   });
 
   // Store and return with ID

@@ -9,6 +9,13 @@ import type {
   GenerateJustificationOptions,
 } from './types.js';
 
+/**
+ * Stands in for `facts.quote` when neither the model nor the word lists could
+ * point at anything — a decision taken on something this library never saw.
+ * The field stays populated so the record has no empty holes in it.
+ */
+const NO_EXCERPT = '[content]';
+
 function normalizePolicy(basis: PolicyBasis | string): PolicyBasis {
   if (typeof basis === 'string') {
     return { name: basis };
@@ -64,18 +71,23 @@ export async function generateJustification(
   const action = options.action || 'CONTENT_REMOVED';
   const policyBases = (options.policyBases || ['Community Guidelines']).map(normalizePolicy);
 
+  // The template wording is the floor, not the fallback of last resort: it is a
+  // complete justification on its own, and it is what stays if the model is
+  // slow, refuses, or was never configured.
   let reason = buildDefaultReason(action, language);
 
-  // Try to enhance with AI if enabled
-  if (options.ai?.enabled !== false) {
+  // No `ai` option at all means no model is contacted — same rule as
+  // `moderateText`. The network call is opted into, never inherited.
+  const ai = options.ai;
+  if (ai && ai.enabled !== false) {
     const aiOptions: AiOptions = {
-      enabled: true,
-      provider: (options.ai?.provider as any) || 'anthropic',
-      apiKey: options.ai?.apiKey,
-      model: options.ai?.model,
       effort: 'low',
       maxTokens: 512,
       onError: 'return',
+      ...(ai.provider !== undefined ? { provider: ai.provider } : {}),
+      ...(ai.apiKey !== undefined ? { apiKey: ai.apiKey } : {}),
+      ...(ai.model !== undefined ? { model: ai.model } : {}),
+      ...(ai.complete !== undefined ? { complete: ai.complete } : {}),
     };
 
     const response = await runAiCompletion(
@@ -84,15 +96,22 @@ export async function generateJustification(
           action,
           categories: result.ai.categories,
           language,
-          extraInstructions: options.ai?.extraInstructions,
+          ...(ai.extraInstructions !== undefined
+            ? { extraInstructions: ai.extraInstructions }
+            : {}),
         }),
-        text: `
-Action: ${action}
-Categories: ${result.ai.categories.join(', ') || '(none)'}
-Quote: "${result.ai.quote}"
-Confidence: ${Math.round(result.ai.confidence * 100)}%
-
-Generate reason and factsSummary as JSON.`,
+        // The facts, handed over as data. The model rewrites them; it never
+        // gets to decide what they are.
+        text: [
+          `Action: ${action}`,
+          `Categories: ${result.ai.categories.join(', ') || '(none)'}`,
+          `Policy bases: ${policyBases
+            .map((p) => `${p.name}${p.section ? ' ' + p.section : ''}`)
+            .join(', ')}`,
+          `Quote: ${JSON.stringify(result.ai.quote)}`,
+          `Confidence: ${Math.round(result.ai.confidence * 100)}%`,
+          `Duration: ${options.duration || 'permanent'}`,
+        ].join('\n'),
         schema: buildJustificationSchema(),
       },
       aiOptions,
@@ -100,12 +119,13 @@ Generate reason and factsSummary as JSON.`,
 
     if (response) {
       try {
-        const parsed = JSON.parse(response.json);
-        if (parsed.reason && typeof parsed.reason === 'string') {
-          reason = parsed.reason;
+        const parsed: unknown = JSON.parse(response.json);
+        const value = (parsed ?? {}) as Record<string, unknown>;
+        if (typeof value['reason'] === 'string' && value['reason'].trim() !== '') {
+          reason = value['reason'];
         }
       } catch {
-        // Parse error — keep defaults, don't throw
+        // Unparseable wording is not a reason to withhold the notification.
       }
     }
   }
@@ -117,13 +137,16 @@ Generate reason and factsSummary as JSON.`,
     reason,
     policyBases,
     facts: {
+      // The model's own excerpt when there is one, otherwise the words the
+      // lists actually matched — whichever it was, it is what the decision
+      // rests on and the notice has to be able to name it.
       quote:
         result.ai.quote ||
         result.segments
           .filter((s) => s.isProfane)
           .map((s) => s.text)
           .join(', ') ||
-        '[content]',
+        NO_EXCERPT,
       categories: result.ai.categories,
       confidence: result.ai.confidence,
       automatedDetection: result.ai.status === 'ok' || result.matchedList,
@@ -151,6 +174,7 @@ export function formatJustificationAsText(justification: ComplianceJustification
       confidence: 'Confidence:',
       automated: 'Automated detection:',
       humanReview: 'Human review:',
+      facts: 'Facts:',
       timestamp: 'Date:',
       duration: 'Duration:',
       appeal: 'To appeal:',
@@ -165,6 +189,7 @@ export function formatJustificationAsText(justification: ComplianceJustification
       confidence: 'Sicherheit:',
       automated: 'Automatische Erkennung:',
       humanReview: 'Menschliche Überprüfung:',
+      facts: 'Tatsachen:',
       timestamp: 'Datum:',
       duration: 'Dauer:',
       appeal: 'Um zu protestieren:',
@@ -174,18 +199,42 @@ export function formatJustificationAsText(justification: ComplianceJustification
   } as const satisfies Record<string, Record<string, string>>;
 
   const t = translations[justification.language as keyof typeof translations] ?? translations.en;
+  const facts = justification.facts;
 
   const lines: string[] = [
     `${t.action} ${justification.action}`,
     `${t.reason} ${justification.reason}`,
-    `${t.policies} ${justification.policyBases.map((p) => `${p.name}${p.section ? ' ' + p.section : ''}`).join(', ')}`,
-    `${t.categories} ${justification.facts.categories.length > 0 ? justification.facts.categories.join(', ') : '(none)'}`,
-    `${t.confidence} ${Math.round(justification.facts.confidence * 100)}%`,
-    `${t.automated} ${justification.facts.automatedDetection ? t.yes : t.no}`,
-    `${t.humanReview} ${justification.facts.humanReview ? t.yes : t.no}`,
+  ];
+
+  // Art. 17 wants the facts the decision rests on, and the excerpt *is* the
+  // fact. A notice that says "you broke the rules" without saying which words
+  // is exactly the notice the article was written against.
+  if (facts.quote && facts.quote !== NO_EXCERPT) {
+    lines.push(`${t.facts} ${JSON.stringify(facts.quote)}`);
+  }
+
+  lines.push(
+    `${t.policies} ${justification.policyBases
+      .map((p) => `${p.name}${p.section ? ' ' + p.section : ''}`)
+      .join(', ')}`,
+  );
+
+  // Categories and confidence come from a model. When none was asked, printing
+  // "(none)" and "0%" reads as an uncertain decision rather than an unasked
+  // question — so those lines are simply absent instead.
+  if (facts.categories.length > 0) {
+    lines.push(`${t.categories} ${facts.categories.join(', ')}`);
+  }
+  if (facts.confidence > 0) {
+    lines.push(`${t.confidence} ${Math.round(facts.confidence * 100)}%`);
+  }
+
+  lines.push(
+    `${t.automated} ${facts.automatedDetection ? t.yes : t.no}`,
+    `${t.humanReview} ${facts.humanReview ? t.yes : t.no}`,
     `${t.timestamp} ${new Date(justification.timestamp).toLocaleString(justification.language)}`,
     `${t.duration} ${justification.duration}`,
-  ];
+  );
 
   if (justification.appealUrl) {
     lines.push(`${t.appeal} ${justification.appealUrl}`);
