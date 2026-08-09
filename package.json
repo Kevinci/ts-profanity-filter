@@ -1,6 +1,6 @@
 {
   "name": "ts-profanity-filter",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "TypeScript profanity filter that returns text segments for UI rendering. English and German built in, any language registrable, false positives like Klassik and classic cleared, leetspeak and lookalikes matched — plus an optional AI check for hate, threats and harassment.",
   "type": "module",
   "main": "./dist/index.js",

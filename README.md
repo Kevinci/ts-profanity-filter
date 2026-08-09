@@ -186,6 +186,7 @@ up to the input exactly.
 | repetition | `Dreeecksau`, `fuuuuck` | runs of three or more identical characters collapse |
 | invisible | `Dreck<ZWSP>sau` | formatting characters are dropped |
 | decomposed | `a` + combining diaeresis | composed into `ä` first |
+| compatibility forms | `Ｄｒｅｃｋｓａｕ`, `𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮`, `Ⓓⓡⓔⓒⓚⓢⓐⓤ` | folded with NFKC to the plain letters |
 
 Doubles are left alone — `Klasse` and `Fässer` are ordinary spelling, and
 collapsing them would break the allowlist. The spaced-out rule needs *whole*
@@ -282,7 +283,7 @@ import are the whole setup — no build step, nothing to install.
 </style>
 
 <script type="module">
-  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.1.1/+esm';
+  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.2.0/+esm';
 
   const draft = document.getElementById('draft');
   const output = document.getElementById('output');
@@ -318,13 +319,13 @@ lists every published file and version.
 
 | CDN | URL |
 | --- | --- |
-| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.1.1/+esm` |
-| esm.sh | `https://esm.sh/ts-profanity-filter@1.1.1` |
-| unpkg | `https://unpkg.com/ts-profanity-filter@1.1.1/dist/index.js` |
+| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.2.0/+esm` |
+| esm.sh | `https://esm.sh/ts-profanity-filter@1.2.0` |
+| unpkg | `https://unpkg.com/ts-profanity-filter@1.2.0/dist/index.js` |
 
 ```js
-import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.1.1/react';
-import { de } from 'https://esm.sh/ts-profanity-filter@1.1.1/lang/de';
+import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.2.0/react';
+import { de } from 'https://esm.sh/ts-profanity-filter@1.2.0/lang/de';
 ```
 
 **Pin the version.** An unpinned URL like `https://esm.sh/ts-profanity-filter`
@@ -685,14 +686,18 @@ Safari 11.1, Node 10. That is a hard floor: they are used throughout, and
 nothing can degrade without them.
 
 Lookbehind is the one construct beyond that, and it is optional. It powers the
-spaced-out detection (`D r e c k s a u`), and engines shipped it late — Safari
-only from 16.4. So it is compiled with `new RegExp` inside a `try`, never
+spaced-out detection (`D r e c k s a u`) and the whole-word anchors — `\b` is
+useless for those, because it is defined in terms of `\w` and stays ASCII even
+under the `u` flag, so every umlaut and every `ß` reads as a word boundary and
+`Straußschwanz` comes back flagged. Engines shipped lookbehind late — Safari
+only from 16.4 — so it is compiled with `new RegExp` inside a `try`, never
 written as a literal:
 
 | | Safari 16.4+, Chrome 62+, Firefox 78+, Node 18+ | older engines |
 | --- | --- | --- |
-| word lists, cross-check, leet, lookalikes, repetition, zero-width | ✅ | ✅ |
+| word lists, cross-check, leet, lookalikes, repetition, zero-width, NFKC folding | ✅ | ✅ |
 | spaced-out words (`D r e c k s a u`) | ✅ | not detected |
+| whole-word anchors | Unicode boundaries | fall back to ASCII `\b` |
 
 The distinction matters more than it looks. A regex literal is compiled when
 the *script* is parsed, so one the engine cannot handle is a syntax error for
