@@ -2116,6 +2116,7 @@ const PROFILES = {
   git: 'https://github.com/Kevinci',
   cdn: 'https://www.jsdelivr.com/package/npm/ts-profanity-filter',
   fiddle: 'https://jsfiddle.net/7x6mtawo/',
+  license: 'https://github.com/Kevinci/ts-profanity-filter/blob/main/LICENSE',
 };
 
 /* ============================== strings ================================= */
@@ -2265,6 +2266,7 @@ const I18N = {
     'placeholder': 'Type something above.',
     'link.npm': 'npm profile',
     'link.git': 'GitHub profile',
+    'link.license': 'MIT licence — warranty disclaimer and limitation of liability',
     'link.cdn': 'Package on jsDelivr',
     'link.fiddle': 'Live example on JSFiddle',
     'legal.tpl': '© {year} {author} · {license} License · v{version}',
@@ -2429,6 +2431,7 @@ const I18N = {
     'placeholder': 'Oben etwas eintippen.',
     'link.npm': 'npm-Profil',
     'link.git': 'GitHub-Profil',
+    'link.license': 'MIT-Lizenz — Gewährleistungs- und Haftungsausschluss',
     'link.cdn': 'Paket auf jsDelivr',
     'link.fiddle': 'Live-Beispiel auf JSFiddle',
     'legal.tpl': '© {year} {author} · {license}-Lizenz · v{version}',
@@ -3443,11 +3446,24 @@ function drawColophon() {
     el.setAttribute('aria-label', t(key));
   }
 
-  els.legal.textContent = t('legal.tpl')
+  // Built as nodes rather than innerHTML: the licence name becomes a link to
+  // the text that actually carries the warranty disclaimer, and everything
+  // around it stays plain text.
+  const parts = t('legal.tpl')
     .replace('{year}', String(new Date().getFullYear()))
     .replace('{author}', META.author)
-    .replace('{license}', META.license)
-    .replace('{version}', META.version);
+    .replace('{version}', META.version)
+    .split('{license}');
+
+  const link = document.createElement('a');
+  link.href = PROFILES.license;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = META.license;
+  link.title = t('link.license');
+
+  els.legal.textContent = '';
+  els.legal.append(parts[0] ?? '', link, parts[1] ?? '');
 }
 
 /* --- i18n ------------------------------------------------------------- */

@@ -711,4 +711,16 @@ npm run demo       # builds and regenerates docs/index.html
 
 ## License
 
-MIT
+[MIT](LICENSE) — [full text](https://opensource.org/licenses/MIT).
+
+The warranty disclaimer and the limitation of liability are in there, in the
+last two paragraphs: the software is provided *as is*, without warranty of any
+kind, and the authors are not liable for claims or damages arising from its
+use. That is the whole of what is offered and the whole of what is disclaimed —
+there is no separate agreement anywhere.
+
+Two things it does not do, because no wording can. It cannot exclude liability
+for intent or gross negligence, or for injury to life, body or health, where
+mandatory law says otherwise. And it does not decide anything about *your*
+obligations to *your* users — see
+*What leaves your machine, and whose problem it is* above.
