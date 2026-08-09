@@ -1038,6 +1038,50 @@
     </div>
   </section>
 
+  <section class="panel" id="sec-compliance">
+    <div class="panel-head">
+      <span class="label" data-i18n="compliance">Justification (DSA Art. 17)</span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="compliance.note"></p>
+
+      <div class="compliance-controls">
+        <label class="field">
+          <span class="field-label" data-i18n="compliance.action">Action</span>
+          <select id="compliance-action">
+            <option value="CONTENT_REMOVED">Content Removed</option>
+            <option value="CONTENT_DEMOTION">Content Demotion</option>
+            <option value="ACCOUNT_SUSPENSION">Account Suspension</option>
+            <option value="ACCOUNT_TERMINATION">Account Termination</option>
+            <option value="FEATURE_RESTRICTION">Feature Restriction</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label" data-i18n="compliance.duration">Duration</span>
+          <input type="text" id="compliance-duration" value="permanent" />
+        </label>
+
+        <label class="field">
+          <span class="field-label" data-i18n="compliance.appealUrl">Appeal URL</span>
+          <input type="url" id="compliance-appealUrl" />
+        </label>
+      </div>
+
+      <button class="chip solid" type="button" id="compliance-generate" data-i18n="compliance.generate"></button>
+
+      <div id="compliance-result" hidden>
+        <div class="verdict" id="compliance-verdict">
+          <div class="verdict-reason" id="compliance-reason"></div>
+        </div>
+
+        <pre id="compliance-out" class="sample" hidden></pre>
+
+        <pre id="compliance-text" class="sample"></pre>
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="sec-reg">
     <div class="panel-head">
       <span class="label" data-i18n="reg">Add a language</span>
@@ -1261,6 +1305,14 @@ const I18N = {
       'and spendable by every visitor. In production the model half belongs on your server — ' +
       'send the verdict to the client, never the key. There is a runnable example under ' +
       '<code>examples/server</code>.',
+    compliance: 'Justification (DSA Art. 17)',
+    'compliance.note':
+      'The <a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank">Digital Services Act</a> requires platforms to explain moderation decisions to users on a permanent medium. ' +
+      'Use the AI verdict above to generate a DSA-compliant justification. This always succeeds, even if the model is unavailable.',
+    'compliance.action': 'Action',
+    'compliance.duration': 'Duration',
+    'compliance.appealUrl': 'Appeal URL',
+    'compliance.generate': 'Generate Justification',
     fw: 'Framework integration',
     'fw.intro':
       'The core entry point has no dependencies. Each framework adapter is a separate subpath ' +
@@ -1453,6 +1505,14 @@ const I18N = {
       'Seite eingebauter Key ist für jeden Besucher lesbar und ausgebbar. Produktiv gehört die ' +
       'Modell-Hälfte auf deinen Server — schicke das Urteil zum Client, niemals den Key. Ein ' +
       'lauffähiges Beispiel liegt unter <code>examples/server</code>.',
+    compliance: 'Begründung (DSA Art. 17)',
+    'compliance.note':
+      'Der <a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank">Digital Services Act</a> verpflichtet Plattformen, Moderationsentscheidungen den Nutzern zu erklären. ' +
+      'Nutze das KI-Ergebnis oben, um eine DSA-konforme Begründung zu generieren. Dies funktioniert auch, wenn das Modell nicht verfügbar ist.',
+    'compliance.action': 'Maßnahme',
+    'compliance.duration': 'Dauer',
+    'compliance.appealUrl': 'Einspruchs-URL',
+    'compliance.generate': 'Begründung generieren',
     fw: 'Framework-Anbindung',
     'fw.intro':
       'Der Kern-Einstiegspunkt hat keine Abhängigkeiten. Jeder Framework-Adapter ist ein eigener ' +
@@ -1847,6 +1907,15 @@ const els = {
   aiRun: $('ai-run'),
   aiMsg: $('ai-msg'),
   aiOut: $('ai-out'),
+  complianceAction: $('compliance-action'),
+  complianceDuration: $('compliance-duration'),
+  complianceAppealUrl: $('compliance-appealUrl'),
+  complianceGenerate: $('compliance-generate'),
+  complianceResult: $('compliance-result'),
+  complianceVerdict: $('compliance-verdict'),
+  complianceReason: $('compliance-reason'),
+  complianceOut: $('compliance-out'),
+  complianceText: $('compliance-text'),
   fwNote: $('fw-note'),
   caveats: $('caveats'),
   copy: $('copy'),
@@ -2802,6 +2871,47 @@ function sayAi(message, kind) {
   els.aiMsg.className = 'reg-msg' + (kind ? ' ' + kind : '');
 }
 
+async function generateCompliance() {
+  const action = els.complianceAction.value || 'CONTENT_REMOVED';
+  const duration = els.complianceDuration.value || 'permanent';
+  const appealUrl = els.complianceAppealUrl.value || undefined;
+  const language = ui === 'de' ? 'de' : 'en';
+  const text = els.input.value;
+
+  if (text.trim() === '') {
+    els.complianceReason.textContent = 'Type something in the input first.';
+    els.complianceResult.hidden = false;
+    return;
+  }
+
+  els.complianceResult.hidden = true;
+
+  try {
+    // Run moderation using the library (word lists only, no AI for compliance demo)
+    const result = await moderateText(text, {
+      languages: currentOptions().languages || ['en'],
+      ai: { enabled: false },
+    });
+
+    // Generate justification
+    const justification = await generateJustification(text, result, {
+      action,
+      duration,
+      appealUrl,
+      language,
+    });
+
+    els.complianceReason.textContent = justification.reason;
+    els.complianceOut.textContent = JSON.stringify(justification, null, 2);
+    els.complianceOut.hidden = false;
+    els.complianceText.textContent = formatJustificationAsText(justification);
+    els.complianceResult.hidden = false;
+  } catch (error) {
+    els.complianceReason.textContent = 'Error: ' + (error.message || error);
+    els.complianceResult.hidden = false;
+  }
+}
+
 /* --- section navigation ------------------------------------------------ */
 
 /**
@@ -2985,6 +3095,8 @@ els.aiInput.addEventListener('input', () => {
 });
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);
+
+els.complianceGenerate.addEventListener('click', generateCompliance);
 
 els.regSubmit.addEventListener('click', submitRegistration);
 
