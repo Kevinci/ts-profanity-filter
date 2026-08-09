@@ -683,6 +683,16 @@
     margin: 0;
     max-width: 72ch;
   }
+  .note.accent {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-left: 2px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 var(--r) var(--r) 0;
+    color: var(--ink);
+    font-size: 14.5px;
+  }
+  .note.accent a { color: var(--accent); }
   .note a {
     color: var(--accent);
     text-decoration: underline;
@@ -852,6 +862,7 @@
       </div>
       <div id="output" aria-live="polite"></div>
       <p class="stats" id="stats"></p>
+      <p class="note accent" id="preset-hint" hidden></p>
     </div>
   </section>
   <section class="panel" id="sec-options">
@@ -2375,6 +2386,13 @@ const I18N = {
     'ai.where.anthropic': 'Key at console.anthropic.com — paid, set a spend limit',
     'ai.run': 'Check with AI',
     'ai.needKey': 'Paste a key first — nothing is stored, and it is only sent to Anthropic.',
+    'preset.hint.emoji':
+      'Nothing is redacted here, and that is the point. A pictograph is the same ' +
+      'character in a recipe and in an insult, so no pattern can separate them — ' +
+      'and a list that blocked 🍆 outright would flag every shopping note. ' +
+      'This is what the <a href="#sec-ai">AI check</a> is for: it reads who the ' +
+      'sentence is aimed at. Paste the same text there and it comes back ' +
+      '<strong>sexual</strong> and <strong>racism</strong>.',
     'cov': 'What gets caught',
     'cov.count': '{n} by the list · {m} only by the model',
     'cov.byList': 'word list',
@@ -2559,6 +2577,13 @@ const I18N = {
     'ai.where.anthropic': 'Key unter console.anthropic.com — kostenpflichtig, Ausgabenlimit setzen',
     'ai.run': 'Mit KI prüfen',
     'ai.needKey': 'Erst einen Key einfügen — er wird nicht gespeichert und geht nur an Anthropic.',
+    'preset.hint.emoji':
+      'Hier wird nichts geschwärzt, und genau das ist der Punkt. Ein Bildzeichen ist ' +
+      'im Rezept dasselbe Zeichen wie in der Beleidigung — kein Muster kann das ' +
+      'trennen, und eine Liste, die 🍆 pauschal sperrt, markiert jeden Einkaufszettel. ' +
+      'Dafür gibt es die <a href="#sec-ai">KI-Prüfung</a>: Sie liest, an wen der Satz ' +
+      'gerichtet ist. Denselben Text dort einfügen — zurück kommt ' +
+      '<strong>sexual</strong> und <strong>racism</strong>.',
     'cov': 'Was erkannt wird',
     'cov.count': '{n} über die Liste · {m} nur über das Modell',
     'cov.byList': 'Wortliste',
@@ -2659,68 +2684,113 @@ const I18N = {
   },
 };
 
+/**
+ * Ready-made inputs, one set per page language.
+ *
+ * `ui` says which page languages a preset appears in — a demonstration of
+ * German compounding has nothing to show an English reader, so it simply is not
+ * offered there. `text` and `langs` are keyed the same way, so switching the
+ * page language swaps the example rather than piling both on top of each other.
+ */
 const PRESETS = [
   {
     id: 'leet',
-    langs: ['en'],
-    label: { en: 'Leetspeak (EN)', de: 'Leetspeak (EN)' },
-    text: 'Honestly, what the sh1t is this? Total bullsh!t. The guy was an @sshole about it.',
+    ui: ['en', 'de'],
+    label: { en: 'Leetspeak', de: 'Leetspeak' },
+    text: {
+      en: 'Honestly, what the sh1t is this? Total bullsh!t. The guy was an @sshole about it.',
+      de: 'Was für eine Sch31ße, du @rschloch. Totaler Bl\u00f6dm4nn, ehrlich.',
+    },
+    langs: { en: ['en'], de: ['de'] },
   },
   {
-    id: 'fp-en',
-    langs: ['en'],
-    label: { en: 'False positives (EN)', de: 'Falsch-Positive (EN)' },
-    text: 'Please pass the class list to the assistant before the assessment in Scunthorpe.',
+    id: 'fp',
+    ui: ['en', 'de'],
+    label: { en: 'False positives', de: 'Falsch-Positive' },
+    text: {
+      en: 'Please pass the class list to the assistant before the assessment in Scunthorpe.',
+      de:
+        'Der Klassiker: ein harscher Marsch zur Massage — danach die Analyse der Hausaufgaben ' +
+        'in einer dicken Kassette.',
+    },
+    // The German sentence needs both lists: it demonstrates English patterns
+    // firing inside ordinary German words.
+    langs: { en: ['en'], de: ['en', 'de'] },
   },
   {
-    id: 'fp-de',
-    langs: ['en', 'de'],
-    label: { en: 'False positives (DE)', de: 'Falsch-Positive (DE)' },
-    text:
-      'Der Klassiker: ein harscher Marsch zur Massage — danach die Analyse der Hausaufgaben ' +
-      'in einer dicken Kassette.',
-  },
-  {
-    id: 'flag-de',
-    langs: ['de'],
-    label: { en: 'Insults (DE)', de: 'Beleidigungen (DE)' },
-    text: 'So ein Arschloch! Diese verdammte Scheiße nervt, du Vollpfosten.',
-  },
-  {
-    id: 'mixed',
-    langs: ['en', 'de'],
-    label: { en: 'Mixed DE/EN', de: 'Gemischt DE/EN' },
-    text: 'Total bullshit, du Trottel — aber die Massage war klasse.',
+    id: 'insults',
+    ui: ['en', 'de'],
+    label: { en: 'Insults', de: 'Beleidigungen' },
+    text: {
+      en: 'What an asshole. This damn bullshit is driving me nuts, you moron.',
+      de: 'So ein Arschloch! Diese verdammte Scheiße nervt, du Vollpfosten.',
+    },
+    langs: { en: ['en'], de: ['de'] },
   },
   {
     id: 'obfus',
-    langs: ['de'],
-    label: { en: 'Obfuscation (DE)', de: 'Verschleierung (DE)' },
-    text: 'D r e c k s a u, Dreeecksau, DräckSAU — und Drеcksau mit kyrillischem e.',
+    ui: ['en', 'de'],
+    label: { en: 'Obfuscation', de: 'Verschleierung' },
+    text: {
+      en: 'f u c k, fuuuuck, fück — and fuсk with a Cyrillic c.',
+      de: 'D r e c k s a u, Dreeecksau, DräckSAU — und Drеcksau mit kyrillischem e.',
+    },
+    langs: { en: ['en'], de: ['de'] },
   },
   {
     id: 'unicode',
-    langs: ['de'],
+    ui: ['en', 'de'],
     label: { en: 'Unicode tricks', de: 'Unicode-Tricks' },
-    text: 'Ｄｒｅｃｋｓａｕ, 𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮, Ⓓⓡⓔⓒⓚⓢⓐⓤ und Dreck​sau mit unsichtbarem Zeichen.',
+    text: {
+      en: 'Ａｓｓｈｏｌｅ, 𝐀𝐬𝐬𝐡𝐨𝐥𝐞, Ⓐⓢⓢⓗⓞⓛⓔ and ass\u200Bhole with an invisible character.',
+      de: 'Ｄｒｅｃｋｓａｕ, 𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮, Ⓓⓡⓔⓒⓚⓢⓐⓤ und Dreck\u200Bsau mit unsichtbarem Zeichen.',
+    },
+    langs: { en: ['en'], de: ['de'] },
   },
   {
     id: 'boundary',
-    langs: ['de'],
-    label: { en: 'Word boundaries (DE)', de: 'Wortgrenzen (DE)' },
-    text: 'Straußschwanz, Meerschweinchen, Hausaufgaben, sauber — aber: du Sau.',
+    // German only: the anchored stems are a German problem, and \b being ASCII
+    // is something you can only show with an umlaut or an ß.
+    ui: ['de'],
+    label: { en: 'Word boundaries', de: 'Wortgrenzen' },
+    text: {
+      en: '',
+      de: 'Straußschwanz, Meerschweinchen, Hausaufgaben, sauber — aber: du Sau.',
+    },
+    langs: { en: ['de'], de: ['de'] },
   },
   {
     id: 'emoji',
-    langs: ['en', 'de'],
-    label: { en: 'Emoji — list finds nothing', de: 'Emoji — Liste findet nichts' },
-    text: 'Lutsch mein 🍆 — und schau dir diesen Spieler an 🐵🐵🐵🍌',
+    ui: ['en', 'de'],
+    label: { en: 'Emoji', de: 'Emoji' },
+    text: {
+      en: 'Suck my 🍆 — and look at this player 🐵🐵🐵🍌',
+      de: 'Lutsch mein 🍆 — und schau dir diesen Spieler an 🐵🐵🐵🍌',
+    },
+    langs: { en: ['en', 'de'], de: ['en', 'de'] },
+    // Nothing will be redacted, and that is the lesson — so say where the
+    // judgement actually lives instead of leaving an empty result.
+    hint: 'preset.hint.emoji',
+  },
+  {
+    id: 'mixed',
+    ui: ['en', 'de'],
+    label: { en: 'Mixed DE/EN', de: 'Gemischt DE/EN' },
+    text: {
+      en: 'Total bullshit, du Trottel — aber die Massage war klasse.',
+      de: 'Total bullshit, du Trottel — aber die Massage war klasse.',
+    },
+    langs: { en: ['en', 'de'], de: ['en', 'de'] },
   },
   {
     id: 'clean',
-    langs: ['en'],
+    ui: ['en', 'de'],
     label: { en: 'Clean', de: 'Sauber' },
-    text: 'A perfectly civil sentence about quarterly spreadsheets and printer toner.',
+    text: {
+      en: 'A perfectly civil sentence about quarterly spreadsheets and printer toner.',
+      de: 'Ein völlig harmloser Satz über Quartalsberichte und Druckertoner.',
+    },
+    langs: { en: ['en'], de: ['de'] },
   },
 ];
 
@@ -2936,6 +3006,7 @@ const els = {
   aiPresets: $('ai-presets'),
   covTable: $('cov-table'),
   covCount: $('cov-count'),
+  presetHint: $('preset-hint'),
   aiProvider: $('ai-provider'),
   aiModel: $('ai-model'),
   aiKey: $('ai-key'),
@@ -3119,8 +3190,20 @@ function run() {
 function markActivePreset(text) {
   for (const btn of els.presets.children) {
     const preset = PRESETS.find((p) => p.id === btn.dataset.preset);
-    btn.setAttribute('aria-pressed', String(Boolean(preset) && preset.text === text));
+    btn.setAttribute('aria-pressed', String(Boolean(preset) && preset.text[ui] === text));
   }
+
+  drawPresetHint(text);
+}
+
+/**
+ * Some presets are here to show what the word list *cannot* do. An empty result
+ * reads as "nothing found" unless it says where the judgement actually lives.
+ */
+function drawPresetHint(text) {
+  const preset = presetsForUi().find((p) => p.hint && p.text[ui] === text);
+  els.presetHint.hidden = !preset;
+  if (preset) els.presetHint.innerHTML = t(preset.hint);
 }
 
 function drawOutput(segments) {
@@ -4023,9 +4106,14 @@ function applyLanguage() {
   run();
 }
 
+/** Only the presets offered in the current page language. */
+function presetsForUi() {
+  return PRESETS.filter((preset) => preset.ui.includes(ui));
+}
+
 function drawPresets() {
   els.presets.textContent = '';
-  for (const preset of PRESETS) {
+  for (const preset of presetsForUi()) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'chip';
@@ -4033,8 +4121,8 @@ function drawPresets() {
     btn.setAttribute('aria-pressed', 'false');
     btn.textContent = preset.label[ui];
     btn.addEventListener('click', () => {
-      els.input.value = preset.text;
-      drawLanguages(new Set(preset.langs));
+      els.input.value = preset.text[ui];
+      drawLanguages(new Set(preset.langs[ui]));
       run();
     });
     els.presets.append(btn);
@@ -4108,7 +4196,7 @@ for (const el of [els.aggressive, els.crossCheck]) {
 /* --- start ------------------------------------------------------------ */
 
 drawLanguages(new Set(['en']));
-els.input.value = PRESETS[0].text;
+els.input.value = PRESETS[0].text[ui];
 resetRegistrationForm();
 applyLanguage();
 </script>
