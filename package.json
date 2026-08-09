@@ -31,6 +31,10 @@
       "types": "./dist/lang/de.d.ts",
       "default": "./dist/lang/de.js"
     },
+    "./ai": {
+      "types": "./dist/ai/index.d.ts",
+      "default": "./dist/ai/index.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
@@ -49,6 +53,9 @@
       ],
       "lang/de": [
         "./dist/lang/de.d.ts"
+      ],
+      "ai": [
+        "./dist/ai/index.d.ts"
       ]
     }
   },
@@ -78,7 +85,12 @@
     "vue",
     "angular",
     "i18n",
-    "multilingual"
+    "multilingual",
+    "ai",
+    "llm",
+    "claude",
+    "content-moderation",
+    "hate-speech"
   ],
   "author": "Kevin Imig <kevinci.coding@gmail.com>",
   "license": "MIT",
@@ -91,6 +103,7 @@
     "url": "https://github.com/Kevinci/ts-profanity-filter/issues"
   },
   "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.60",
     "react": ">=16.8",
     "vue": ">=3.3"
   },
@@ -100,9 +113,14 @@
     },
     "vue": {
       "optional": true
+    },
+    "@anthropic-ai/sdk": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
     "typescript": "^5.9.3",

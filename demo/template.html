@@ -717,6 +717,18 @@
   </section>
   <section class="panel">
     <div class="panel-head">
+      <span class="label" data-i18n="ai">AI check</span>
+      <span class="pill" data-i18n="ai.optional">optional</span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="ai.note"></p>
+      <div class="samples" id="ai-samples"></div>
+      <p class="note flagged" data-i18n-html="ai.warning"></p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
       <span class="label" data-i18n="reg">Add a language</span>
       <button class="copy" type="button" id="reg-reset" data-i18n="reg.reset"></button>
     </div>
@@ -866,6 +878,22 @@ const I18N = {
     copy: 'Copy',
     copied: 'Copied',
     'copy.fail': 'Select it manually',
+    ai: 'AI check',
+    'ai.optional': 'optional',
+    'ai.note':
+      'Word lists catch <em>words</em>. They cannot tell that a sentence containing no ' +
+      'listed word at all is a threat, or that one full of them is a quotation. That ' +
+      'judgement is what a model adds: it reads the whole sentence and reports whether it ' +
+      'is racist, hateful, threatening, harassing, obscene, sexually predatory, or pushing ' +
+      'someone toward self-harm — with a severity, the categories that applied, and one ' +
+      'sentence of reasoning in the language of the text. It is off unless you ask for it: ' +
+      'this is the only part of the package that leaves your machine.',
+    'ai.warning':
+      'There is deliberately no key field on this page. An API key shipped to a browser is ' +
+      'readable by everyone who loads it and spendable by all of them — no amount of ' +
+      'obfuscation changes that. Run the check on your server and send the verdict to the ' +
+      'client, never the key. The word-list half of this library runs happily in the ' +
+      'browser; the model half does not belong there.',
     fw: 'Framework integration',
     'fw.intro':
       'The core entry point has no dependencies. Each framework adapter is a separate subpath ' +
@@ -986,6 +1014,22 @@ const I18N = {
     copy: 'Kopieren',
     copied: 'Kopiert',
     'copy.fail': 'Bitte manuell markieren',
+    ai: 'KI-Prüfung',
+    'ai.optional': 'optional',
+    'ai.note':
+      'Wortlisten fangen <em>Wörter</em>. Sie können nicht erkennen, dass ein Satz ganz ohne ' +
+      'gelistetes Wort eine Drohung ist — oder dass einer voller solcher Wörter ein Zitat ' +
+      'ist. Genau das steuert ein Modell bei: Es liest den ganzen Satz und meldet, ob er ' +
+      'rassistisch, hasserfüllt, bedrohend, beleidigend, obszön, sexuell übergriffig oder ' +
+      'auf Selbstverletzung gerichtet ist — mit Schweregrad, den zutreffenden Kategorien und ' +
+      'einem Satz Begründung in der Sprache des Textes. Standardmäßig aus: Es ist der einzige ' +
+      'Teil des Pakets, der deinen Rechner verlässt.',
+    'ai.warning':
+      'Auf dieser Seite gibt es bewusst kein Feld für einen API-Key. Ein Key im Browser ist ' +
+      'für jeden lesbar, der die Seite lädt, und von jedem ausgebbar — keine Verschleierung ' +
+      'ändert daran etwas. Führe die Prüfung auf deinem Server aus und schicke das Urteil ' +
+      'zum Client, niemals den Key. Die Wortlisten-Hälfte läuft problemlos im Browser; die ' +
+      'Modell-Hälfte gehört dort nicht hin.',
     fw: 'Framework-Anbindung',
     'fw.intro':
       'Der Kern-Einstiegspunkt hat keine Abhängigkeiten. Jeder Framework-Adapter ist ein eigener ' +
@@ -1080,6 +1124,46 @@ const PRESETS = [
     langs: ['en'],
     label: { en: 'Clean', de: 'Sauber' },
     text: 'A perfectly civil sentence about quarterly spreadsheets and printer toner.',
+  },
+];
+
+const AI_SAMPLES = [
+  {
+    file: 'server-side only — never in the browser',
+    code: `import { moderateText } from 'ts-profanity-filter/ai';
+
+const result = await moderateText(comment, {
+  languages: ['en', 'de'],
+  ai: { enabled: true },        // key read from ANTHROPIC_API_KEY
+});
+
+result.matchedList   // a word list matched
+result.ai.flagged    // the model flagged the sentence as a whole
+result.flagged       // either of the two
+result.ai.categories // ['racism', 'violence', ...]
+result.ai.severity   // 'none' | 'low' | 'medium' | 'high' | 'critical'
+result.ai.reason     // one sentence, in the language of the text`,
+  },
+  {
+    file: 'your own rules, on top of the built-in prompt',
+    code: `ai: {
+  enabled: true,
+  categories: ['racism', 'hate', 'violence'],   // narrow the check
+  extraInstructions: 'Football banter is fine here.',
+  languageHint: 'German',
+  effort: 'low',                                // cheap by default
+}`,
+  },
+  {
+    file: 'a failed check is a decision, not an exception',
+    code: `// moderateText never throws by default. Inspect the status and
+// decide for yourself whether a missing verdict should block.
+switch (result.ai.status) {
+  case 'ok':       break;                    // a verdict was produced
+  case 'disabled': break;                    // the check is switched off
+  case 'refused':  hold(result.ai.error); break;  // the provider declined
+  case 'error':    hold(result.ai.error); break;  // the call failed
+}`,
   },
 ];
 
@@ -1251,6 +1335,7 @@ const els = {
   rows: $('rows'),
   snippet: $('snippet'),
   fwSamples: $('fw-samples'),
+  aiSamples: $('ai-samples'),
   fwNote: $('fw-note'),
   caveats: $('caveats'),
   copy: $('copy'),
@@ -1555,9 +1640,10 @@ function drawSnippet(options) {
 
 /* --- framework samples ------------------------------------------------ */
 
-function drawFramework() {
-  els.fwSamples.textContent = '';
-  for (const sample of SAMPLES[framework]) {
+/** Both sample lists render the same way. */
+function drawSamples(container, samples) {
+  container.textContent = '';
+  for (const sample of samples) {
     const block = document.createElement('div');
     block.className = 'sample-block';
 
@@ -1570,8 +1656,12 @@ function drawFramework() {
     pre.textContent = sample.code;
 
     block.append(name, pre);
-    els.fwSamples.append(block);
+    container.append(block);
   }
+}
+
+function drawFramework() {
+  drawSamples(els.fwSamples, SAMPLES[framework]);
   els.fwNote.innerHTML = t('fw.' + framework + '.note');
 }
 
@@ -1702,6 +1792,7 @@ function applyLanguage() {
   drawPresets();
   drawFramework();
   drawColophon();
+  drawSamples(els.aiSamples, AI_SAMPLES);
   drawExtendsOptions();
   run();
 }

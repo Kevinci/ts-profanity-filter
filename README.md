@@ -311,6 +311,112 @@ const masked = segments
   .join('');
 ```
 
+## AI check (optional)
+
+Word lists catch **words**. They cannot tell that a sentence containing no
+listed word at all is a threat, or that one full of them is a quotation. That
+judgement is what a model adds.
+
+```bash
+npm install @anthropic-ai/sdk    # optional peer dependency
+```
+
+```ts
+import { moderateText } from 'ts-profanity-filter/ai';
+
+const result = await moderateText(comment, {
+  languages: ['en', 'de'],
+  ai: { enabled: true },        // key read from ANTHROPIC_API_KEY
+});
+
+result.matchedList    // a word list matched
+result.ai.flagged     // the model flagged the sentence as a whole
+result.flagged        // either of the two
+```
+
+**It is off unless you ask for it.** No `ai` option means no model is contacted,
+and `moderateText` is then just the local filter in a wrapper. `enabled: false`
+keeps the configuration around with the check switched off.
+
+### What the model reports
+
+| Category | Covers |
+| --- | --- |
+| `racism` | racial or ethnic slurs; dehumanising by origin or skin colour |
+| `hate` | contempt toward a group — religion, ethnicity, nationality, sexuality, gender, disability |
+| `violence` | threats, calls to harm, approval of harm; incitement against a whole group is the most severe form |
+| `harassment` | insults and degradation aimed at a specific person |
+| `sexual` | explicit or obscene sexual content |
+| `sexual_minors` | sexualisation of a minor, grooming, predatory approaches |
+| `self_harm` | encouraging suicide or self-injury |
+
+Alongside them: a `severity` (`none` … `critical`), a `confidence`, and one
+sentence of `reason` in the language of the text.
+
+### Your own prompt
+
+The built-in prompt describes each category rather than listing example slurs —
+spelling them out would ship those words in every request and teach the filter
+one exact wording. Extend it, or replace it:
+
+```ts
+ai: {
+  enabled: true,
+  categories: ['racism', 'hate', 'violence'],   // narrow the check
+  extraInstructions: 'Football banter is fine here.',  // added to the default
+  prompt: myOwnSystemPrompt,                    // replaces it entirely
+  languageHint: 'German',
+  effort: 'low',                                // cheap by default
+}
+```
+
+### Failure is a decision, not an exception
+
+`moderateText` never throws by default — a moderation call that fails should be
+something you decide about, not something that takes down the request:
+
+```ts
+switch (result.ai.status) {
+  case 'ok':       break;                        // a verdict was produced
+  case 'disabled': break;                        // the check is switched off
+  case 'refused':  hold(result.ai.error); break; // the provider's own safety layer declined
+  case 'error':    hold(result.ai.error); break; // the call failed
+}
+```
+
+A failed or refused check **never** reports `flagged: true` — absence of a
+verdict is not a clean bill of health. Set `onError: 'throw'` if a missing
+verdict should stop the request instead. The API key is stripped from error
+messages before they are returned.
+
+### Any model, not just Claude
+
+`ai.complete` replaces the built-in provider with anything that takes a system
+prompt plus text and returns JSON matching the schema. It is also how the test
+suite runs without a network:
+
+```ts
+import type { AiCompletion } from 'ts-profanity-filter/ai';
+
+const myModel: AiCompletion = async ({ system, text, schema }) => ({
+  json: await callWhateverYouLike(system, text, schema),
+});
+```
+
+### Keep the key server-side
+
+An API key shipped to a browser is readable by everyone who loads the page and
+spendable by all of them — no amount of obfuscation changes that. Run the check
+on your server and send the verdict to the client, never the key. The word-list
+half of this library runs happily in the browser; the model half does not belong
+there.
+
+Defaults worth knowing: model `claude-opus-5`, `effort: 'low'` (this is a
+classification, not an essay), a 20-second timeout, and provider-side retry on
+another model if Anthropic's own safety layer declines the request — moderation
+text is exactly the kind of input that trips those classifiers, and a refusal is
+not a verdict. Turn that off with `fallback: false`.
+
 ## Framework adapters
 
 Each adapter is a separate subpath import, so nothing you do not use reaches
