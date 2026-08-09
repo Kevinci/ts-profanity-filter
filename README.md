@@ -468,6 +468,41 @@ const myModel: AiCompletion = async ({ system, text, schema }) => ({
 });
 ```
 
+### What leaves your machine, and whose problem it is
+
+**This package sends nothing on its own.** It ships no key and has no account.
+Without an `ai` option it makes no network call at all, and the word-list half
+never does under any circumstances. When you switch the check on, the call goes
+out under *your* key, to *your* account, on *your* decision.
+
+That is worth being precise about, because it decides who answers for it: you
+are the controller of that processing, and the provider is your processor. Under
+the GDPR that means you need a lawful basis for sending user-submitted text to
+them, a data processing agreement with them, and a privacy notice that says so.
+None of that is something a library can do for you.
+
+**The free Gemini tier is not suitable for production data.** From
+[Google's Gemini API terms](https://ai.google.dev/gemini-api/terms):
+
+> To help with quality and improve our products, human reviewers may read,
+> annotate, and process your API input and output.
+
+On the paid tier the same terms say the opposite — "Google doesn't use your
+prompts … or responses to improve our products". The free tier is the right way
+to *try* this feature; it is the wrong way to run it on real user messages.
+Check Anthropic's current terms the same way before relying on either.
+
+The moderation case makes this sharper than usual: the text you send is, by
+definition, the text somebody wrote when they were at their worst. Three ways
+to keep that proportionate:
+
+- **Filter first, ask second.** Run the local lists on everything and reach for
+  the model only on what they cannot settle. Most messages never leave.
+- **Send the message, not the person.** No names, no ids, no metadata — the
+  check takes a string and nothing else.
+- **Or keep it in-house.** `ai.complete` takes any model, including one you run
+  yourself, and nothing about the rest of the feature changes.
+
 ### A runnable server endpoint
 
 `examples/server` is the whole shape in one file: a browser page, an endpoint,
