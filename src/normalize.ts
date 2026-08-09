@@ -1,9 +1,10 @@
 // src/normalize.ts
 //
 // Leet spellings and lookalikes are handled on the pattern side, because those
-// substitutions are one character for one character. Separators and repetition
-// are not: `D r e c k s a u` and `Dreeecksau` change the *length* of the text,
-// so no character class can reach them.
+// substitutions are one character for one character. Separators, repetition and
+// compatibility spellings are not: `D r e c k s a u`, `Dreeecksau` and
+// `Ｄｒｅｃｋｓａｕ` change the *length* of the text, so no character class can
+// reach them.
 //
 // So the text is rewritten instead — and every rewritten character remembers
 // which slice of the original it came from. Matches are found in the rewritten
@@ -34,6 +35,12 @@ const FORMAT = /\p{Cf}/u;
  * decomposed form would need `e` to match `a` — far too loose a rule to want.
  */
 const MARK = /\p{M}/u;
+
+/** The same, global, for stripping marks that survived composition. */
+const MARK_ALL = /\p{M}/gu;
+
+/** Anything outside ASCII, as a cheap gate in front of the NFKC check. */
+const NON_ASCII = /[^\x00-\x7F]/;
 
 /** What counts as a separator when letters have been pulled apart. */
 const SEPARATOR = /[\s._*+~|\-]/u;
@@ -92,7 +99,11 @@ const NEEDS_WORK =
  * which is the common case, and lets the filter skip the whole mechanism.
  */
 export function normalizeForMatching(text: string): Normalized | null {
-  if (!NEEDS_WORK.test(text)) return null;
+  // NFKC-unstable text needs the map too: fullwidth, circled and mathematical
+  // letters all fold to plain ones and would otherwise walk straight past every
+  // pattern. The ASCII gate keeps ordinary input from paying for the check.
+  const foldable = NON_ASCII.test(text) && text.normalize('NFKC') !== text;
+  if (!NEEDS_WORK.test(text) && !foldable) return null;
 
   // 1. Which indices disappear? Separators only count inside a spaced-out run,
   //    and only on an engine that can recognise one.
@@ -108,31 +119,58 @@ export function normalizeForMatching(text: string): Normalized | null {
   }
 
   // 2. Keep what is left, remembering where each character came from.
+  //
+  //    Iteration is by code point rather than by code unit, so an astral
+  //    character is never taken apart. Both halves of its surrogate pair end up
+  //    pointing at the same original slice, which is what stops a match
+  //    boundary from ever landing inside one — a segment holding half a pair
+  //    would render as U+FFFD even though the segments still concatenate back
+  //    to the input.
   const chars: string[] = [];
   const starts: number[] = [];
   const ends: number[] = [];
-  for (let i = 0; i < text.length; i++) {
-    const ch = text.charAt(i);
-    if (dropped.has(i) || FORMAT.test(ch)) continue;
-    if (MARK.test(ch)) continue; // a mark with no base character before it
+  for (let i = 0; i < text.length; ) {
+    const point = String.fromCodePoint(text.codePointAt(i)!);
 
-    // Pull any trailing combining marks into one cluster and compose it.
-    let end = i + 1;
-    while (end < text.length && !dropped.has(end) && MARK.test(text.charAt(end))) end++;
-
-    if (end > i + 1) {
-      const composed = text.slice(i, end).normalize('NFC');
-      // A cluster with no precomposed form keeps just its base character.
-      chars.push([...composed].length === 1 ? composed : ch);
-      starts.push(i);
-      ends.push(end);
-      i = end - 1;
+    if (dropped.has(i) || FORMAT.test(point)) {
+      i += point.length;
+      continue;
+    }
+    if (MARK.test(point)) {
+      i += point.length; // a mark with no base character before it
       continue;
     }
 
-    chars.push(ch);
-    starts.push(i);
-    ends.push(i + 1);
+    // Pull any trailing combining marks into one cluster.
+    let end = i + point.length;
+    while (end < text.length && !dropped.has(end)) {
+      const next = String.fromCodePoint(text.codePointAt(end)!);
+      if (!MARK.test(next)) break;
+      end += next.length;
+    }
+
+    // NFKC rather than NFC. NFC only composes; NFKC also folds the
+    // compatibility variants an evader actually reaches for — fullwidth
+    // `Ｄｒｅｃｋ`, circled `Ⓓⓡⓔⓒⓚ`, mathematical bold `𝐃𝐫𝐞𝐜𝐤` — down to the
+    // plain letters the patterns are written in.
+    //
+    // It can also turn one character into several (a ligature becomes its
+    // letters), so the map is one entry per *output* code unit, every one of
+    // them pointing back at the same original slice.
+    const folded = text.slice(i, end).normalize('NFKC');
+
+    // A mark that survived composition carries no letter of its own. Dropping
+    // it keeps `Dre` + an uncomposable mark + `cksau` readable as `Drecksau`,
+    // which is the whole reason marks are handled here.
+    const kept = folded.replace(MARK_ALL, '') || point;
+
+    for (let k = 0; k < kept.length; k++) {
+      chars.push(kept.charAt(k));
+      starts.push(i);
+      ends.push(end);
+    }
+
+    i = end;
   }
 
   // 3. Collapse long runs. Doubles are left alone — `Klasse` and `Fässer` are

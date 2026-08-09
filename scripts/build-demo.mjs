@@ -84,6 +84,27 @@ const template = await readFile(resolve(root, 'demo/template.html'), 'utf8');
 const MARKER = '/*#LIBRARY*/';
 if (!template.includes(MARKER)) throw new Error(`Missing ${MARKER} in template`);
 
+// The stripped modules and the page script end up sharing one top-level scope,
+// so two files declaring the same `const` is a SyntaxError that takes down the
+// entire page — and it looks like a blank demo, not like a name clash. Cheap to
+// catch here, miserable to debug there.
+const topLevelNames = (code) => {
+  const names = new Set();
+  for (const m of code.matchAll(/^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+    names.add(m[1]);
+  }
+  return names;
+};
+
+const pageScript = template.slice(template.indexOf(MARKER) + MARKER.length);
+const clashes = [...topLevelNames(bundle)].filter((n) => topLevelNames(pageScript).has(n));
+if (clashes.length > 0) {
+  throw new Error(
+    `Top-level name clash between the library bundle and demo/template.html: ${clashes.join(', ')}. ` +
+      'Rename one side — both share a single script scope on the page.',
+  );
+}
+
 const META_MARKER = '/*#META*/';
 if (!template.includes(META_MARKER)) throw new Error(`Missing ${META_MARKER} in template`);
 

@@ -12,6 +12,26 @@
 
 import type { LanguageDefinition } from '../registry.js';
 
+/**
+ * What counts as being *inside* a word, spelled out the same way `enclosingWord`
+ * spells it in filter.ts.
+ *
+ * `\b` cannot be used for this. JavaScript's `\b` is defined in terms of `\w`,
+ * which stays ASCII even under the `u` flag, so every umlaut and every `ß` reads
+ * as a word boundary: `\bschwanz\b` fires inside `Straußschwanz`, and `\bsau\b`
+ * inside `Straußsau`. Both are ordinary German compounds.
+ */
+const INSIDE_WORD = '[\\p{L}\\p{M}\\p{N}_]';
+
+/**
+ * Wraps a stem so it only matches as a whole word — the Unicode-aware version
+ * of `\b…\b`.
+ *
+ * The lookbehind is why `filter.ts` compiles its patterns defensively: engines
+ * without lookbehind support fall back rather than throwing.
+ */
+const word = (stem: string): string => `(?<!${INSIDE_WORD})${stem}(?!${INSIDE_WORD})`;
+
 /** Patterns that flag a match. */
 export const DE_PROFANITY: readonly string[] = [
   // general vulgarity
@@ -30,7 +50,7 @@ export const DE_PROFANITY: readonly string[] = [
   'pimmel',
   'm(?:ö|oe)se',
   'wichs', // wichsen, Wichser
-  '\\bschwanz\\b', // anchored: Pferdeschwanz and Schwanzflosse are fine
+  word('schwanz'), // whole word only: Pferdeschwanz and Schwanzflosse are fine
 
   // insults aimed at people
   'hurensohn',
@@ -41,11 +61,11 @@ export const DE_PROFANITY: readonly string[] = [
   'mistst(?:ü|ue)ck',
   // The Dreck- family: Dreck alone is just dirt, the compounds are the insult.
   'drecks?(?:au|schwein|sack|kerl|st(?:ü|ue)ck|viech|nest|fresse)',
-  '\\bschwein\\b', // anchored: Schweinefleisch and Meerschweinchen are fine
+  word('schwein'), // whole word only: Schweinefleisch and Meerschweinchen are fine
   'schweinehund',
   'saukerl',
   'sauhund',
-  '\\bsau\\b', // anchored: Hausaufgaben, sauber, Sauna are fine
+  word('sau'), // whole word only: Hausaufgaben, sauber, Sauna are fine
   'penner',
   'depp',
   'trottel',

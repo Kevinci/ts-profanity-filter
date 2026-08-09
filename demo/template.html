@@ -586,6 +586,58 @@
     max-width: 76ch;
   }
 
+  /* ---------- coverage list ---------- */
+
+  .cov { display: flex; flex-direction: column; gap: 2px; }
+
+  .cov-row {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 1.15fr) auto;
+    gap: 14px;
+    align-items: baseline;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .cov-row:last-child { border-bottom: 0; }
+
+  .cov-what { font-family: var(--sans); }
+  .cov-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .cov-desc { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin-top: 3px; }
+
+  /* The live sample. Long enough to wrap, so it must not force the page wide. */
+  .cov-sample {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .cov-sample .hit {
+    background: var(--redact);
+    color: var(--redact);
+    border-radius: 2px;
+  }
+  .cov-sample .none { color: var(--faint); font-family: var(--sans); font-style: italic; }
+
+  .cov-by { justify-self: end; white-space: nowrap; }
+  .pill.ai { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 720px) {
+    .cov-row { grid-template-columns: 1fr; gap: 7px; }
+    .cov-by { justify-self: start; }
+  }
+
+  /* A label sitting next to its own row of preset chips. */
+  .field-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 7px;
+  }
+  .field-head .field-label { margin-bottom: 0; }
+
   /* ---------- code ---------- */
 
   pre {
@@ -899,6 +951,18 @@
       <p class="note flagged" id="fw-note"></p>
     </div>
   </section>
+  <section class="panel" id="sec-cov">
+    <div class="panel-head">
+      <span class="label" data-i18n="cov">What gets caught</span>
+      <span class="pill" id="cov-count"></span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="cov.note"></p>
+      <div class="cov" id="cov-table"></div>
+      <p class="note" data-i18n-html="cov.limit"></p>
+    </div>
+  </section>
+
   <section class="panel" id="sec-ai">
     <div class="panel-head">
       <span class="label" data-i18n="ai">AI check</span>
@@ -926,10 +990,13 @@
           <input type="password" id="ai-key" autocomplete="off" spellcheck="false"
                  placeholder="sk-ant-..." />
         </div>
-        <label class="field">
-          <span class="field-label" data-i18n="ai.input">Text to check</span>
+        <div class="field">
+          <div class="field-head">
+            <label class="field-label" for="ai-input" data-i18n="ai.input">Text to check</label>
+            <div class="chips" id="ai-presets"></div>
+          </div>
           <textarea id="ai-input" spellcheck="false"></textarea>
-        </label>
+        </div>
 
         <div class="field">
           <span class="field-label" data-i18n="output">Rendered from segments</span>
@@ -1134,6 +1201,25 @@ const I18N = {
     'ai.where.anthropic': 'Key at console.anthropic.com — paid, set a spend limit',
     'ai.run': 'Check with AI',
     'ai.needKey': 'Paste a key first — nothing is stored, and it is only sent to Anthropic.',
+    'cov': 'What gets caught',
+    'cov.count': '{n} by the list · {m} only by the model',
+    'cov.byList': 'word list',
+    'cov.byAi': 'model',
+    'cov.noSample': 'described rather than demonstrated',
+    'cov.listBlind': 'the word list finds nothing here',
+    'cov.note':
+      'Every example below is run through the filter as this page loads — nothing here is a ' +
+      'screenshot. The first group is what the word list handles on its own: the text is ' +
+      'rewritten for matching, then every hit is mapped back onto the original characters, ' +
+      'which is why the blacked-out span covers exactly the letters you typed and not one ' +
+      'more. The second group is what a list <em>cannot</em> do, no matter how long it gets.',
+    'cov.limit':
+      'The dividing line is not effort, it is kind. A pattern decides by shape, so it can ' +
+      'follow a word through spacing, stretching, lookalike letters and invisible ' +
+      'characters. It cannot decide by meaning — and a peach in a recipe, the same peach in ' +
+      'an insult, and three monkeys under a footballer\u2019s photo are all the same ' +
+      'characters. Only reading the sentence separates them, which is the entire reason the ' +
+      'model layer exists.',
     'ai.needText': 'Type something in the input at the top first.',
     'ai.running': 'Asking the model…',
     'ai.clean': 'The model found nothing to flag.',
@@ -1299,6 +1385,26 @@ const I18N = {
     'ai.where.anthropic': 'Key unter console.anthropic.com — kostenpflichtig, Ausgabenlimit setzen',
     'ai.run': 'Mit KI prüfen',
     'ai.needKey': 'Erst einen Key einfügen — er wird nicht gespeichert und geht nur an Anthropic.',
+    'cov': 'Was erkannt wird',
+    'cov.count': '{n} über die Liste · {m} nur über das Modell',
+    'cov.byList': 'Wortliste',
+    'cov.byAi': 'Modell',
+    'cov.noSample': 'beschrieben statt vorgeführt',
+    'cov.listBlind': 'die Wortliste findet hier nichts',
+    'cov.note':
+      'Jedes Beispiel unten läuft beim Laden dieser Seite durch den echten Filter — nichts ' +
+      'davon ist ein Screenshot. Die erste Gruppe schafft die Wortliste allein: Der Text wird ' +
+      'zum Abgleich umgeschrieben, danach wird jeder Treffer auf die Zeichen des Originals ' +
+      'zurückgerechnet. Deshalb deckt der schwarze Balken genau die Buchstaben ab, die du ' +
+      'getippt hast — und kein Zeichen mehr. Die zweite Gruppe kann eine Liste ' +
+      '<em>grundsätzlich</em> nicht, egal wie lang sie wird.',
+    'cov.limit':
+      'Die Trennlinie ist keine Frage des Aufwands, sondern der Art. Ein Muster entscheidet ' +
+      'nach Form — deshalb folgt es einem Wort durch Leerzeichen, Dehnung, ähnliche ' +
+      'Buchstaben und unsichtbare Zeichen. Nach Bedeutung kann es nicht entscheiden: Ein ' +
+      'Pfirsich im Rezept, derselbe Pfirsich in einer Beleidigung und drei Affen unter dem ' +
+      'Foto eines Fußballers sind dieselben Zeichen. Nur wer den Satz liest, trennt das — ' +
+      'und genau dafür gibt es die Modell-Ebene.',
     'ai.needText': 'Oben im Eingabefeld erst etwas eintippen.',
     'ai.running': 'Frage das Modell…',
     'ai.clean': 'Das Modell hat nichts zu beanstanden gefunden.',
@@ -1411,6 +1517,30 @@ const PRESETS = [
     langs: ['en', 'de'],
     label: { en: 'Mixed DE/EN', de: 'Gemischt DE/EN' },
     text: 'Total bullshit, du Trottel — aber die Massage war klasse.',
+  },
+  {
+    id: 'obfus',
+    langs: ['de'],
+    label: { en: 'Obfuscation (DE)', de: 'Verschleierung (DE)' },
+    text: 'D r e c k s a u, Dreeecksau, DräckSAU — und Drеcksau mit kyrillischem e.',
+  },
+  {
+    id: 'unicode',
+    langs: ['de'],
+    label: { en: 'Unicode tricks', de: 'Unicode-Tricks' },
+    text: 'Ｄｒｅｃｋｓａｕ, 𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮, Ⓓⓡⓔⓒⓚⓢⓐⓤ und Dreck​sau mit unsichtbarem Zeichen.',
+  },
+  {
+    id: 'boundary',
+    langs: ['de'],
+    label: { en: 'Word boundaries (DE)', de: 'Wortgrenzen (DE)' },
+    text: 'Straußschwanz, Meerschweinchen, Hausaufgaben, sauber — aber: du Sau.',
+  },
+  {
+    id: 'emoji',
+    langs: ['en', 'de'],
+    label: { en: 'Emoji — list finds nothing', de: 'Emoji — Liste findet nichts' },
+    text: 'Lutsch mein 🍆 — und schau dir diesen Spieler an 🐵🐵🐵🍌',
   },
   {
     id: 'clean',
@@ -1629,6 +1759,9 @@ const els = {
   snippet: $('snippet'),
   fwSamples: $('fw-samples'),
   aiSamples: $('ai-samples'),
+  aiPresets: $('ai-presets'),
+  covTable: $('cov-table'),
+  covCount: $('cov-count'),
   aiProvider: $('ai-provider'),
   aiModel: $('ai-model'),
   aiKey: $('ai-key'),
@@ -1863,10 +1996,294 @@ const AI_EXAMPLES = {
   de: 'Deine Sorte gehört hier einfach nicht her.',
 };
 
+/**
+ * Ready-made texts for the AI box, chosen so the pairs matter: each flagged
+ * example has an innocent twin that must come back clean. A moderation layer
+ * that only ever says yes is not a moderation layer.
+ */
+const AI_PRESETS = [
+  {
+    id: 'ai-hate',
+    label: { en: 'Coded hate', de: 'Verklausulierter Hass' },
+    text: { en: AI_EXAMPLES.en, de: AI_EXAMPLES.de },
+  },
+  {
+    id: 'ai-emoji-sex',
+    label: { en: 'Emoji innuendo', de: 'Emoji-Anspielung' },
+    text: { en: 'Suck my 🍆', de: 'Lutsch mein 🍆' },
+  },
+  {
+    id: 'ai-emoji-slur',
+    label: { en: 'Emoji as a slur', de: 'Emoji als Schmähung' },
+    text: {
+      en: 'Look at this player 🐵🐵🐵🍌',
+      de: 'Schau dir diesen Spieler an 🐵🐵🐵🍌',
+    },
+  },
+  {
+    id: 'ai-emoji-ok',
+    label: { en: 'Same emoji, harmless', de: 'Gleiches Emoji, harmlos' },
+    text: {
+      en: 'The 🐵 at the zoo were adorable, and I ate a 🍑 after.',
+      de: 'Im Zoo waren die 🐵 richtig süß, danach gab es eine 🍑.',
+    },
+  },
+  {
+    id: 'ai-banter',
+    label: { en: 'Crude but harmless', de: 'Derb, aber harmlos' },
+    text: {
+      en: 'That deployment was absolute shit, mate. Beers on me.',
+      de: 'Das Deployment war echt beschissen, Alter. Bier geht auf mich.',
+    },
+  },
+];
+
+/**
+ * The evasion techniques the word list handles, and the ones it cannot.
+ *
+ * `sample` is run through the real filter when the row is drawn — nothing here
+ * is a screenshot, so a row that stops working stops looking like it works.
+ * `by: 'ai'` marks the rows where the list is *supposed* to find nothing.
+ */
+const COVERAGE = [
+  {
+    by: 'list',
+    name: { en: 'Plain spelling', de: 'Direkt geschrieben' },
+    desc: {
+      en: 'Substring matching, so compounds are covered too.',
+      de: 'Teilstring-Treffer, damit auch Zusammensetzungen erfasst sind.',
+    },
+    sample: 'Du Arschloch, echt jetzt.',
+    langs: ['de'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Leetspeak', de: 'Leetspeak' },
+    desc: {
+      en: 'Digits and symbols standing in for letters: 4, @, 3, 0, !, $.',
+      de: 'Ziffern und Symbole statt Buchstaben: 4, @, 3, 0, !, $.',
+    },
+    sample: 'What the sh1t, you @sshole.',
+    langs: ['en'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Diacritics', de: 'Diakritische Zeichen' },
+    desc: {
+      en: 'Accents and umlauts folded into the letter classes.',
+      de: 'Akzente und Umlaute sind in die Buchstabenklassen eingerechnet.',
+    },
+    sample: 'DräckSAU',
+    langs: ['de'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Lookalike letters', de: 'Verwechselbare Buchstaben' },
+    desc: {
+      en: 'Cyrillic and Greek characters that render like Latin ones.',
+      de: 'Kyrillische und griechische Zeichen, die wie lateinische aussehen.',
+    },
+    sample: 'Drеcksau', // the e is Cyrillic U+0435
+    langs: ['de'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Letters pulled apart', de: 'Auseinandergezogen' },
+    desc: {
+      en: 'Spaces, dots and dashes between single letters.',
+      de: 'Leerzeichen, Punkte und Striche zwischen einzelnen Buchstaben.',
+    },
+    sample: 'D r e c k s a u und f-u-c-k',
+    langs: ['de', 'en'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Stretched letters', de: 'Gedehnte Buchstaben' },
+    desc: {
+      en: 'Runs of three or more collapse; doubles are left alone so Klasse survives.',
+      de: 'Läufe ab drei Zeichen werden eingedampft; Doppel bleiben, damit Klasse überlebt.',
+    },
+    sample: 'Dreeecksauuuu',
+    langs: ['de'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Invisible characters', de: 'Unsichtbare Zeichen' },
+    desc: {
+      en: 'Zero-width spaces and joiners spliced into the middle of a word.',
+      de: 'Zero-Width-Zeichen mitten im Wort.',
+    },
+    sample: 'Dreck​sau',
+    langs: ['de'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Compatibility spellings', de: 'Kompatibilitätsformen' },
+    desc: {
+      en: 'Fullwidth, circled and mathematical letters, folded with NFKC.',
+      de: 'Fullwidth-, umkreiste und mathematische Buchstaben, per NFKC gefaltet.',
+    },
+    sample: 'Ｄｒｅｃｋｓａｕ 𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮 Ⓓⓡⓔⓒⓚⓢⓐⓤ',
+    langs: ['de'],
+  },
+  {
+    by: 'list',
+    name: { en: 'Ordinary words left alone', de: 'Normale Wörter bleiben frei' },
+    desc: {
+      en: 'The cross-check clears a hit when the surrounding word is allowed.',
+      de: 'Der Gegencheck verwirft einen Treffer, wenn das umgebende Wort erlaubt ist.',
+    },
+    sample: 'Klassik, Hausaufgaben, Meerschweinchen, Straußschwanz, sauber',
+    langs: ['de'],
+  },
+  {
+    by: 'ai',
+    name: { en: 'Not one bad word', de: 'Kein einziges böses Wort' },
+    desc: {
+      en: 'The hostility is in the sentence, not in any word a list could hold.',
+      de: 'Die Feindseligkeit steckt im Satz, nicht in einem Wort, das eine Liste kennen könnte.',
+    },
+    sample: 'Deine Sorte gehört hier einfach nicht her.',
+    langs: ['de'],
+  },
+  {
+    by: 'ai',
+    name: { en: 'Emoji as innuendo', de: 'Emoji als Anspielung' },
+    desc: {
+      en: 'A pictograph standing in for a word no list would spell out.',
+      de: 'Ein Bildzeichen steht für ein Wort, das keine Liste aufschreiben würde.',
+    },
+    sample: 'Lutsch mein 🍆',
+    langs: ['de'],
+  },
+  {
+    by: 'ai',
+    name: { en: 'Emoji as a slur', de: 'Emoji als Schmähung' },
+    desc: {
+      en: 'The same animal is a zoo remark in one sentence and an attack in the next. Only the target separates them.',
+      de: 'Dasselbe Tier ist einmal eine Zoo-Bemerkung und einmal ein Angriff. Nur der Adressat trennt beides.',
+    },
+    sample: 'Schau dir diesen Spieler an 🐵🐵🐵🍌',
+    langs: ['de'],
+  },
+  {
+    by: 'ai',
+    name: { en: 'Threats and incitement', de: 'Drohungen und Aufrufe' },
+    desc: {
+      en: 'Calls to harm a person or a whole group, however politely phrased.',
+      de: 'Aufrufe, einer Person oder ganzen Gruppe zu schaden — auch höflich formuliert.',
+    },
+    sample: null,
+    langs: ['de'],
+  },
+];
+
+/**
+ * Keeps the AI box in the page language — but only while it still holds
+ * something the page put there. Once the visitor has typed, switching the
+ * language must not throw their text away.
+ */
 function seedAiExample() {
   const current = els.aiInput.value;
-  const untouched = current === '' || Object.values(AI_EXAMPLES).includes(current);
-  if (untouched) els.aiInput.value = AI_EXAMPLES[ui];
+
+  if (current === '' || Object.values(AI_EXAMPLES).includes(current)) {
+    els.aiInput.value = AI_EXAMPLES[ui];
+    return;
+  }
+
+  const preset = AI_PRESETS.find((p) => Object.values(p.text).includes(current));
+  if (preset) els.aiInput.value = preset.text[ui];
+}
+
+function drawAiPresets() {
+  els.aiPresets.textContent = '';
+  for (const preset of AI_PRESETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.dataset.aiPreset = preset.id;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.textContent = preset.label[ui];
+    btn.addEventListener('click', () => {
+      els.aiInput.value = preset.text[ui];
+      aiQuote = '';
+      drawAiSegments();
+      markActiveAiPreset();
+      els.aiInput.focus();
+    });
+    els.aiPresets.append(btn);
+  }
+  markActiveAiPreset();
+}
+
+/** Derived from the text itself, so editing one character drops the highlight. */
+function markActiveAiPreset() {
+  const text = els.aiInput.value;
+  for (const btn of els.aiPresets.children) {
+    const preset = AI_PRESETS.find((p) => p.id === btn.dataset.aiPreset);
+    btn.setAttribute('aria-pressed', String(Boolean(preset) && preset.text[ui] === text));
+  }
+}
+
+/**
+ * Draws the coverage list by running each sample through the real filter, so a
+ * row that quietly stops working also stops looking like it works.
+ */
+function drawCoverage() {
+  els.covTable.textContent = '';
+
+  for (const row of COVERAGE) {
+    const item = document.createElement('div');
+    item.className = 'cov-row';
+
+    const what = document.createElement('div');
+    what.className = 'cov-what';
+    const name = document.createElement('div');
+    name.className = 'cov-name';
+    name.textContent = row.name[ui];
+    const desc = document.createElement('div');
+    desc.className = 'cov-desc';
+    desc.textContent = row.desc[ui];
+    what.append(name, desc);
+
+    const sample = document.createElement('div');
+    sample.className = 'cov-sample';
+
+    if (row.sample === null) {
+      // Deliberately no example — some categories are better described than
+      // demonstrated on a public page.
+      const none = document.createElement('span');
+      none.className = 'none';
+      none.textContent = t('cov.noSample');
+      sample.append(none);
+    } else {
+      const segments = filterFWordsToSegments(row.sample, { languages: row.langs });
+      for (const s of segments) {
+        const el = document.createElement('span');
+        if (s.isProfane) el.className = 'hit';
+        el.textContent = s.text;
+        sample.append(el);
+      }
+      if (row.by === 'ai') {
+        const none = document.createElement('span');
+        none.className = 'none';
+        none.textContent = ' — ' + t('cov.listBlind');
+        sample.append(none);
+      }
+    }
+
+    const by = document.createElement('span');
+    by.className = 'cov-by pill' + (row.by === 'ai' ? ' ai' : ' yes');
+    by.textContent = t(row.by === 'ai' ? 'cov.byAi' : 'cov.byList');
+
+    item.append(what, sample, by);
+    els.covTable.append(item);
+  }
+
+  const aiOnly = COVERAGE.filter((r) => r.by === 'ai').length;
+  els.covCount.textContent = t('cov.count')
+    .replace('{n}', String(COVERAGE.length - aiOnly))
+    .replace('{m}', String(aiOnly));
 }
 
 /**
@@ -2424,6 +2841,8 @@ function applyLanguage() {
   drawSamples(els.aiSamples, AI_SAMPLES);
   drawModels();
   seedAiExample();
+  drawAiPresets();
+  drawCoverage();
   drawAiSegments();
   drawNav();
   drawExtendsOptions();
@@ -2474,6 +2893,7 @@ for (const btn of document.querySelectorAll('#fw-modes button')) {
 els.aiInput.addEventListener('input', () => {
   aiQuote = '';
   drawAiSegments();
+  markActiveAiPreset();
 });
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);

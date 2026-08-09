@@ -61,6 +61,25 @@ function cached<T>(store: Map<string, T>, key: string, build: () => T): T {
   return built;
 }
 
+/**
+ * Compiles a pattern, degrading instead of throwing when the engine cannot
+ * handle lookbehind.
+ *
+ * Whole-word anchors are written as `(?<!…)stem(?!…)` because `\b` is ASCII-only
+ * even under the `u` flag. Lookbehind is the one construct here that some
+ * engines still lack (Safari before 16.4), and a throw would take down every
+ * pattern in the alternation, not just the anchored ones — so on failure the
+ * lookbehind is swapped for `\b`. That restores the old ASCII-boundary
+ * imprecision on those engines, which is a far better outcome than no filter.
+ */
+function compilePatterns(source: string, flags: string): RegExp {
+  try {
+    return new RegExp(source, flags);
+  } catch {
+    return new RegExp(source.replace(/\(\?<![^)]*\)/g, '\\b'), flags);
+  }
+}
+
 function profanityRegexFor(patterns: readonly string[], aggressive: boolean): RegExp {
   const key = `${aggressive ? 'a' : 'l'}\u0000${patterns.join('\u0000')}`;
   // 'g' find every occurrence, 'i' ignore case, 'u' so case folding is the
@@ -71,7 +90,7 @@ function profanityRegexFor(patterns: readonly string[], aggressive: boolean): Re
     const source = patterns
       .map((p) => (aggressive ? toAggressivePattern(p) : p))
       .join('|');
-    return new RegExp(source, 'giu');
+    return compilePatterns(source, 'giu');
   });
 }
 
@@ -89,7 +108,7 @@ function allowRegexFor(patterns: readonly string[], aggressive: boolean): RegExp
     const source = patterns
       .map((p) => (aggressive ? toAggressivePattern(p) : p))
       .join('|');
-    return new RegExp(`^(?:${source})$`, 'iu');
+    return compilePatterns(`^(?:${source})$`, 'iu');
   });
 }
 
