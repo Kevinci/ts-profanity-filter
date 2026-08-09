@@ -406,17 +406,48 @@ result.flagged        // either of the two
 and `moderateText` is then just the local filter in a wrapper. `enabled: false`
 keeps the configuration around with the check switched off.
 
-### Two providers
+### Three providers, one of them local
 
 ```ts
 ai: { provider: 'gemini', enabled: true }   // key from GEMINI_API_KEY
 ai: { enabled: true }                        // anthropic, key from ANTHROPIC_API_KEY
+ai: { provider: 'ollama', model: 'llama3.2' } // your machine, no key, no network
 ```
 
 | | Needs | Default model | Key from |
 | --- | --- | --- | --- |
 | `gemini` | nothing — plain `fetch` | `gemini-flash-lite-latest` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — free tier |
 | `anthropic` | `@anthropic-ai/sdk` | `claude-opus-5` | [console.anthropic.com](https://console.anthropic.com/settings/keys) — paid |
+| `ollama` | a running [Ollama](https://ollama.com) | `llama3.2` | no key at all |
+
+#### Nothing leaves the building
+
+`ollama` answers the objection that makes this whole feature a non-starter for
+some deployments: that moderating a message means handing it to a third party.
+
+```ts
+const result = await moderateText(comment, {
+  languages: ['de'],
+  ai: { provider: 'ollama', model: 'gemma3' },
+});
+```
+
+Same prompt, same schema, same verdict shape as the hosted providers — Ollama
+constrains decoding to the JSON Schema exactly as they do, so switching is a
+config change rather than a different code path. Point `ai.baseUrl` at another
+host, or set `OLLAMA_HOST`; a bearer token is sent only if you supply one, for
+the case where the server sits behind an authenticating proxy.
+
+Two things to expect. It is **slower** — a first call also loads the weights, and
+a 9 GB model took 34 seconds on a warm laptop, which is why the default timeout
+for this provider is 120 s rather than 20 s. And it is **only as good as the
+model you pulled**: a small instruct model handles clear-cut cases well and gets
+vaguer at the edges, which is the trade you are making for the text never
+leaving the host.
+
+For anything else — transformers.js, a hosted open-weights endpoint, your own
+fine-tune — `ai.complete` takes any function that returns JSON matching the
+schema. See [Bring your own model](#bring-your-own-model).
 
 Gemini is the cheapest way to try this: its free tier covers the use case and it
 adds no dependency at all. `ai.model` takes any id the provider accepts;
@@ -465,7 +496,7 @@ despite being told not to, and a span that does not match must not be invented.
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | `true` when `ai` is present | The switch. No `ai` at all means no model is contacted. |
-| `provider` | `'anthropic' \| 'gemini'` | `'anthropic'` | `gemini` needs no SDK and has a free tier. |
+| `provider` | `'anthropic' \| 'gemini' \| 'ollama'` | `'anthropic'` | `gemini` needs no SDK and has a free tier; `ollama` needs no key and no network. |
 | `apiKey` | `string` | `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | Keep it server-side. |
 | `model` | `string` | per provider | Any id the provider accepts; `AI_MODELS` lists a few. |
 | `categories` | `AiCategory[]` | all seven | Narrow what is checked. |

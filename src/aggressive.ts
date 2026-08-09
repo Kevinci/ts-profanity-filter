@@ -22,17 +22,20 @@
  * rewriting the `p` in it would destroy them.
  */
 const CLASSES: Readonly<Record<string, string>> = {
-  a: '[aàáâãäåāă@4аα]',
-  e: '[eèéêëēĕė3äеε]',
-  i: '[iìíîïīı!1і]',
-  o: '[oòóôõöøō0оο]',
-  u: '[uùúûüū\\^]',
-  c: '[cçćčk(<сϲ]',
+  a: '[aàáâãäåāă@4аα*#]',
+  e: '[eèéêëēĕė3äеε*#]',
+  i: '[iìíîïīı!1іι*#]',
+  o: '[oòóôõöøō0оο*#]',
+  u: '[uùúûüū\\^*#]',
+  c: '[cçćčk(<сϲк]',
+  // Only the lookalike, deliberately not `c`: the c class already reaches k,
+  // and mapping k back to c as well would let `kacke` match `cacce`.
+  k: '[kк]',
   s: '[sšśş$5ѕ]',
 };
 
 /** One pass, so an inserted class is never rescanned and re-expanded. */
-const EXPANDABLE = /[aeiousc]/g;
+const EXPANDABLE = /[aeiousck]/g;
 
 /**
  * Expands a pattern so that leet spellings, diacritics and cross-script
