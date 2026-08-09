@@ -1099,6 +1099,7 @@ const I18N = {
     'ai.provider': 'Provider',
     'ai.input': 'Text to check',
     'ai.stats': '<b>{flagged}</b> matched by the word lists · <b>{chars}</b> of <b>{total}</b> characters',
+    'ai.stats.span': '<b>the stretch the model objected to</b> is blacked out too',
     'ai.isFlagged': 'flagged',
     'ai.isClean': 'clean',
     'ai.meta': 'severity {severity} · {confidence}% confidence · {model}',
@@ -1262,6 +1263,7 @@ const I18N = {
     'ai.provider': 'Anbieter',
     'ai.input': 'Zu prüfender Text',
     'ai.stats': '<b>{flagged}</b> von den Wortlisten erfasst · <b>{chars}</b> von <b>{total}</b> Zeichen',
+    'ai.stats.span': '<b>die vom Modell beanstandete Stelle</b> ist mitgeschwärzt',
     'ai.isFlagged': 'markiert',
     'ai.isClean': 'unauffällig',
     'ai.meta': 'Schweregrad {severity} · {confidence}% Konfidenz · {model}',
@@ -1839,17 +1841,58 @@ function seedAiExample() {
   if (untouched) els.aiInput.value = AI_EXAMPLES[ui];
 }
 
+/**
+ * The model judges a whole sentence, so on its own it gives nothing to black
+ * out. It also returns the stretch it objected to, verbatim — that is what
+ * makes its verdict renderable in the same way a word-list hit is.
+ *
+ * Held here so a render-mode change or a keystroke can repaint without asking
+ * the model again; cleared whenever the text changes underneath it.
+ */
+let aiQuote = '';
+
+/** Word-list hits and the model's span, folded into one set of segments. */
+function withSpan(text, segments, start, end) {
+  const flagged = new Array(text.length).fill(false);
+
+  let at = 0;
+  for (const seg of segments) {
+    if (seg.isProfane) {
+      for (let k = at; k < at + seg.text.length; k++) flagged[k] = true;
+    }
+    at += seg.text.length;
+  }
+  for (let k = start; k < end; k++) flagged[k] = true;
+
+  const out = [];
+  let runStart = 0;
+  for (let k = 1; k <= text.length; k++) {
+    if (k === text.length || flagged[k] !== flagged[runStart]) {
+      out.push({ text: text.slice(runStart, k), isProfane: flagged[runStart] });
+      runStart = k;
+    }
+  }
+  return out;
+}
+
 function drawAiSegments() {
   const text = els.aiInput.value;
-  const segments = filterFWordsToSegments(text, currentOptions());
+  let segments = filterFWordsToSegments(text, currentOptions());
+  const listHits = segments.filter((seg) => seg.isProfane);
+
+  // Only if the quote is really in the text — a model can paraphrase despite
+  // being told not to, and a span that does not match must not be invented.
+  const at = aiQuote === '' ? -1 : text.indexOf(aiQuote);
+  if (at !== -1) segments = withSpan(text, segments, at, at + aiQuote.length);
+
   renderSegments(els.aiRendered, segments);
 
-  const flagged = segments.filter((seg) => seg.isProfane);
-  els.aiStats.innerHTML = fill(t('ai.stats'), {
-    flagged: flagged.length,
-    chars: flagged.reduce((n, seg) => n + seg.text.length, 0),
-    total: text.length,
-  });
+  els.aiStats.innerHTML =
+    fill(t('ai.stats'), {
+      flagged: listHits.length,
+      chars: listHits.reduce((n, seg) => n + seg.text.length, 0),
+      total: text.length,
+    }) + (at !== -1 ? ' · ' + t('ai.stats.span') : '');
 }
 
 function emptyRow(tbody, message, cols) {
@@ -2097,6 +2140,7 @@ async function runAiCheck() {
   // The mode buttons and the language boxes may have moved since the last
   // keystroke; re-render before asking, so both halves describe the same text
   // under the same settings.
+  aiQuote = '';
   drawAiSegments();
 
   els.aiRun.disabled = true;
@@ -2188,6 +2232,7 @@ async function runAiCheck() {
     }
 
     const verdict = JSON.parse(json);
+    aiQuote = typeof verdict.quote === 'string' ? verdict.quote : '';
     drawAiSegments();
     drawVerdict(verdict, model);
     els.aiOut.textContent = JSON.stringify(verdict, null, 2);
@@ -2385,7 +2430,10 @@ for (const btn of document.querySelectorAll('#fw-modes button')) {
   });
 }
 
-els.aiInput.addEventListener('input', drawAiSegments);
+els.aiInput.addEventListener('input', () => {
+  aiQuote = '';
+  drawAiSegments();
+});
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);
 

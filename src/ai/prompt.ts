@@ -77,6 +77,10 @@ export function buildSystemPrompt(options: {
     '',
     'Answer with the JSON object the schema describes and nothing else.',
     'Write `reason` as one sentence in the language of the text.',
+    'Copy `quote` verbatim from the text — same characters, same spelling, no',
+    'paraphrase and no added quotation marks — so it can be found again. Pick the',
+    'shortest stretch that still makes the case, and leave it empty when nothing',
+    'is flagged.',
     'Set `flagged` to false with an empty `categories` list when nothing applies.',
   ];
 
@@ -115,8 +119,16 @@ export function buildSchema(categories?: readonly AiCategory[]): Record<string, 
         type: 'string',
         description: 'One sentence, in the language of the text.',
       },
+      quote: {
+        type: 'string',
+        description:
+          'The exact stretch of the input that carries the problem, copied ' +
+          'character for character so it can be located in the original. The ' +
+          'shortest span that still makes the case. Empty string when nothing ' +
+          'is flagged.',
+      },
     },
-    required: ['flagged', 'severity', 'categories', 'confidence', 'reason'],
+    required: ['flagged', 'severity', 'categories', 'confidence', 'reason', 'quote'],
     additionalProperties: false,
   };
 }

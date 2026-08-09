@@ -126,6 +126,7 @@ async function moderate(req, res) {
       categories: result.ai.categories,
       confidence: result.ai.confidence,
       reason: result.ai.reason,
+      quote: result.ai.quote,
     },
   });
 }

@@ -317,6 +317,7 @@ test('the schema is strict enough for structured outputs', () => {
     'categories',
     'confidence',
     'reason',
+    'quote',
   ]);
 });
 
@@ -357,6 +358,7 @@ test('the gemini schema drops what its API rejects', () => {
     'categories',
     'confidence',
     'reason',
+    'quote',
   ]);
   const properties = converted['properties'] as Record<string, Record<string, unknown>>;
   assert.deepEqual(properties['categories']!['items'], {
@@ -369,4 +371,34 @@ test('AI_MODELS lists something for every provider', () => {
   for (const provider of ['anthropic', 'gemini'] as const) {
     assert.equal(AI_MODELS[provider].length > 0, true, provider);
   }
+});
+
+test('the verdict carries the span the model objected to', async () => {
+  const verdict = await analyzeWithAi('Your kind does not belong here.', {
+    complete: stubModel({
+      flagged: true,
+      severity: 'high',
+      categories: ['hate'],
+      confidence: 0.9,
+      reason: 'Group-based exclusion.',
+      quote: 'does not belong here',
+    }),
+  });
+  assert.equal(verdict.quote, 'does not belong here');
+});
+
+test('a missing or non-string quote comes back as an empty string', async () => {
+  for (const answer of [{ ...CLEAN }, { ...CLEAN, quote: 42 }]) {
+    const verdict = await analyzeWithAi('…', { complete: stubModel(answer) });
+    assert.equal(verdict.quote, '', JSON.stringify(answer));
+  }
+});
+
+test('the schema asks for the quote', () => {
+  const schema = buildSchema() as {
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+  assert.equal('quote' in schema.properties, true);
+  assert.equal(schema.required.includes('quote'), true);
 });

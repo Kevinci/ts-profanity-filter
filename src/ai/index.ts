@@ -50,6 +50,7 @@ function verdict(partial: Partial<AiVerdict> & Pick<AiVerdict, 'status'>): AiVer
     categories: [],
     confidence: 0,
     reason: '',
+    quote: '',
     ...partial,
   };
 }
@@ -91,6 +92,7 @@ function parseVerdict(json: string, allowed: readonly AiCategory[]): AiVerdict {
     categories,
     confidence: Math.min(1, Math.max(0, confidence)),
     reason: typeof value['reason'] === 'string' ? value['reason'] : '',
+    quote: typeof value['quote'] === 'string' ? value['quote'] : '',
   };
 }
 

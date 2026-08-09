@@ -53,6 +53,13 @@ export interface AiVerdict {
   confidence: number;
   /** One sentence, in the language of the input, explaining the call. */
   reason: string;
+  /**
+   * The stretch of the input the model objected to, copied verbatim so you can
+   * locate and highlight it. Empty when nothing was flagged — and worth
+   * checking against the original before trusting it, since a model can
+   * paraphrase despite being told not to.
+   */
+  quote: string;
   /** Which model answered — useful when a provider-side fallback swapped it. */
   model?: string;
   /** Present when `status` is `error` or `refused`. Never contains the API key. */

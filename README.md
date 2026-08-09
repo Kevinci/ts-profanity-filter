@@ -383,8 +383,18 @@ produces any.
 | `sexual_minors` | sexualisation of a minor, grooming, predatory approaches |
 | `self_harm` | encouraging suicide or self-injury |
 
-Alongside them: a `severity` (`none` … `critical`), a `confidence`, and one
-sentence of `reason` in the language of the text.
+Alongside them: a `severity` (`none` … `critical`), a `confidence`, one
+sentence of `reason` in the language of the text, and a `quote` — the stretch
+of the input the model objected to, copied verbatim so you can locate and
+highlight it:
+
+```ts
+const at = result.ai.quote ? text.indexOf(result.ai.quote) : -1;
+if (at !== -1) highlight(at, at + result.ai.quote.length);
+```
+
+Check it against the original before using it, as above. A model can paraphrase
+despite being told not to, and a span that does not match must not be invented.
 
 ### `ai` options
 
