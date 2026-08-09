@@ -195,6 +195,27 @@
   }
   .thesis strong { color: var(--ink); font-weight: 600; }
 
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    align-self: start;
+    font-family: var(--sans);
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--ink);
+    text-decoration: none;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--r);
+    padding: 9px 14px;
+    max-width: 72ch;
+  }
+  .hero-badge:hover { background: var(--surface); }
+  .hero-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hero-badge .pill { flex: none; }
+  .hero-arrow { color: var(--accent); flex: none; }
+
   /* ---------- panels ---------- */
 
   .panel {
@@ -459,22 +480,34 @@
     min-height: 76px;
   }
 
-  #output .clean { color: var(--ink); }
-  #output .placeholder { color: var(--faint); }
+  .rendered {
+    font-size: 16px;
+    line-height: 1.9;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    background: var(--sunken);
+    min-height: 44px;
+  }
 
-  #output .redacted {
+  #output .clean, .rendered .clean { color: var(--ink); }
+  #output .placeholder, .rendered .placeholder { color: var(--faint); }
+
+  #output .redacted, .rendered .redacted {
     background: var(--redact);
     color: transparent;
     border-radius: 1px;
     padding: 0 2px;
     user-select: none;
   }
-  #output .marked {
+  #output .marked, .rendered .marked {
     background: var(--accent-soft);
     box-shadow: inset 0 -2px 0 var(--flag);
     padding: 0 2px;
   }
-  #output .stars { color: var(--flag); }
+  #output .stars, .rendered .stars { color: var(--flag); }
 
   .stats {
     margin: 0;
@@ -713,6 +746,12 @@
       </div>
     </div>
     <p class="thesis" data-i18n-html="thesis"></p>
+
+    <a class="hero-badge" href="#sec-ai">
+      <span class="pill yes" data-i18n="hero.new">New</span>
+      <span data-i18n="hero.ai">…</span>
+      <span class="hero-arrow" aria-hidden="true">→</span>
+    </a>
   </header>
 
   <section class="panel" id="sec-input">
@@ -866,6 +905,12 @@
           <span class="field-label" data-i18n="ai.input">Text to check</span>
           <textarea id="ai-input" spellcheck="false"></textarea>
         </label>
+
+        <div class="field">
+          <span class="field-label" data-i18n="output">Rendered from segments</span>
+          <div id="ai-rendered" class="rendered"></div>
+          <p class="stats" id="ai-stats"></p>
+        </div>
 
         <div class="reg-actions">
           <button class="chip solid" type="button" id="ai-run" data-i18n="ai.run"></button>
@@ -2044,6 +2089,8 @@ const I18N = {
       'lookalike letters, spaced-out words and repetition are all matched. Optionally, a model ' +
       'reads the whole sentence for what no word list can see — hate, threats, harassment.',
     input: 'Input',
+    'hero.new': 'New',
+    'hero.ai': 'A model can now read the whole sentence — hate, threats and harassment that no word list can see. Optional, and off unless you ask.',
     options: 'Options',
     'opt.lang.note':
       'Which registered languages to match against. Mixed-language text needs more than one — ' +
@@ -2106,6 +2153,7 @@ const I18N = {
     'ai.key': 'Your own API key',
     'ai.provider': 'Provider',
     'ai.input': 'Text to check',
+    'ai.stats': '<b>{flagged}</b> matched by the word lists · <b>{chars}</b> of <b>{total}</b> characters',
     'ai.isFlagged': 'flagged',
     'ai.isClean': 'clean',
     'ai.meta': 'severity {severity} · {confidence}% confidence · {model}',
@@ -2203,6 +2251,8 @@ const I18N = {
       'ebenfalls gefangen. Optional liest ein Modell den ganzen Satz — für das, was keine ' +
       'Wortliste sehen kann: Hass, Drohungen, Beleidigung.',
     input: 'Eingabe',
+    'hero.new': 'Neu',
+    'hero.ai': 'Ein Modell kann jetzt den ganzen Satz lesen — Hass, Drohungen und Beleidigung, die keine Wortliste sieht. Optional, standardmäßig aus.',
     options: 'Optionen',
     'opt.lang.note':
       'Gegen welche registrierten Sprachen geprüft wird. Gemischter Text braucht mehr als eine — ' +
@@ -2266,6 +2316,7 @@ const I18N = {
     'ai.key': 'Dein eigener API-Key',
     'ai.provider': 'Anbieter',
     'ai.input': 'Zu prüfender Text',
+    'ai.stats': '<b>{flagged}</b> von den Wortlisten erfasst · <b>{chars}</b> von <b>{total}</b> Zeichen',
     'ai.isFlagged': 'markiert',
     'ai.isClean': 'unauffällig',
     'ai.meta': 'Schweregrad {severity} · {confidence}% Konfidenz · {model}',
@@ -2607,6 +2658,8 @@ const els = {
   aiModel: $('ai-model'),
   aiKey: $('ai-key'),
   aiInput: $('ai-input'),
+  aiRendered: $('ai-rendered'),
+  aiStats: $('ai-stats'),
   aiVerdict: $('ai-verdict'),
   aiFlag: $('ai-flag'),
   aiMeta: $('ai-meta'),
@@ -2655,7 +2708,10 @@ function drawLanguages(selected) {
     box.id = id;
     box.value = code;
     box.checked = keep.has(code);
-    box.addEventListener('change', run);
+    box.addEventListener('change', () => {
+      run();
+      drawAiSegments();
+    });
 
     const label = document.createElement('label');
     label.htmlFor = id;
@@ -2786,12 +2842,17 @@ function markActivePreset(text) {
 }
 
 function drawOutput(segments) {
-  els.output.textContent = '';
+  renderSegments(els.output, segments);
+}
+
+/** The same rendering, wherever it is asked for. */
+function renderSegments(container, segments) {
+  container.textContent = '';
   if (segments.length === 1 && segments[0].text === '') {
     const el = document.createElement('span');
     el.className = 'placeholder';
     el.textContent = t('placeholder');
-    els.output.append(el);
+    container.append(el);
     return;
   }
   for (const seg of segments) {
@@ -2809,8 +2870,41 @@ function drawOutput(segments) {
       el.className = 'stars';
       el.textContent = '*'.repeat(seg.text.length);
     }
-    els.output.append(el);
+    container.append(el);
   }
+}
+
+/**
+ * The AI panel shows both signals for its own text: what the word lists caught,
+ * live as you type, and — once you ask — what the model made of the sentence.
+ */
+/**
+ * The example sentence follows the interface language — but only while it is
+ * still the example. Once it has been edited it belongs to the reader, and
+ * switching language must not throw their text away.
+ */
+const AI_EXAMPLES = {
+  en: 'Your kind simply does not belong here.',
+  de: 'Deine Sorte gehört hier einfach nicht her.',
+};
+
+function seedAiExample() {
+  const current = els.aiInput.value;
+  const untouched = current === '' || Object.values(AI_EXAMPLES).includes(current);
+  if (untouched) els.aiInput.value = AI_EXAMPLES[ui];
+}
+
+function drawAiSegments() {
+  const text = els.aiInput.value;
+  const segments = filterFWordsToSegments(text, currentOptions());
+  renderSegments(els.aiRendered, segments);
+
+  const flagged = segments.filter((seg) => seg.isProfane);
+  els.aiStats.innerHTML = fill(t('ai.stats'), {
+    flagged: flagged.length,
+    chars: flagged.reduce((n, seg) => n + seg.text.length, 0),
+    total: text.length,
+  });
 }
 
 function emptyRow(tbody, message, cols) {
@@ -3292,9 +3386,8 @@ function applyLanguage() {
   drawColophon();
   drawSamples(els.aiSamples, AI_SAMPLES);
   drawModels();
-  if (els.aiInput.value === '') {
-    els.aiInput.value = 'Deine Sorte gehört hier einfach nicht her.';
-  }
+  seedAiExample();
+  drawAiSegments();
   drawNav();
   drawExtendsOptions();
   run();
@@ -3340,6 +3433,7 @@ for (const btn of document.querySelectorAll('#fw-modes button')) {
   });
 }
 
+els.aiInput.addEventListener('input', drawAiSegments);
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);
 
@@ -3369,7 +3463,12 @@ els.copy.addEventListener('click', async () => {
 });
 
 for (const el of [els.input]) el.addEventListener('input', run);
-for (const el of [els.aggressive, els.crossCheck]) el.addEventListener('change', run);
+for (const el of [els.aggressive, els.crossCheck]) {
+  el.addEventListener('change', () => {
+    run();
+    drawAiSegments();
+  });
+}
 
 /* --- start ------------------------------------------------------------ */
 
