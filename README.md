@@ -1,5 +1,9 @@
 # ts-profanity-filter
 
+[![npm version](https://img.shields.io/npm/v/ts-profanity-filter)](https://www.npmjs.com/package/ts-profanity-filter)
+[![bundle size](https://img.shields.io/bundlejs/size/ts-profanity-filter)](https://bundlejs.com/?q=ts-profanity-filter)
+[![license](https://img.shields.io/npm/l/ts-profanity-filter)](https://github.com/Kevinci/ts-profanity-filter/blob/main/LICENSE)
+
 A strict TypeScript profanity filter that splits text into segments so your UI
 can render the redaction itself — the library never mutates or masks your
 string.
@@ -278,7 +282,7 @@ import are the whole setup — no build step, nothing to install.
 </style>
 
 <script type="module">
-  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.1.0/+esm';
+  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.1.1/+esm';
 
   const draft = document.getElementById('draft');
   const output = document.getElementById('output');
@@ -314,13 +318,13 @@ lists every published file and version.
 
 | CDN | URL |
 | --- | --- |
-| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.1.0/+esm` |
-| esm.sh | `https://esm.sh/ts-profanity-filter@1.1.0` |
-| unpkg | `https://unpkg.com/ts-profanity-filter@1.1.0/dist/index.js` |
+| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.1.1/+esm` |
+| esm.sh | `https://esm.sh/ts-profanity-filter@1.1.1` |
+| unpkg | `https://unpkg.com/ts-profanity-filter@1.1.1/dist/index.js` |
 
 ```js
-import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.1.0/react';
-import { de } from 'https://esm.sh/ts-profanity-filter@1.1.0/lang/de';
+import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.1.1/react';
+import { de } from 'https://esm.sh/ts-profanity-filter@1.1.1/lang/de';
 ```
 
 **Pin the version.** An unpinned URL like `https://esm.sh/ts-profanity-filter`
