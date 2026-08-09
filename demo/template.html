@@ -17,6 +17,7 @@
     --surface:  #fbfcfa;
     --sunken:   #e8ebe6;
     --ink:      #151b19;
+    --title:    #000000;
     --muted:    #5c6763;
     --faint:    #8a938f;
     --rule:     #d6dcd7;
@@ -38,6 +39,7 @@
       --surface:  #141917;
       --sunken:   #1a201e;
       --ink:      #e4e9e6;
+      --title:    #ffffff;
       --muted:    #929c98;
       --faint:    #6b7571;
       --rule:     #262e2b;
@@ -54,6 +56,7 @@
     --surface:  #141917;
     --sunken:   #1a201e;
     --ink:      #e4e9e6;
+    --title:    #ffffff;
     --muted:    #929c98;
     --faint:    #6b7571;
     --rule:     #262e2b;
@@ -250,11 +253,13 @@
   }
 
   .label {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 600;
-    letter-spacing: 0.11em;
+    /* Tracking is a function of size: the 0.11em that opened up 11px caps
+       reads as broken spacing at 16px. */
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--faint);
+    color: var(--title);
   }
 
   .panel-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -1425,12 +1430,12 @@ const I18N = {
     thesis:
       'Ein Schimpfwortfilter, der deinen Text nie umschreibt: Er liefert ein Array aus Segmenten, ' +
       'jedes als <strong>anstößig</strong> markiert oder nicht — wie die Schwärzung aussieht, ' +
-      'entscheidest <strong>du</strong>. Deutsche und englische Wortlisten sind dabei, jede ' +
-      'weitere Sprache ist ein <code>registerLanguage()</code> entfernt, und ein Gegencheck hält ' +
+      'entscheidest <strong>du</strong>. Deutsch und Englisch sind eingebaut, jede weitere ' +
+      'Sprache kostet einen Aufruf von <code>registerLanguage()</code>, und ein Gegencheck hält ' +
       'harmlose Wörter wie <code>Klassik</code> und <code>classic</code> aus dem Ergebnis. ' +
       'Leetspeak, verwechselbare Zeichen, auseinandergezogene Wörter und Wiederholungen werden ' +
-      'ebenfalls gefangen. Optional liest ein Modell den ganzen Satz — für das, was keine ' +
-      'Wortliste sehen kann: Hass, Drohungen, Beleidigung.',
+      'ebenfalls erkannt. Auf Wunsch liest zusätzlich ein Modell den ganzen Satz — für das, was ' +
+      'keine Wortliste sehen kann: Hass, Drohungen, Beleidigung.',
     input: 'Eingabe',
     'hero.new': 'Neu',
     'hero.ai': 'Ein Modell kann jetzt den ganzen Satz lesen — Hass, Drohungen und Beleidigung, die keine Wortliste sieht. Optional, standardmäßig aus.',
@@ -1438,12 +1443,12 @@ const I18N = {
     'opt.lang.note':
       'Gegen welche registrierten Sprachen geprüft wird. Gemischter Text braucht mehr als eine — ' +
       'ein deutscher Satz nur gegen die englische Liste liefert fast nur Fehlalarme. Im Code ' +
-      'nimmt <code>\'*\'</code> alles Registrierte.',
+      'steht <code>\'*\'</code> für alles, was gerade registriert ist.',
     reg: 'Sprache hinzufügen',
     'reg.note':
-      'Die beiden eingebauten Listen sind nur die, die vorregistriert mitkommen — die Library ist ' +
-      'nicht auf sie beschränkt. Hier registrierte Sprachen erscheinen sofort als Checkbox oben ' +
-      'und sind direkt nutzbar. <code>extends</code> erbt eine Basisliste, eine regionale Variante ' +
+      'Deutsch und Englisch sind sofort einsatzbereit, weil sie schon registriert sind — ' +
+      'festgelegt ist die Library damit auf keine Sprache. Was du hier registrierst, ' +
+      'erscheint sofort als Checkbox oben und ist direkt nutzbar. <code>extends</code> erbt eine Basisliste, eine regionale Variante ' +
       'ist also eine Handvoll Zusatzwörter statt einer zweiten kompletten Liste. Muster werden bei ' +
       'der Registrierung geprüft — ein Tippfehler fliegt hier auf, nicht später mitten in einem ' +
       'Moderations-Request.',
@@ -1479,13 +1484,13 @@ const I18N = {
       'drumherum auf der Allowlist steht. Ohne das wäre jede einzelne ein Fehlalarm.',
     'xc.col.word': 'harmloses Wort',
     'xc.col.hit': 'Muster, das darin ansprang',
-    'xc.col.rule': 'Allowlist-Regel, die es aufhob',
+    'xc.col.rule': 'Allowlist-Regel, die den Treffer aufgehoben hat',
     'xc.none':
       'Hier gab es nichts zu retten \u2014 in diesem Text ist kein harmloses Wort in ein Muster ' +
       'gelaufen. Zum Ausprobieren oben das Preset \u201eFalsch-Positive (DE)\u201c wählen.',
     'xc.off':
-      'crossCheck ist aus, es wird gerade nichts gerettet \u2014 oben stehen die rohen Treffer, ' +
-      'Fehlalarme inklusive.',
+      'crossCheck ist aus, es wird also gerade nichts gerettet \u2014 oben stehen die rohen ' +
+      'Treffer, Fehlalarme inklusive.',
     seg: 'Zurückgegebene Segmente',
     'seg.none': 'Keine Eingabe.',
     snippet: 'Der Aufruf, der das erzeugt hat',
@@ -1506,7 +1511,7 @@ const I18N = {
     'ai.where.gemini': 'Kostenloser Key unter aistudio.google.com/apikey',
     'ai.where.anthropic': 'Key unter console.anthropic.com — kostenpflichtig, Ausgabenlimit setzen',
     'ai.run': 'Mit KI prüfen',
-    'ai.needKey': 'Erst einen Key einfügen — er wird nicht gespeichert und geht nur an Anthropic.',
+    'ai.needKey': 'Erst einen Key einsetzen. Er wird nirgends gespeichert und geht ausschließlich an den gewählten Anbieter.',
     'preset.hint.emoji':
       'Hier wird nichts geschwärzt, und genau das ist der Punkt. Ein Bildzeichen ist ' +
       'im Rezept dasselbe Zeichen wie in der Beleidigung — kein Muster kann das ' +
@@ -1535,49 +1540,51 @@ const I18N = {
       'Foto eines Fußballers sind dieselben Zeichen. Nur wer den Satz liest, trennt das — ' +
       'und genau dafür gibt es die Modell-Ebene.',
     'ai.needText': 'Oben im Eingabefeld erst etwas eintippen.',
-    'ai.running': 'Frage das Modell…',
+    'ai.running': 'Das Modell wird gefragt …',
     'ai.clean': 'Das Modell hat nichts zu beanstanden gefunden.',
     'ai.flagged': 'Markiert — {severity}: {categories}',
-    'ai.refused': 'Anthropics eigene Sicherheitsebene hat die Anfrage abgelehnt. Das ist kein Urteil über deinen Text.',
+    'ai.refused': 'Die Sicherheitsprüfung des Anbieters hat die Anfrage abgelehnt — das ist kein Urteil über deinen Text.',
     'ai.optional': 'optional',
     'ai.note':
       'Wortlisten fangen <em>Wörter</em>. Sie können nicht erkennen, dass ein Satz ganz ohne ' +
       'gelistetes Wort eine Drohung ist — oder dass einer voller solcher Wörter ein Zitat ' +
-      'ist. Genau das steuert ein Modell bei: Es liest den ganzen Satz und meldet, ob er ' +
-      'rassistisch, hasserfüllt, bedrohend, beleidigend, obszön, sexuell übergriffig oder ' +
-      'auf Selbstverletzung gerichtet ist — mit Schweregrad, den zutreffenden Kategorien und ' +
-      'einem Satz Begründung in der Sprache des Textes. Standardmäßig aus: Es ist der einzige ' +
-      'Teil des Pakets, der deinen Rechner verlässt.',
+      'ist. Genau diese Lücke schließt ein Modell: Es liest den ganzen Satz und meldet, ob er ' +
+      'rassistisch oder hasserfüllt ist, ob er droht, beleidigt, obszön wird, sexuell ' +
+      'übergriffig ist oder jemanden zur Selbstverletzung drängt — mit Schweregrad, den ' +
+      'zutreffenden Kategorien und einem Satz Begründung in der Sprache des Textes. ' +
+      'Standardmäßig aus: Es ist der einzige Teil des Pakets, der deinen Rechner verlässt.',
     'ai.warning':
-      'Der eingefügte Key bleibt in diesem Feld und im Arbeitsspeicher, solange dieser Tab ' +
-      'offen ist. Er wird nicht gespeichert und geht an nichts außer api.anthropic.com — aber ' +
-      'eine statische Seite kann dir das nicht beweisen, und wer diese Seite verändern könnte, ' +
-      'könnte ihn abgreifen. Also: einen Key mit Ausgabenlimit nehmen, das Feature ausprobieren, ' +
-      'danach widerrufen. <strong>Baue kein Produkt auf diese Weise.</strong> Ein fest in eine ' +
-      'Seite eingebauter Key ist für jeden Besucher lesbar und ausgebbar. Produktiv gehört die ' +
-      'Modell-Hälfte auf deinen Server — schicke das Urteil zum Client, niemals den Key. Ein ' +
-      'lauffähiges Beispiel liegt unter <code>examples/server</code>.',
+      'Der eingesetzte Key bleibt in diesem Feld und im Arbeitsspeicher, solange der Tab offen ' +
+      'ist. Gespeichert wird er nirgends, und er verlässt die Seite nur in Richtung des ' +
+      'gewählten Anbieters — aber beweisen kann dir eine statische Seite das nicht, und wer sie ' +
+      'verändern könnte, könnte ihn abgreifen. Also: Key mit Ausgabenlimit anlegen, Funktion ' +
+      'ausprobieren, Key danach widerrufen. <strong>So baut man kein Produkt.</strong> Einen ' +
+      'fest in eine Seite eingebauten Key kann jeder Besucher lesen — und auf deine Rechnung ' +
+      'ausgeben. Im Betrieb gehört alles, was mit dem Modell spricht, auf deinen Server: Zum ' +
+      'Client geht das Urteil, niemals der Key. Ein lauffähiges Beispiel liegt unter ' +
+      '<code>examples/server</code>.',
     compliance: 'Begründung (DSA Art. 17)',
     'compliance.note':
-      'Die Entscheidung zu treffen ist die halbe Arbeit. Artikel 17 des ' +
+      'Die Entscheidung ist erst die halbe Arbeit. Die andere Hälfte macht Artikel 17 des ' +
       '<a href="https://eur-lex.europa.eu/eli/reg/2022/2065/oj" target="_blank" ' +
-      'rel="noopener noreferrer">Digital Services Act</a> macht die andere Hälfte zur Pflicht: ' +
-      'Die betroffene Person muss erfahren, was getan wurde, auf welche Tatsachen gestützt, ' +
-      'nach welcher Regel, ob Software beteiligt war und wie sie sich dagegen wehren kann — ' +
-      'in einer Sprache, die sie versteht, auf einem dauerhaften Medium. Hier läuft der Text ' +
-      'aus dem Feld <a href="#sec-input">Eingabe</a> durch den Filter, und das Ergebnis wird ' +
-      'zu genau dieser Mitteilung. <strong>Der Key ist optional.</strong> Bleibt er leer, ' +
-      'kommt die Formulierung aus den eingebauten Vorlagen; mit Key beurteilt ein Modell den ' +
-      'Satz und formuliert anschließend die Mitteilung — zwei Aufrufe. So oder so stammen die ' +
-      'Tatsachen aus dem Code: Das Modell wird nie gefragt, <em>was</em> passiert ist, nur wie ' +
-      'man es sagt.',
+      'rel="noopener noreferrer">Digital Services Act</a> zur Pflicht: Wer gesperrt wird, hat ' +
+      'ein Recht darauf zu erfahren, <em>was</em> getan wurde und <em>warum</em>. Also: welche ' +
+      'Tatsachen zugrunde liegen, gegen welche Regel sie verstoßen, ob Software an der ' +
+      'Entscheidung beteiligt war und wie man Widerspruch einlegt — verständlich formuliert und ' +
+      'dauerhaft abrufbar, nicht als Hinweis, der nach drei Sekunden weg ist. ' +
+      'Hier läuft der Text aus dem Feld <a href="#sec-input">Eingabe</a> durch den Filter, und ' +
+      'das Ergebnis wird zu genau dieser Mitteilung. <strong>Der Key ist optional.</strong> ' +
+      'Ohne ihn formulieren die eingebauten Vorlagen. Mit ihm beurteilt ein Modell erst den ' +
+      'Satz und schreibt dann die Mitteilung — das sind zwei Aufrufe. In beiden Fällen stammen ' +
+      'die Tatsachen aus dem Code: Das Modell wird nie gefragt, <em>was</em> passiert ist, ' +
+      'sondern nur, wie man es sagt.',
     'compliance.action': 'Maßnahme',
     'compliance.duration': 'Dauer',
-    'compliance.appealUrl': 'Einspruchs-URL — wo sich die Person wehren kann',
-    'compliance.key': 'API-Key — leer lassen für die Vorlagen-Formulierung',
+    'compliance.appealUrl': 'Widerspruchs-URL — wo die betroffene Person Widerspruch einlegen kann',
+    'compliance.key': 'API-Key — leer lassen, dann formulieren die Vorlagen',
     'compliance.generate': 'Begründung erzeugen',
-    'compliance.running': 'Beurteile den Text, formuliere dann die Mitteilung…',
-    'compliance.noKey': 'Kein Key — die Formulierung kommt aus den eingebauten Vorlagen.',
+    'compliance.running': 'Der Text wird beurteilt, dann die Mitteilung formuliert …',
+    'compliance.noKey': 'Ohne Key: Die Formulierung kommt aus den eingebauten Vorlagen.',
     'compliance.byModel': 'vom Modell formuliert',
     'compliance.byTemplate': 'aus der Vorlage formuliert',
     'compliance.meta': '{action} · automatisiert: {automated} · {model}',
@@ -1590,13 +1597,13 @@ const I18N = {
       'Subpath-Import — was du nicht nutzt, landet auch nicht im Bundle.',
     'fw.vanilla.note':
       'Kein Build-Schritt, keine Abhängigkeit zu installieren — ein Modul-Script und ein ' +
-      'CDN-Import genügen. Die Version ist bewusst festgenagelt: eine ungepinnte URL ändert ' +
+      'CDN-Import genügen. Die Version steht bewusst fest: Eine URL ohne Versionsnummer ändert ' +
       'stillschweigend, was deine Seite ausführt, sobald das Paket neu veröffentlicht wird. ' +
       '<code>esm.sh/ts-profanity-filter@' + META.version + '</code> liefert dasselbe. ' +
       'Die entscheidende Zeile ist <code>node.textContent = seg.text</code>: ' +
       'gerendert wird, was ein Fremder getippt hat, und über <code>innerHTML</code> würdest du ' +
       'ihm damit deine Seite überlassen. Die Segmente als Knoten zu bauen macht den sicheren Weg ' +
-      'zum naheliegenden. Dasselbe Beispiel läuft unverändert unter ' +
+      'zum Naheliegenden. Dasselbe Beispiel läuft unverändert unter ' +
       '<a href="https://jsfiddle.net/7x6mtawo/" target="_blank" rel="noopener noreferrer">' +
       'jsfiddle.net/7x6mtawo</a>, und alle veröffentlichten Dateien lassen sich auf ' +
       '<a href="https://www.jsdelivr.com/package/npm/ts-profanity-filter" target="_blank" ' +
@@ -1612,8 +1619,8 @@ const I18N = {
       'werden, und das kann ein reiner tsc-Build nicht liefern — ein AOT-Build in deiner App ' +
       'würde sie ablehnen. Deshalb liefert das Paket die Logik ohne Dekoratoren aus, und du ' +
       'setzt den Dekorator in deiner App, wo ngtsc ihn korrekt übersetzt. Das ist die ' +
-      'vierzeilige Datei oben. Die Basisklasse cacht über den Wert — wichtig, weil eine Pure ' +
-      'Pipe bei jedem neuen Objektliteral im Template erneut läuft.',
+      'vierzeilige Datei oben. Die Basisklasse speichert nach Wert zwischen — wichtig, weil eine ' +
+      'Pure Pipe bei jedem neuen Objektliteral im Template erneut läuft.',
     'stats.tpl':
       '<b>{segments}</b> Segmente · <b>{flagged}</b> markiert · <b>{suppressed}</b> vom Gegencheck ' +
       'abgefangen · <b>{chars}</b> von <b>{total}</b> Zeichen erfasst',
@@ -1625,16 +1632,17 @@ const I18N = {
     'link.fiddle': 'Live-Beispiel auf JSFiddle',
     'legal.tpl': '© {year} {author} · {license}-Lizenz · v{version}',
     caveats: [
-      'Gematcht wird auf Substring-Ebene, nicht wortweise — genau das fängt <code>asshole</code> ' +
+      'Gesucht wird auf Substring-Ebene, nicht wortweise — genau das fängt <code>asshole</code> ' +
         'über <code>ass</code> und übersteht Verschleierung. Die Allowlist ist das Gegengewicht; ' +
         'eigene Einträge kommen über die Option <code>allowList</code> dazu.',
       'Deutsche Komposita erzwingen großzügige Allow-Einträge wie ' +
         '<code>\\p{L}*klass\\p{L}*</code>. Ein konstruiertes Wort, das zugleich eine Beleidigung ' +
         'und einen erlaubten Stamm enthält, kommt deshalb sauber durch. Erlaubt schlägt immer ' +
         'gesperrt.',
-      '<code>dick</code> heißt auf Deutsch schlicht „dick“. Mit aktiver deutscher Liste steht es ' +
-        'auf der Allowlist — das gibt zwangsläufig auch das englische Wort frei. Bekannte ' +
-        'Kollision: für rein englischen Text <code>languages: [\'en\']</code> verwenden.',
+      '<code>dick</code> ist im Deutschen ein ganz gewöhnliches Wort und steht deshalb bei ' +
+        'aktiver deutscher Liste auf der Allowlist — womit unvermeidlich auch das englische ' +
+        'Schimpfwort frei durchgeht. Bekannte Kollision: für rein englischen Text ' +
+        '<code>languages: [\'en\']</code> verwenden.',
       'Alle <code>segment.text</code> aneinandergehängt ergeben immer exakt die Eingabe — das ' +
         'Rendering ist also verlustfrei.',
     ],
@@ -2330,7 +2338,7 @@ const COVERAGE = [
     name: { en: 'Stretched letters', de: 'Gedehnte Buchstaben' },
     desc: {
       en: 'Runs of three or more collapse; doubles are left alone so Klasse survives.',
-      de: 'Läufe ab drei Zeichen werden eingedampft; Doppel bleiben, damit Klasse überlebt.',
+      de: 'Ab drei gleichen Zeichen wird zusammengefasst. Doppelbuchstaben bleiben, damit Klasse Klasse bleibt.',
     },
     sample: 'Dreeecksauuuu',
     langs: ['de'],
