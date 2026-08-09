@@ -1,0 +1,46 @@
+{
+  "name": "profanity-adversarial",
+  "version": "0.1.0",
+  "description": "A benchmark that tries to defeat profanity filters. Measures evasion resistance and false positives together, because either one alone is trivial to game.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Kevin Imig",
+  "bin": {
+    "profanity-adversarial": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "profanity",
+    "benchmark",
+    "unicode",
+    "moderation",
+    "adversarial",
+    "evasion"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kevinci/ts-profanity-filter.git",
+    "directory": "adversarial"
+  },
+  "homepage": "https://github.com/Kevinci/ts-profanity-filter/tree/main/adversarial",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/*.test.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "ts-profanity-filter": "file:.."
+  }
+}

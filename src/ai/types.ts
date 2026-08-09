@@ -91,6 +91,8 @@ export interface AiRequest {
   maxTokens: number;
   timeoutMs: number;
   apiKey: string | undefined;
+  /** Base URL for a self-hosted provider, when one was configured. */
+  baseUrl?: string | undefined;
   /** Let the provider retry on another model if its safety layer declines. */
   fallback: boolean;
 }
@@ -116,7 +118,7 @@ export interface AiResponse {
 export type AiCompletion = (request: AiRequest) => Promise<AiResponse>;
 
 /** Which built-in provider to call. Ignored when you supply your own `complete`. */
-export type AiProvider = 'anthropic' | 'gemini';
+export type AiProvider = 'anthropic' | 'gemini' | 'ollama';
 
 /**
  * A few known model ids per provider, for populating a picker. Not a closed
@@ -137,6 +139,10 @@ export const AI_MODELS: Readonly<Record<AiProvider, readonly string[]>> = {
     'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
   ],
+  // Whatever you have pulled. These are only starting points — ask your own
+  // server with `ollama list` for the real answer. A small instruct model is
+  // enough: this is a classification with a fixed schema, not an essay.
+  ollama: ['llama3.2', 'qwen2.5', 'mistral', 'gemma2', 'phi4'],
 };
 
 export interface AiOptions {
@@ -178,8 +184,16 @@ export interface AiOptions {
   extraInstructions?: string;
   /** Tell the model what to expect, e.g. `'German'`. Defaults to auto-detect. */
   languageHint?: string;
-  /** Abort after this many milliseconds. Defaults to 20000. */
+  /**
+   * Abort after this many milliseconds. Defaults to 20000 for the hosted
+   * providers and 120000 for `ollama`, where a cold start also loads the model.
+   */
   timeoutMs?: number;
+  /**
+   * Where to reach a self-hosted provider. Only `ollama` reads it, where it
+   * defaults to `OLLAMA_HOST` or `http://localhost:11434`.
+   */
+  baseUrl?: string;
   /**
    * Retry on another model if the provider's own safety layer declines the
    * request. Defaults to `true` — moderation text is exactly the kind of input

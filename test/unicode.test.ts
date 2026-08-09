@@ -210,3 +210,43 @@ test('emoji are not word-list entries', () => {
     assert.deepEqual(spans(text), [], text);
   }
 });
+
+/* ------------------- 10. found by the adversarial suite ----------------- */
+
+test('surnames and place names are not insults', () => {
+  // Every one of these was flagged until the benchmark said so. A false
+  // positive on somebody's name is the most expensive kind.
+  for (const text of [
+    'Professor Cockburn will speak',
+    'she lives in Lightwater',
+    'Matsushita Electric Industrial',
+    'signed by John Hancock',
+    'a novel by Dickens',
+  ]) {
+    assert.deepEqual(spans(text, { languages: ['en'] }), [], text);
+  }
+});
+
+test('masking characters stand in for the letter they hide', () => {
+  // People type these because some *other* filter trained them to.
+  assert.equal(spans('f*ck this', { languages: ['en'] }).length, 1);
+  assert.equal(spans('sh#t', { languages: ['en'] }).length, 1);
+  assert.equal(spans('a$$hole', { languages: ['en'] }).length, 1);
+});
+
+test('an asterisk in ordinary text is still an asterisk', () => {
+  for (const text of [
+    'The **assignment** is due Monday',
+    'SELECT * FROM users',
+    'I am a C# developer',
+    '#hashtag #classic #assessment',
+    'Der Kurs kostet 5 * 20 Euro',
+  ]) {
+    assert.deepEqual(spans(text, { languages: ['en', 'de'] }), [], text);
+  }
+});
+
+test('more of the alphabet has cross-script twins', () => {
+  assert.equal(spans('shιt', { languages: ['en'] }).length, 1, 'Greek iota');
+  assert.equal(spans('Drескsau', { languages: ['de'] }).length, 1, 'several Cyrillic letters');
+});

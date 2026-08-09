@@ -118,6 +118,20 @@ export const EN_ALLOWLIST: readonly string[] = [
   'hancock',
   'babcock',
   'woodcock',
+  // Surnames are the long tail here, and a surname is exactly the case where a
+  // false positive is most insulting to the person it happens to.
+  'cockburn',
+  'hitchcock',
+  'haycock',
+  'cocker\\p{L}*', // Cocker, cockerel
+  'stopcock',
+  'weathercock',
+
+  // -- shit inside ordinary words ----------------------------------------
+  '\\p{L}*sushi\\p{L}*', // sushi, Matsushita
+
+  // -- twat inside ordinary words ----------------------------------------
+  '\\p{L}*water\\p{L}*', // Lightwater, saltwater, watertight
 
   // -- cunt / dick — the classic Scunthorpe cases ------------------------
   'scunthorpe',

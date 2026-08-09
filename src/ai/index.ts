@@ -8,6 +8,7 @@
 import { filterFWordsToSegments } from '../filter.js';
 import { anthropicCompletion } from './anthropic.js';
 import { geminiCompletion } from './gemini.js';
+import { ollamaCompletion } from './ollama.js';
 import { buildSchema, buildSystemPrompt } from './prompt.js';
 import {
   AI_CATEGORIES,
@@ -20,25 +21,46 @@ import {
   type ModerationResult,
 } from './types.js';
 
-/** Per-provider defaults. Both are the cheap, fast tier — this is a classifier. */
+/**
+ * Per-provider defaults. The hosted two are the cheap, fast tier — this is a
+ * classification, not an essay — and `ollama` is the same job on your own
+ * machine, where `needsKey` is false because there is nobody to authenticate to.
+ */
 const PROVIDERS = {
   anthropic: {
     complete: anthropicCompletion,
     model: 'claude-opus-5',
     envVar: 'ANTHROPIC_API_KEY',
+    needsKey: true,
+    timeoutMs: 20_000,
   },
   gemini: {
     complete: geminiCompletion,
     model: 'gemini-flash-lite-latest',
     envVar: 'GEMINI_API_KEY',
+    needsKey: true,
+    timeoutMs: 20_000,
   },
-} as const satisfies Record<AiProvider, { complete: unknown; model: string; envVar: string }>;
+  ollama: {
+    complete: ollamaCompletion,
+    model: 'llama3.2',
+    // Only read when someone has put the server behind an authenticating proxy.
+    envVar: 'OLLAMA_API_KEY',
+    needsKey: false,
+    // Measured, not guessed: a first call also pays for loading the weights
+    // into memory, and a 9 GB model took 34 s on a warm laptop. Twenty seconds
+    // would fail every cold start, which reads as "local models do not work".
+    timeoutMs: 120_000,
+  },
+} as const satisfies Record<
+  AiProvider,
+  { complete: unknown; model: string; envVar: string; needsKey: boolean; timeoutMs: number }
+>;
 
 const DEFAULTS = {
   provider: 'anthropic',
   effort: 'low',
   maxTokens: 4096,
-  timeoutMs: 20_000,
 } as const;
 
 const SEVERITIES: readonly AiSeverity[] = ['none', 'low', 'medium', 'high', 'critical'];
@@ -117,10 +139,10 @@ export async function analyzeWithAi(
   const complete = options.complete ?? provider.complete;
 
   try {
-    if (!options.complete && !apiKey) {
+    if (!options.complete && provider.needsKey && !apiKey) {
       throw new Error(
-        `No API key. Pass ai.apiKey, set ${provider.envVar}, or supply ai.complete ` +
-          'to use your own model.',
+        `No API key. Pass ai.apiKey, set ${provider.envVar}, supply ai.complete ` +
+          "to use your own model, or switch to provider: 'ollama' to run one locally.",
       );
     }
 
@@ -141,8 +163,9 @@ export async function analyzeWithAi(
       model: options.model ?? provider.model,
       effort: options.effort ?? DEFAULTS.effort,
       maxTokens: options.maxTokens ?? DEFAULTS.maxTokens,
-      timeoutMs: options.timeoutMs ?? DEFAULTS.timeoutMs,
+      timeoutMs: options.timeoutMs ?? provider.timeoutMs,
       apiKey,
+      ...(options.baseUrl !== undefined ? { baseUrl: options.baseUrl } : {}),
       fallback: options.fallback ?? true,
     });
 
@@ -209,6 +232,7 @@ export async function moderateText(
 
 export { anthropicCompletion } from './anthropic.js';
 export { geminiCompletion, toGeminiSchema } from './gemini.js';
+export { ollamaCompletion, OLLAMA_DEFAULT_HOST } from './ollama.js';
 export { buildSchema, buildSystemPrompt } from './prompt.js';
 export { AI_CATEGORIES, AI_MODELS } from './types.js';
 export type {
