@@ -559,6 +559,11 @@
   .nav-part:first-child { margin-top: 0; }
   .nav-part b { font-family: var(--mono); font-weight: 500; color: var(--flag); }
 
+  /* A single-panel part is one numbered link, so the number lives inside the
+     anchor and has to stay legible when the link is active. */
+  .nav-list a b { font-family: var(--mono); font-weight: 500; color: var(--faint); }
+  .nav-list a:hover b, .nav-list a[aria-current="true"] b { color: var(--flag); }
+
   @media (max-width: 1000px) {
     /* The mobile nav is one horizontal strip, so the part labels would break the
        line. The numbers ride along on the links instead. */
@@ -1198,7 +1203,7 @@
     </figure>
   </header>
 
-  <section class="panel" id="sec-input" data-part="01" data-part-key="part.core">
+  <section class="panel" id="sec-input" data-nav-key="nav.input" data-part="01" data-part-key="part.core">
     <div class="panel-head">
       <span class="label" data-i18n="input">Input</span>
       <div class="chips" id="presets"></div>
@@ -1207,7 +1212,7 @@
       <textarea id="input" spellcheck="false" data-i18n-aria="input"></textarea>
     </div>
   </section>
-  <section class="panel" id="sec-output">
+  <section class="panel" id="sec-output" data-nav-key="nav.output">
     <div class="panel-head">
       <span class="label" data-i18n="output">Rendered from segments</span>
       <span class="pill" id="lossless"></span>
@@ -1224,7 +1229,7 @@
       <p class="note accent" id="preset-hint" hidden></p>
     </div>
   </section>
-  <section class="panel" id="sec-options">
+  <section class="panel" id="sec-options" data-nav-key="nav.options">
     <div class="panel-head"><span class="label" data-i18n="options">Options</span></div>
     <div class="panel-body">
       <div class="opts">
@@ -1256,7 +1261,7 @@
       </div>
     </div>
   </section>
-  <section class="panel" id="sec-xc">
+  <section class="panel" id="sec-xc" data-nav-key="nav.xc">
     <div class="panel-head">
       <span class="label" data-i18n="xc">Suppressed by the cross-check</span>
       <div class="switch" role="group" id="xc-views" data-i18n-aria-label="xc">
@@ -1281,7 +1286,7 @@
     </div>
   </section>
 
-  <section class="panel" id="sec-seg">
+  <section class="panel" id="sec-seg" data-nav-key="nav.seg">
     <div class="panel-head"><span class="label" data-i18n="seg">Returned segments</span></div>
     <div class="panel-body">
       <div class="scroll">
@@ -1299,7 +1304,7 @@
     </div>
   </section>
 
-  <section class="panel" id="sec-snippet">
+  <section class="panel" id="sec-snippet" data-nav-key="nav.snippet">
     <div class="panel-head">
       <span class="label" data-i18n="snippet">The call that produced this</span>
       <button class="copy" type="button" id="copy" data-i18n="copy"></button>
@@ -1309,7 +1314,7 @@
     </div>
   </section>
 
-  <section class="panel" id="sec-reg">
+  <section class="panel" id="sec-reg" data-nav-key="nav.reg">
     <div class="panel-head">
       <span class="label" data-i18n="reg">Add a language</span>
       <button class="copy" type="button" id="reg-reset" data-i18n="reg.reset"></button>
@@ -5130,6 +5135,13 @@ const I18N = {
     'ev.kind.spaced': 'Spaced',
     'ev.kind.repeated': 'Repeated',
     'ev.kind.invisible': 'Zero-width',
+    'nav.input': 'Input',
+    'nav.output': 'Render',
+    'nav.options': 'Options',
+    'nav.xc': 'Cross-check',
+    'nav.seg': 'Segments',
+    'nav.snippet': 'Code',
+    'nav.reg': 'Languages',
     'part.core': 'Core',
     'part.evasion': 'Evasion',
     'part.pii': 'PII',
@@ -5536,6 +5548,13 @@ const I18N = {
     'ev.kind.spaced': 'Auseinandergezogen',
     'ev.kind.repeated': 'Wiederholt',
     'ev.kind.invisible': 'Zero-Width',
+    'nav.input': 'Eingabe',
+    'nav.output': 'Darstellung',
+    'nav.options': 'Optionen',
+    'nav.xc': 'Gegencheck',
+    'nav.seg': 'Segmente',
+    'nav.snippet': 'Code',
+    'nav.reg': 'Sprachen',
     'part.core': 'Kern',
     'part.evasion': 'Umgehung',
     'part.pii': 'PII',
@@ -8072,32 +8091,58 @@ function drawNav() {
   const list = document.getElementById('nav-list');
   list.textContent = '';
 
+  // Group the panels by part. A part with one panel needs no heading above it —
+  // "05 DSA" over a single link called "DSA" is the same word twice, and that is
+  // what made the old list feel crowded. Such a part becomes one numbered link;
+  // only a part with several panels gets a heading and children.
+  const groups = [];
   for (const panel of document.querySelectorAll('.panel[id^="sec-"]')) {
-    const label = panel.querySelector('.panel-head .label');
-    if (!label) continue;
+    if (panel.dataset.part || groups.length === 0) {
+      groups.push({ part: panel.dataset.part, key: panel.dataset.partKey, panels: [] });
+    }
+    groups[groups.length - 1].panels.push(panel);
+  }
 
-    // A panel carrying data-part opens a numbered part of the page. The label is
-    // a heading, not a link — clicking a group name that jumps to its first
-    // member is a lie about what the list is.
-    const part = panel.dataset.part;
-    if (part) {
+  const link = (panel, number, text) => {
+    const item = document.createElement('li');
+    const anchor = document.createElement('a');
+    anchor.href = '#' + panel.id;
+    if (number) {
+      const num = document.createElement('b');
+      num.textContent = number;
+      anchor.append(num, document.createTextNode(' '));
+    }
+    anchor.append(document.createTextNode(text));
+    anchor.setAttribute('aria-current', 'false');
+    item.append(anchor);
+    list.append(item);
+  };
+
+  /** The short word for the nav, falling back to the panel's own heading. */
+  const short = (panel) => {
+    if (panel.dataset.navKey) return t(panel.dataset.navKey);
+    const label = panel.querySelector('.panel-head .label');
+    return label ? label.textContent : panel.id;
+  };
+
+  for (const group of groups) {
+    if (group.panels.length === 1 && group.part) {
+      link(group.panels[0], group.part, t(group.key));
+      continue;
+    }
+
+    if (group.part) {
       const heading = document.createElement('li');
       heading.className = 'nav-part';
       const number = document.createElement('b');
-      number.textContent = part;
+      number.textContent = group.part;
       const name = document.createElement('span');
-      name.textContent = t(panel.dataset.partKey);
+      name.textContent = t(group.key);
       heading.append(number, name);
       list.append(heading);
     }
 
-    const item = document.createElement('li');
-    const link = document.createElement('a');
-    link.href = '#' + panel.id;
-    link.textContent = label.textContent;
-    link.setAttribute('aria-current', 'false');
-    item.append(link);
-    list.append(item);
+    for (const panel of group.panels) link(panel, '', short(panel));
   }
 
   watchSections();
