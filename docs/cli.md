@@ -41,13 +41,13 @@ The repository ships a chat history built for exactly this:
 where **every row has an expected verdict**, half of them deliberately clean.
 
 ```bash
-node dist/cli.js scan examples/batch/chat-log.csv \
-  --column message --id-column id --languages en,de --pii
+node dist/cli.js scan examples/batch/chat-log.csv --languages en,de --pii
 ```
 
 ```
 Scanning examples/batch/chat-log.csv
-  25 records · 13 flagged · 161/s
+  column: message (index 4) — guessed; pass --column to choose another
+  25 records · 13 flagged · 158/s
 
   Records processed           25
   Flagged                     13 (52.0%)
@@ -151,10 +151,17 @@ node dist/cli.js scan comments.ndjson
 node dist/cli.js scan export.jsonl --text-field body --id-field comment_id
 ```
 
-A line that is not JSON, or has no string in the text field, is **skipped
-silently**. That is deliberate for a large export where a few lines are broken —
-but it does mean a wrong `--text-field` looks exactly like an empty file. If
-`Records processed` comes back 0, check the field name first.
+A line that is not JSON, or has no string in the text field, is **skipped** — the
+right behaviour when a few lines of a large export are broken. It is not silent:
+the count and the reason are reported at the end, so a wrong `--text-field`
+cannot masquerade as an empty file.
+
+```
+  Skipped 2 lines: 2 without a usable text field (--text-field)
+```
+
+From the API, `onBadLine: 'throw'` stops at the first bad line instead of
+continuing past it.
 
 ### CSV
 
@@ -173,19 +180,37 @@ Those are rows 15 and 16 of the shipped fixture, and row 16 is the one that
 matters: a real newline inside a quoted field. A parser that splits on lines
 first reports 26 records instead of 25 and truncates the message.
 
-```bash
-node dist/cli.js scan examples/batch/chat-log.csv --column message --id-column id
+### Which column gets read
+
+`--column` and `--id-column` take a header name or a zero-based index. Leave
+`--column` out and the header is consulted:
+
+- a **single** column is unambiguous, so it is used;
+- a column named `text`, `message`, `comment`, `body`, `content`, `msg`,
+  `review`, `nachricht`, `kommentar` or `inhalt` is used, and the choice is
+  printed;
+- otherwise the run **stops and asks**, listing the columns it found.
+
+```
+examples/batch/chat-log.csv: which column holds the text?
+Pass --column (or the `column` option) with one of: id, timestamp, channel, author, message
 ```
 
-`--column` and `--id-column` take a header name or a zero-based index. Both
-mistakes fail loudly rather than scanning the wrong column:
+That last case used to read column 0 instead. Scanning the id column and
+reporting `0 flagged` is the worst possible outcome, because it is
+indistinguishable from a genuinely clean file.
+
+Naming a column that is not there, or naming one with `--no-header`, also fails
+rather than guessing:
 
 ```
-examples/batch/chat-log.csv: column "message" needs header: true
 examples/batch/chat-log.csv: no column "body". Found: id, timestamp, channel, author, message
+examples/batch/chat-log.csv: column "message" needs header: true
 ```
 
-With `--no-header`, use indices.
+**A `.csv` is assumed to have a header.** For a bare list of texts with no header
+row, pass `--no-header` and use indices — or name the file `.txt`, which reads one
+record per line and asks nothing.
 
 ---
 
@@ -212,8 +237,8 @@ Off unless asked:
 
 The kinds are `email`, `phone`, `iban`, `card`, `ip` and `taxid-de`. Lowering the
 threshold is how you audit rather than guess — on the fixture it turns 8 findings
-into 10, adding the bare ten-digit run in row 23 and the unlabelled tax id in row
-22.
+into 10, adding the bare ten-digit run in row 23 and the unlabelled tax id in
+row 22.
 
 One thing a threshold cannot reveal: `version 1.2.3.4` in row 13 is **discarded**,
 not scored low. The word in front is treated as proof it is a version number, so
@@ -396,9 +421,17 @@ when interrupted has thrown away its own work.
 
 ## When something looks wrong
 
-**`Records processed 0`** — the reader found no usable lines. On NDJSON, almost
-always the wrong `--text-field`; bad lines are skipped without a word. On CSV,
-check `--column`.
+**`Records processed 0`** — the command now says why itself rather than leaving
+you to guess:
+
+```
+  Skipped 2 lines: 2 without a usable text field (--text-field)
+  Nothing was analysed. Check --text-field for NDJSON or --column for CSV.
+```
+
+Skipped lines are reported whenever there are any, not only when everything was
+skipped — a handful of broken lines in a large export is normal, and all of them
+being skipped is a wrong field name.
 
 **Nothing is flagged and you expected hits** — `--languages` defaults to `en`
 alone. German text needs `--languages de` or `en,de`.

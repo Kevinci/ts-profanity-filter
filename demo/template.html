@@ -1261,6 +1261,71 @@
     </div>
   </section>
 
+  <section class="panel" id="sec-batch">
+    <div class="panel-head">
+      <span class="label" data-i18n="batch">Batch processing</span>
+      <span class="pill" id="batch-count"></span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="batch.note"></p>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="field-label" for="batch-input" data-i18n="batch.input">One record per line</label>
+          <div class="chips" id="batch-presets"></div>
+        </div>
+        <textarea id="batch-input" spellcheck="false" rows="7"></textarea>
+      </div>
+
+      <div class="opt-pair">
+        <div class="opt-row">
+          <input type="checkbox" id="batch-pii" checked />
+          <span class="opt-text">
+            <label class="opt-name" for="batch-pii">pii: true</label>
+            <span class="opt-note" data-i18n-html="batch.pii.note"></span>
+          </span>
+        </div>
+        <div class="opt-row">
+          <input type="checkbox" id="batch-segments" />
+          <span class="opt-text">
+            <label class="opt-name" for="batch-segments">segments: true</label>
+            <span class="opt-note" data-i18n-html="batch.segments.note"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="batch.results">Per record</span>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="batch.col.index">#</th>
+                <th data-i18n="batch.col.text">record</th>
+                <th data-i18n="batch.col.why">flagged by</th>
+              </tr>
+            </thead>
+            <tbody id="batch-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="batch.summary">formatSummary(summary)</span>
+        <pre id="batch-summary" class="sample"></pre>
+      </div>
+
+      <p class="note accent" data-i18n-html="batch.gate"></p>
+
+      <div class="field">
+        <span class="field-label" data-i18n="batch.code">The same run, in code</span>
+        <pre id="batch-snippet" class="sample"></pre>
+      </div>
+
+      <p class="note" data-i18n-html="batch.cli"></p>
+    </div>
+  </section>
+
   <footer>
     <div class="install"><span class="p">$</span> npm install ts-profanity-filter</div>
     <ul class="caveats" id="caveats"></ul>
@@ -1410,6 +1475,37 @@ const I18N = {
       'This is what the <a href="#sec-ai">AI check</a> is for: it reads who the ' +
       'sentence is aimed at. Paste the same text there and it comes back ' +
       '<strong>sexual</strong> and <strong>racism</strong>.',
+    'batch': 'Batch processing',
+    'batch.input': 'One record per line',
+    'batch.count': '{n} of {m} flagged',
+    'batch.results': 'Per record',
+    'batch.summary': 'formatSummary(summary)',
+    'batch.code': 'The same run, in code',
+    'batch.clean': 'clean',
+    'batch.col.index': '#',
+    'batch.col.text': 'record',
+    'batch.col.why': 'flagged by',
+    'batch.note':
+      'The same analysis over many records instead of one. <code>ts-profanity-filter/batch</code> ' +
+      'takes an iterable — an array, a generator, a database cursor, a file — and streams results ' +
+      'out, so peak memory is one record and not the corpus. <strong>This panel runs the real ' +
+      'runner</strong>, in your browser, on the lines below.',
+    'batch.pii.note': 'Run the personal-data detector alongside the word lists.',
+    'batch.segments.note':
+      'Keep the segments per record. Off by default: it is the one part of a result whose size ' +
+      'grows with the text, which matters at a million rows and not at six.',
+    'batch.gate':
+      '<strong>A model is off unless you ask</strong>, and then it is gated rather than called per ' +
+      'record: <code>when: \'matched\'</code> asks only about records a word list already hit, ' +
+      'which is the quotation check and usually a small fraction of the file. ' +
+      '<code>maxCalls</code> is a hard ceiling, because a batch is exactly where one call per row ' +
+      'becomes a bill. The browser cannot demonstrate that half without your key — the AI panel ' +
+      'above can.',
+    'batch.cli':
+      'For files there is a command: <code>npx ts-profanity-filter scan comments.ndjson --pii</code> ' +
+      'reads NDJSON, CSV or plain lines, writes the flagged records back as NDJSON, and exits 1 ' +
+      'under <code>--fail-on-findings</code> for CI. ' +
+      '<a href="https://github.com/Kevinci/ts-profanity-filter/blob/main/docs/cli.md">The full CLI guide →</a>',
     'pii': 'Personal data',
     'pii.input': 'Text to scan',
     'pii.count': '{n} found',
@@ -1652,6 +1748,41 @@ const I18N = {
       'Dafür gibt es die <a href="#sec-ai">KI-Prüfung</a>: Sie liest, an wen der Satz ' +
       'gerichtet ist. Denselben Text dort einfügen — zurück kommt ' +
       '<strong>sexual</strong> und <strong>racism</strong>.',
+    'batch': 'Stapelverarbeitung',
+    'batch.input': 'Ein Datensatz pro Zeile',
+    'batch.count': '{n} von {m} markiert',
+    'batch.results': 'Pro Datensatz',
+    'batch.summary': 'formatSummary(summary)',
+    'batch.code': 'Derselbe Lauf, als Code',
+    'batch.clean': 'sauber',
+    'batch.col.index': '#',
+    'batch.col.text': 'Datensatz',
+    'batch.col.why': 'markiert durch',
+    'batch.note':
+      'Dieselbe Analyse über viele Datensätze statt über einen. ' +
+      '<code>ts-profanity-filter/batch</code> nimmt ein Iterable — ein Array, einen Generator, ' +
+      'einen Datenbank-Cursor, eine Datei — und liefert die Ergebnisse als Strom, sodass der ' +
+      'Speicherbedarf bei einem Datensatz liegt und nicht beim ganzen Korpus. ' +
+      '<strong>Dieses Panel führt den echten Runner aus</strong>, in deinem Browser, auf den ' +
+      'Zeilen unten.',
+    'batch.pii.note': 'Den Erkenner für personenbezogene Daten mitlaufen lassen.',
+    'batch.segments.note':
+      'Die Segmente pro Datensatz behalten. Standardmäßig aus: es ist der eine Teil eines ' +
+      'Ergebnisses, dessen Größe mit dem Text wächst — bei einer Million Zeilen relevant, bei ' +
+      'sechs nicht.',
+    'batch.gate':
+      '<strong>Ein Modell läuft nur, wenn du es verlangst</strong>, und dann getort statt pro ' +
+      'Datensatz: <code>when: \'matched\'</code> fragt nur zu Datensätzen, die eine Wortliste ' +
+      'schon getroffen hat — das ist die Zitat-Prüfung und meist ein kleiner Teil der Datei. ' +
+      '<code>maxCalls</code> ist eine harte Decke, denn ein Stapellauf ist genau die Stelle, an ' +
+      'der ein Aufruf pro Zeile zur Rechnung wird. Diese Hälfte kann der Browser ohne deinen ' +
+      'Schlüssel nicht zeigen — das AI-Panel weiter oben kann es.',
+    'batch.cli':
+      'Für Dateien gibt es einen Befehl: ' +
+      '<code>npx ts-profanity-filter scan comments.ndjson --pii</code> liest NDJSON, CSV oder ' +
+      'einfache Zeilen, schreibt die markierten Datensätze als NDJSON zurück und endet mit Code 1 ' +
+      'bei <code>--fail-on-findings</code> für CI. ' +
+      '<a href="https://github.com/Kevinci/ts-profanity-filter/blob/main/docs/cli.md">Die vollständige CLI-Anleitung →</a>',
     'pii': 'Personenbezogene Daten',
     'pii.input': 'Zu prüfender Text',
     'pii.count': '{n} gefunden',
@@ -2131,6 +2262,14 @@ const els = {
   piiRows: $('pii-rows'),
   piiCount: $('pii-count'),
   piiSuppressed: $('pii-suppressed'),
+  batchInput: $('batch-input'),
+  batchPresets: $('batch-presets'),
+  batchPii: $('batch-pii'),
+  batchSegments: $('batch-segments'),
+  batchRows: $('batch-rows'),
+  batchSummary: $('batch-summary'),
+  batchSnippet: $('batch-snippet'),
+  batchCount: $('batch-count'),
   presetHint: $('preset-hint'),
   aiProvider: $('ai-provider'),
   aiModel: $('ai-model'),
@@ -2399,6 +2538,186 @@ const AI_EXAMPLES = {
  * example has an innocent twin that must come back clean. A moderation layer
  * that only ever says yes is not a moderation layer.
  */
+/* --- batch ------------------------------------------------------------ */
+
+/**
+ * Records for the batch panel, one per line.
+ *
+ * Half of them have to come back clean — a batch panel that flags everything
+ * demonstrates nothing about a filter.
+ */
+const BATCH_EXAMPLES = {
+  en: [
+    'A perfectly ordinary comment.',
+    'You @sshole, honestly.',
+    'Please pass the class list to the assistant.',
+    'Write to kevin@example.com or call +1 202 5550123',
+    'IBAN GB82 WEST 1234 5698 7654 32 please transfer',
+    'We shipped version 1.2.3.4 last night.',
+    'I know where you live and I will be waiting outside tonight.',
+  ].join('\n'),
+  de: [
+    'Ein ganz normaler Kommentar.',
+    'Du @rschloch, echt jetzt?',
+    'Der Klassiker war klasse, harscher Marsch zur Massage.',
+    'Schreib an kevin@example.com oder ruf +49 170 1234567 an',
+    'IBAN DE44 5001 0517 5407 3249 31 bitte überweisen',
+    'Wir haben gestern Version 1.2.3.4 ausgeliefert.',
+    'Ich weiß, wo du wohnst, und ich warte heute Abend draußen.',
+  ].join('\n'),
+};
+
+const BATCH_PRESETS = [
+  { id: 'mixed', label: { en: 'Mixed', de: 'Gemischt' }, text: BATCH_EXAMPLES },
+  {
+    id: 'clean',
+    label: { en: 'All clean', de: 'Alles sauber' },
+    text: {
+      en: [
+        'Thanks for the quick reply.',
+        'Please pass the class list to the assistant.',
+        'Order 4711 from 12.05.2026 is still open.',
+        'We shipped version 1.2.3.4 last night.',
+        'She moved to Scunthorpe last year.',
+      ].join('\n'),
+      de: [
+        'Danke für die schnelle Antwort.',
+        'Der Klassiker war klasse, ehrlich.',
+        'Bestellnummer 4711 vom 12.05.2026 ist noch offen.',
+        'Wir haben gestern Version 1.2.3.4 ausgeliefert.',
+        'Ein harscher Marsch zur Massage, danach die Analyse.',
+      ].join('\n'),
+    },
+  },
+  {
+    id: 'pii',
+    label: { en: 'Personal data', de: 'Personenbezogen' },
+    text: {
+      en: [
+        'Write to kevin@example.com if it happens again.',
+        'Or call me on +1 202 5550123.',
+        'IBAN GB82 WEST 1234 5698 7654 32 for the refund.',
+        'The card 4111 1111 1111 1111 was declined.',
+        'server 192.168.1.1 is not answering',
+        'Internal reference 86095742719 goes in the subject.',
+      ].join('\n'),
+      de: [
+        'Schreib an kevin@example.com, falls es wieder passiert.',
+        'Oder ruf mich auf +49 170 1234567 an.',
+        'IBAN DE44 5001 0517 5407 3249 31 für die Rückzahlung.',
+        'Die Karte 4111 1111 1111 1111 wurde abgelehnt.',
+        'Server 192.168.1.1 antwortet nicht',
+        'Steuer-ID 86095742719 für die Rechnung.',
+      ].join('\n'),
+    },
+  },
+];
+
+function drawBatchPresets() {
+  els.batchPresets.textContent = '';
+  for (const preset of BATCH_PRESETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.textContent = preset.label[ui];
+    btn.addEventListener('click', () => {
+      els.batchInput.value = preset.text[ui];
+      void runBatchPanel();
+    });
+    els.batchPresets.append(btn);
+  }
+}
+
+/** The example follows the page language until the reader has edited it. */
+function seedBatchExample() {
+  const current = els.batchInput.value.trim();
+  const untouched =
+    current === '' ||
+    BATCH_PRESETS.some((preset) => Object.values(preset.text).some((t) => t.trim() === current));
+  if (untouched) els.batchInput.value = BATCH_EXAMPLES[ui];
+}
+
+function batchOptions() {
+  return {
+    filter: { languages: activeLanguages() },
+    ...(els.batchPii.checked ? { pii: true } : {}),
+    ...(els.batchSegments.checked ? { segments: true } : {}),
+  };
+}
+
+/** What flagged a record, in the order the runner decided it. */
+function batchReasons(result) {
+  const reasons = [];
+  if (result.matchedList) reasons.push('word list');
+  for (const finding of result.pii) reasons.push(finding.kind);
+  if (result.ai && result.ai.flagged) reasons.push('model');
+  return reasons;
+}
+
+async function runBatchPanel() {
+  const records = els.batchInput.value
+    .split('\n')
+    .map((line, index) => ({ text: line, id: index + 1 }))
+    .filter((record) => record.text.trim() !== '');
+
+  const options = batchOptions();
+  const results = [];
+  const summary = await runBatch(records, { ...options, onResult: (r) => results.push(r) });
+
+  els.batchCount.textContent = t('batch.count')
+    .replace('{n}', String(summary.flagged))
+    .replace('{m}', String(summary.processed));
+
+  els.batchRows.textContent = '';
+  for (const result of results) {
+    const row = document.createElement('tr');
+    if (!result.flagged) row.className = 'row-weak';
+
+    const index = document.createElement('td');
+    index.textContent = String(result.id);
+
+    const text = document.createElement('td');
+    text.className = 'seg-text';
+    text.textContent = result.text;
+
+    const why = document.createElement('td');
+    const reasons = batchReasons(result);
+    if (reasons.length === 0) {
+      why.textContent = t('batch.clean');
+    } else {
+      for (const reason of reasons) {
+        const tag = document.createElement('span');
+        tag.className = 'kind-tag';
+        tag.textContent = reason;
+        why.append(tag, document.createTextNode(' '));
+      }
+    }
+
+    row.append(index, text, why);
+    els.batchRows.append(row);
+  }
+
+  // The library's own report function, not a copy of it for the page.
+  els.batchSummary.textContent = formatSummary(summary);
+
+  const optionLines = [
+    `  filter: { languages: ${JSON.stringify(options.filter.languages)} },`,
+    els.batchPii.checked ? '  pii: true,' : '',
+    els.batchSegments.checked ? '  segments: true,' : '',
+    '  onResult: (result) => { if (result.flagged) hold(result.id); },',
+  ].filter(Boolean);
+
+  els.batchSnippet.textContent = [
+    "import { runBatch, formatSummary } from 'ts-profanity-filter/batch';",
+    '',
+    'const summary = await runBatch(records, {',
+    ...optionLines,
+    '});',
+    '',
+    'console.log(formatSummary(summary));',
+  ].join('\n');
+}
+
 /* --- personal data ---------------------------------------------------- */
 
 /**
@@ -3529,6 +3848,9 @@ function applyLanguage() {
   seedPiiExample();
   drawPiiPresets();
   runPii();
+  seedBatchExample();
+  drawBatchPresets();
+  void runBatchPanel();
   drawCoverage();
   drawAiSegments();
   drawNav();
@@ -3592,6 +3914,10 @@ els.aiRun.addEventListener('click', runAiCheck);
 
 els.piiInput.addEventListener('input', runPii);
 els.piiSuppressed.addEventListener('change', runPii);
+
+els.batchInput.addEventListener('input', () => void runBatchPanel());
+els.batchPii.addEventListener('change', () => void runBatchPanel());
+els.batchSegments.addEventListener('change', () => void runBatchPanel());
 
 els.complianceProvider.addEventListener('change', drawComplianceModels);
 els.complianceGenerate.addEventListener('click', generateCompliance);

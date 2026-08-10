@@ -11,3 +11,10 @@ dist/
 # IDE
 .idea/
 *.iml
+
+# Output from local CLI runs in the repo root. Deliberately not `*.ndjson`:
+# the docs recommend keeping a fixtures/*.ndjson in a repo for CI, and a blanket
+# rule would ignore it silently.
+/report.pdf
+/flagged.ndjson
+/all.ndjson

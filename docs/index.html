@@ -1261,6 +1261,71 @@
     </div>
   </section>
 
+  <section class="panel" id="sec-batch">
+    <div class="panel-head">
+      <span class="label" data-i18n="batch">Batch processing</span>
+      <span class="pill" id="batch-count"></span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="batch.note"></p>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="field-label" for="batch-input" data-i18n="batch.input">One record per line</label>
+          <div class="chips" id="batch-presets"></div>
+        </div>
+        <textarea id="batch-input" spellcheck="false" rows="7"></textarea>
+      </div>
+
+      <div class="opt-pair">
+        <div class="opt-row">
+          <input type="checkbox" id="batch-pii" checked />
+          <span class="opt-text">
+            <label class="opt-name" for="batch-pii">pii: true</label>
+            <span class="opt-note" data-i18n-html="batch.pii.note"></span>
+          </span>
+        </div>
+        <div class="opt-row">
+          <input type="checkbox" id="batch-segments" />
+          <span class="opt-text">
+            <label class="opt-name" for="batch-segments">segments: true</label>
+            <span class="opt-note" data-i18n-html="batch.segments.note"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="batch.results">Per record</span>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="batch.col.index">#</th>
+                <th data-i18n="batch.col.text">record</th>
+                <th data-i18n="batch.col.why">flagged by</th>
+              </tr>
+            </thead>
+            <tbody id="batch-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="batch.summary">formatSummary(summary)</span>
+        <pre id="batch-summary" class="sample"></pre>
+      </div>
+
+      <p class="note accent" data-i18n-html="batch.gate"></p>
+
+      <div class="field">
+        <span class="field-label" data-i18n="batch.code">The same run, in code</span>
+        <pre id="batch-snippet" class="sample"></pre>
+      </div>
+
+      <p class="note" data-i18n-html="batch.cli"></p>
+    </div>
+  </section>
+
   <footer>
     <div class="install"><span class="p">$</span> npm install ts-profanity-filter</div>
     <ul class="caveats" id="caveats"></ul>
@@ -4084,6 +4149,515 @@ function piiToSegments(text, options = {}) {
     return segments;
 }
 
+// ---- dist/batch/concurrency.js ----
+// src/batch/concurrency.ts — bounded concurrency over a stream, both orders.
+//
+// No Node APIs here on purpose: the core of the batch runner has to work in a
+// browser, an edge runtime and a worker, so `setTimeout` and async iteration are
+// the whole toolbox.
+//
+// The contract every function here relies on: `work` never rejects. The batch
+// runner catches per record and returns an error result instead, which is what
+// makes one bad record survivable — and what keeps `Promise.race` from throwing
+// and orphaning the rest of the pool.
+/** A promise that resolves after `ms`. */
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function aborted(signal) {
+    return signal?.aborted === true;
+}
+/**
+ * Results in input order.
+ *
+ * A sliding window of `limit` in-flight promises: push until it is full, then
+ * yield the oldest. Head-of-line blocking is the price — a slow record holds
+ * back the ones behind it — and it buys output you can write straight to a file
+ * next to the input.
+ */
+async function* mapOrdered(source, limit, work, signal) {
+    const window = [];
+    let index = 0;
+    for await (const item of source) {
+        if (aborted(signal))
+            break;
+        window.push(work(item, index++));
+        if (window.length >= limit) {
+            const next = window.shift();
+            if (next !== undefined)
+                yield await next;
+        }
+    }
+    while (window.length > 0) {
+        const next = window.shift();
+        if (next !== undefined)
+            yield await next;
+    }
+}
+/**
+ * Results in completion order.
+ *
+ * Each promise carries its own key so the settled one can be removed from the
+ * pool — `Promise.race` tells you the value, never which promise produced it.
+ */
+async function* mapUnordered(source, limit, work, signal) {
+    const pool = new Map();
+    let index = 0;
+    const settle = async () => {
+        const { key, value } = await Promise.race(pool.values());
+        pool.delete(key);
+        return value;
+    };
+    for await (const item of source) {
+        if (aborted(signal))
+            break;
+        const key = index++;
+        pool.set(key, work(item, key).then((value) => ({ key, value })));
+        if (pool.size >= limit)
+            yield await settle();
+    }
+    while (pool.size > 0)
+        yield await settle();
+}
+/**
+ * No promises at all.
+ *
+ * When nothing in the pipeline awaits — word lists and PII detection are both
+ * synchronous — two promises per record is pure overhead, and at a million
+ * records it is the difference you can measure.
+ */
+async function* mapSync(source, work, signal) {
+    let index = 0;
+    for await (const item of source) {
+        if (aborted(signal))
+            break;
+        yield work(item, index++);
+    }
+}
+
+// ---- dist/batch/report.js ----
+// src/batch/report.ts — the run, written down.
+//
+// Two formats, and only one of them can cost you an install. `formatSummary`
+// is a string built from numbers and ships with the library. `renderSummaryPdf`
+// reaches for `fast-pdf` through a dynamic import, so it is present only in the
+// code path that asks for a PDF: `dependencies` stays empty, and nobody who
+// never calls this function installs anything.
+/** Percentage with one decimal, and no `NaN%` when nothing was processed. */
+function share(part, whole) {
+    if (whole === 0)
+        return '—';
+    return `${((part / whole) * 100).toFixed(1)}%`;
+}
+function duration(ms) {
+    if (ms < 1000)
+        return `${ms} ms`;
+    const seconds = ms / 1000;
+    if (seconds < 60)
+        return `${seconds.toFixed(1)} s`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes} min ${Math.round(seconds - minutes * 60)} s`;
+}
+function throughput(summary) {
+    if (summary.elapsedMs <= 0)
+        return '—';
+    return `${Math.round((summary.processed / summary.elapsedMs) * 1000).toLocaleString('en-US')}/s`;
+}
+/** The rows both formats share, so the PDF can never disagree with the text. */
+function summaryRows(summary) {
+    const rows = [
+        ['Records processed', summary.processed.toLocaleString('en-US')],
+        ['Flagged', `${summary.flagged.toLocaleString('en-US')} (${share(summary.flagged, summary.processed)})`],
+        ['Matched a word list', summary.matchedList.toLocaleString('en-US')],
+    ];
+    if (summary.piiFindings > 0 || summary.piiRecords > 0) {
+        rows.push([
+            'Records with personal data',
+            `${summary.piiRecords.toLocaleString('en-US')} (${summary.piiFindings.toLocaleString('en-US')} findings)`,
+        ]);
+    }
+    if (summary.aiCalls > 0) {
+        rows.push(['Model calls', summary.aiCalls.toLocaleString('en-US')]);
+        rows.push(['Flagged by the model', summary.aiFlagged.toLocaleString('en-US')]);
+        if (summary.aiErrors > 0)
+            rows.push(['Model calls that failed', String(summary.aiErrors)]);
+    }
+    if (summary.errors > 0)
+        rows.push(['Records with a stage error', String(summary.errors)]);
+    rows.push(['Duration', `${duration(summary.elapsedMs)} · ${throughput(summary)}`]);
+    // Both of these change how the numbers above must be read, so they are never
+    // omitted when true — a truncated run that looks complete is the worst report.
+    if (summary.aiBudgetExhausted)
+        rows.push(['Model budget', 'exhausted — later records went unasked']);
+    if (summary.aborted)
+        rows.push(['Ended', 'aborted before the input was finished']);
+    return rows;
+}
+function kindRows(summary) {
+    return Object.entries(summary.piiByKind)
+        .sort((a, b) => b[1] - a[1])
+        .map(([kind, count]) => [kind, count.toLocaleString('en-US')]);
+}
+/** A fixed-width report for a terminal or a log. No dependency, no options. */
+function formatSummary(summary) {
+    const rows = summaryRows(summary);
+    const width = Math.max(...rows.map(([label]) => label.length));
+    const lines = rows.map(([label, value]) => `  ${label.padEnd(width)}  ${value}`);
+    const kinds = kindRows(summary);
+    if (kinds.length > 0) {
+        const kindWidth = Math.max(...kinds.map(([kind]) => kind.length));
+        lines.push('', '  Personal data by kind');
+        for (const [kind, count] of kinds) {
+            lines.push(`    ${kind.padEnd(kindWidth)}  ${count}`);
+        }
+    }
+    if (summary.samples.length > 0) {
+        lines.push('', `  Examples (${summary.samples.length} of ${summary.flagged.toLocaleString('en-US')})`);
+        for (const sample of summary.samples) {
+            const reasons = [
+                sample.matchedList ? 'word list' : '',
+                sample.pii.length > 0 ? sample.pii.map((finding) => finding.kind).join('/') : '',
+                sample.ai?.flagged === true ? `model:${sample.ai.severity}` : '',
+            ].filter(Boolean);
+            const label = sample.id !== undefined ? `#${sample.id}` : `row ${sample.index}`;
+            lines.push(`    ${label}  [${reasons.join(', ')}]  ${excerpt(sample.text)}`);
+        }
+    }
+    return lines.join('\n');
+}
+function excerpt(text, limit = 72) {
+    const single = text.replace(/\s+/g, ' ').trim();
+    return single.length <= limit ? single : `${single.slice(0, limit - 1)}…`;
+}
+/**
+ * Render the summary as a PDF.
+ *
+ * Requires `fast-pdf`, which is an **optional** peer dependency — it is loaded
+ * here and nowhere else, so the library keeps `dependencies: {}` and an install
+ * that never renders a PDF pulls nothing extra.
+ */
+async function renderSummaryPdf(summary, options = {}) {
+    let PDFDocument;
+    try {
+        ({ PDFDocument } = await import('fast-pdf'));
+    }
+    catch {
+        throw new Error('renderSummaryPdf needs the optional peer dependency `fast-pdf`. ' +
+            'Install it with: npm install fast-pdf');
+    }
+    const title = options.title ?? 'Moderation batch report';
+    const doc = new PDFDocument({
+        fontSize: 10.5,
+        metadata: { title, creator: 'ts-profanity-filter' },
+        ...(options.deterministic === true ? { deterministic: true } : {}),
+    });
+    doc.text(title, { size: 20, bold: true, spacingAfter: 4 });
+    if (options.subtitle !== undefined) {
+        doc.text(options.subtitle, { size: 10.5, color: '#666666', spacingAfter: 14 });
+    }
+    doc.text('Summary', { size: 13, bold: true, spacingBefore: 8, spacingAfter: 6 });
+    doc.table([['Measure', 'Value'], ...summaryRows(summary)], {
+        header: true,
+        // Widths are points, not fractions — and anything wider than the content
+        // area is scaled down proportionally. Oversized numbers in the ratio I want
+        // therefore behave like percentages without hard-coding the page geometry.
+        widths: [550, 450],
+        fontSize: 10,
+    });
+    const kinds = kindRows(summary);
+    if (kinds.length > 0) {
+        doc.text('Personal data by kind', { size: 13, bold: true, spacingBefore: 16, spacingAfter: 6 });
+        doc.table([['Kind', 'Findings'], ...kinds], {
+            header: true,
+            widths: [550, 450],
+            fontSize: 10,
+        });
+    }
+    if (options.samples !== false && summary.samples.length > 0) {
+        doc.text('Examples', { size: 13, bold: true, spacingBefore: 16, spacingAfter: 2 });
+        doc.text(`${summary.samples.length} of ${summary.flagged.toLocaleString('en-US')} flagged records. ` +
+            'Excerpts are verbatim, so this page carries the original wording.', { size: 9.5, color: '#666666', spacingAfter: 6 });
+        doc.table([
+            ['Record', 'Why', 'Excerpt'],
+            ...summary.samples.map((sample) => [
+                sample.id !== undefined ? `#${sample.id}` : `row ${sample.index}`,
+                [
+                    sample.matchedList ? 'word list' : '',
+                    sample.pii.map((finding) => finding.kind).join('/'),
+                    sample.ai?.flagged === true ? `model:${sample.ai.severity}` : '',
+                ]
+                    .filter(Boolean)
+                    .join(', '),
+                excerpt(sample.text, 90),
+            ]),
+        ], { header: true, widths: [140, 260, 600], fontSize: 9 });
+    }
+    doc.pageNumbers();
+    return doc.render();
+}
+
+// ---- dist/batch/index.js ----
+// src/batch/index.ts — import from 'ts-profanity-filter/batch'
+//
+// Analysing one comment is a function call. Analysing two million of them is a
+// different problem, and the difference is not speed — it is that the naive
+// version holds the whole corpus in memory, stops at the first bad record, and
+// makes one paid model call per row.
+//
+// So: (async) iterable in, results streamed out, bounded concurrency, one bad
+// record cannot end the run, and the model is only asked about the records a
+// word list could not settle — under a hard ceiling you set.
+//
+// Nothing in this file touches a Node API. File and CSV input live in
+// 'ts-profanity-filter/batch/node', which is a separate subpath so that
+// importing the runner in a browser or an edge function stays possible.
+
+
+
+
+
+
+const DEFAULT_CONCURRENCY = 8;
+const DEFAULT_PROGRESS_EVERY = 500;
+const DEFAULT_SAMPLE_LIMIT = 20;
+const DEFAULT_RETRIES = 2;
+const DEFAULT_RETRY_DELAY = 500;
+function newState() {
+    return {
+        processed: 0,
+        flagged: 0,
+        matchedList: 0,
+        piiRecords: 0,
+        piiFindings: 0,
+        piiByKind: {},
+        aiCalls: 0,
+        aiFlagged: 0,
+        aiErrors: 0,
+        errors: 0,
+        aiBudgetExhausted: false,
+        samples: [],
+        startedAt: Date.now(),
+    };
+}
+function toRecord(input) {
+    return typeof input === 'string' ? { text: input } : input;
+}
+/**
+ * The synchronous half: word lists and PII.
+ *
+ * Each stage is wrapped, because a custom pattern or a hostile record must cost
+ * one result and not the whole run — a batch job that dies at row 900 000 with
+ * nothing written is the failure mode this design exists to avoid.
+ */
+function analyseLocal(input, index, options) {
+    const record = toRecord(input);
+    const text = record.text ?? '';
+    let segments;
+    let matchedList = false;
+    let pii = [];
+    let error;
+    if (options.filter !== false) {
+        try {
+            const produced = filterFWordsToSegments(text, options.filter ?? {});
+            matchedList = produced.some((segment) => segment.isProfane);
+            if (options.segments)
+                segments = produced;
+        }
+        catch (cause) {
+            error = { stage: 'filter', message: cause instanceof Error ? cause.message : String(cause) };
+        }
+    }
+    if (options.pii !== undefined && options.pii !== false) {
+        try {
+            pii = detectPii(text, options.pii === true ? {} : options.pii);
+        }
+        catch (cause) {
+            error ?? (error = { stage: 'pii', message: cause instanceof Error ? cause.message : String(cause) });
+        }
+    }
+    const result = {
+        index,
+        text,
+        flagged: matchedList || pii.length > 0,
+        matchedList,
+        pii,
+    };
+    if (record.id !== undefined)
+        result.id = record.id;
+    if (segments !== undefined)
+        result.segments = segments;
+    if (error !== undefined)
+        result.error = error;
+    return result;
+}
+function wantsModel(result, ai) {
+    const gate = ai.when ?? 'matched';
+    if (typeof gate === 'function')
+        return gate(result);
+    if (gate === 'all')
+        return true;
+    if (gate === 'matched')
+        return result.matchedList;
+    return !result.matchedList;
+}
+/**
+ * One model call, retried with exponential backoff.
+ *
+ * `analyzeWithAi` reports failure as `status: 'error'` rather than throwing, so
+ * the retry loop reads the status instead of catching. A refusal is *not*
+ * retried: the provider's safety layer declining is a decision, and asking it
+ * again in 500 ms will not change its mind.
+ */
+async function askModel(text, ai, state) {
+    const maxCalls = ai.maxCalls ?? Infinity;
+    if (state.aiCalls >= maxCalls) {
+        state.aiBudgetExhausted = true;
+        return undefined;
+    }
+    state.aiCalls++;
+    const retries = ai.retries ?? DEFAULT_RETRIES;
+    const base = ai.retryDelayMs ?? DEFAULT_RETRY_DELAY;
+    // `when`, `maxCalls`, `retries` and `retryDelayMs` are ours; everything else
+    // belongs to the AI module and is passed through untouched.
+    const { when: _when, maxCalls: _maxCalls, retries: _retries, retryDelayMs: _delay, ...rest } = ai;
+    const aiOptions = { ...rest, onError: 'return' };
+    let last;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        last = await analyzeWithAi(text, aiOptions);
+        if (last.status !== 'error')
+            return last;
+        if (attempt < retries)
+            await delay(base * 2 ** attempt);
+    }
+    return last;
+}
+function account(result, state, sampleLimit) {
+    state.processed++;
+    if (result.matchedList)
+        state.matchedList++;
+    if (result.error)
+        state.errors++;
+    if (result.pii.length > 0) {
+        state.piiRecords++;
+        state.piiFindings += result.pii.length;
+        for (const finding of result.pii) {
+            state.piiByKind[finding.kind] = (state.piiByKind[finding.kind] ?? 0) + 1;
+        }
+    }
+    if (result.ai) {
+        if (result.ai.flagged)
+            state.aiFlagged++;
+        if (result.ai.status === 'error')
+            state.aiErrors++;
+    }
+    if (result.flagged) {
+        state.flagged++;
+        if (state.samples.length < sampleLimit)
+            state.samples.push(result);
+    }
+}
+function summarize(state, aborted) {
+    return {
+        processed: state.processed,
+        flagged: state.flagged,
+        matchedList: state.matchedList,
+        piiRecords: state.piiRecords,
+        piiFindings: state.piiFindings,
+        piiByKind: state.piiByKind,
+        aiCalls: state.aiCalls,
+        aiFlagged: state.aiFlagged,
+        aiErrors: state.aiErrors,
+        errors: state.errors,
+        aborted,
+        aiBudgetExhausted: state.aiBudgetExhausted,
+        elapsedMs: Date.now() - state.startedAt,
+        samples: state.samples,
+    };
+}
+/**
+ * Analyse a stream of records, yielding one result each.
+ *
+ * The generator's **return value** is the summary, which `for await` discards —
+ * use `runBatch` if that is what you want, or drive `.next()` yourself.
+ */
+async function* streamBatch(source, options = {}) {
+    const state = newState();
+    const sampleLimit = options.sampleLimit ?? DEFAULT_SAMPLE_LIMIT;
+    const every = Math.max(1, options.progressEvery ?? DEFAULT_PROGRESS_EVERY);
+    const ai = options.ai;
+    const report = () => {
+        if (!options.onProgress)
+            return;
+        const elapsedMs = Date.now() - state.startedAt;
+        options.onProgress({
+            processed: state.processed,
+            flagged: state.flagged,
+            aiCalls: state.aiCalls,
+            elapsedMs,
+            perSecond: elapsedMs > 0 ? (state.processed / elapsedMs) * 1000 : 0,
+        });
+    };
+    const emit = (result) => {
+        account(result, state, sampleLimit);
+        if (state.processed % every === 0)
+            report();
+        return result;
+    };
+    if (ai === undefined || ai.enabled === false) {
+        // Nothing awaits, so nothing needs a promise per record.
+        for await (const result of mapSync(source, (item, index) => emit(analyseLocal(item, index, options)), options.signal)) {
+            yield result;
+        }
+    }
+    else {
+        const work = async (item, index) => {
+            const result = analyseLocal(item, index, options);
+            if (!wantsModel(result, ai))
+                return result;
+            try {
+                const verdict = await askModel(result.text, ai, state);
+                if (verdict !== undefined) {
+                    result.ai = verdict;
+                    if (verdict.flagged)
+                        result.flagged = true;
+                }
+            }
+            catch (cause) {
+                // askModel is written not to throw; if a provider ever does anyway,
+                // one record must still not take the run down.
+                result.error ?? (result.error = {
+                    stage: 'ai',
+                    message: cause instanceof Error ? cause.message : String(cause),
+                });
+            }
+            return result;
+        };
+        const limit = Math.max(1, options.concurrency ?? DEFAULT_CONCURRENCY);
+        const runner = options.ordered === false ? mapUnordered : mapOrdered;
+        for await (const result of runner(source, limit, work, options.signal)) {
+            yield emit(result);
+        }
+    }
+    report();
+    return summarize(state, options.signal?.aborted === true);
+}
+/**
+ * Run a batch to completion and return the summary.
+ *
+ * This is the shape for large input: results are handed to `onResult` as they
+ * arrive and then dropped, so memory stays flat no matter how long the file is.
+ */
+async function runBatch(source, options = {}) {
+    const iterator = streamBatch(source, options);
+    for (;;) {
+        const step = await iterator.next();
+        if (step.done === true)
+            return step.value;
+        if (options.onResult)
+            await options.onResult(step.value);
+    }
+}
+
 /* ---- name, version, license and author, injected from package.json ---- */
 const META = {"name":"ts-profanity-filter","version":"1.4.0","license":"MIT","author":"Kevin Imig"};
 
@@ -4196,6 +4770,37 @@ const I18N = {
       'This is what the <a href="#sec-ai">AI check</a> is for: it reads who the ' +
       'sentence is aimed at. Paste the same text there and it comes back ' +
       '<strong>sexual</strong> and <strong>racism</strong>.',
+    'batch': 'Batch processing',
+    'batch.input': 'One record per line',
+    'batch.count': '{n} of {m} flagged',
+    'batch.results': 'Per record',
+    'batch.summary': 'formatSummary(summary)',
+    'batch.code': 'The same run, in code',
+    'batch.clean': 'clean',
+    'batch.col.index': '#',
+    'batch.col.text': 'record',
+    'batch.col.why': 'flagged by',
+    'batch.note':
+      'The same analysis over many records instead of one. <code>ts-profanity-filter/batch</code> ' +
+      'takes an iterable — an array, a generator, a database cursor, a file — and streams results ' +
+      'out, so peak memory is one record and not the corpus. <strong>This panel runs the real ' +
+      'runner</strong>, in your browser, on the lines below.',
+    'batch.pii.note': 'Run the personal-data detector alongside the word lists.',
+    'batch.segments.note':
+      'Keep the segments per record. Off by default: it is the one part of a result whose size ' +
+      'grows with the text, which matters at a million rows and not at six.',
+    'batch.gate':
+      '<strong>A model is off unless you ask</strong>, and then it is gated rather than called per ' +
+      'record: <code>when: \'matched\'</code> asks only about records a word list already hit, ' +
+      'which is the quotation check and usually a small fraction of the file. ' +
+      '<code>maxCalls</code> is a hard ceiling, because a batch is exactly where one call per row ' +
+      'becomes a bill. The browser cannot demonstrate that half without your key — the AI panel ' +
+      'above can.',
+    'batch.cli':
+      'For files there is a command: <code>npx ts-profanity-filter scan comments.ndjson --pii</code> ' +
+      'reads NDJSON, CSV or plain lines, writes the flagged records back as NDJSON, and exits 1 ' +
+      'under <code>--fail-on-findings</code> for CI. ' +
+      '<a href="https://github.com/Kevinci/ts-profanity-filter/blob/main/docs/cli.md">The full CLI guide →</a>',
     'pii': 'Personal data',
     'pii.input': 'Text to scan',
     'pii.count': '{n} found',
@@ -4438,6 +5043,41 @@ const I18N = {
       'Dafür gibt es die <a href="#sec-ai">KI-Prüfung</a>: Sie liest, an wen der Satz ' +
       'gerichtet ist. Denselben Text dort einfügen — zurück kommt ' +
       '<strong>sexual</strong> und <strong>racism</strong>.',
+    'batch': 'Stapelverarbeitung',
+    'batch.input': 'Ein Datensatz pro Zeile',
+    'batch.count': '{n} von {m} markiert',
+    'batch.results': 'Pro Datensatz',
+    'batch.summary': 'formatSummary(summary)',
+    'batch.code': 'Derselbe Lauf, als Code',
+    'batch.clean': 'sauber',
+    'batch.col.index': '#',
+    'batch.col.text': 'Datensatz',
+    'batch.col.why': 'markiert durch',
+    'batch.note':
+      'Dieselbe Analyse über viele Datensätze statt über einen. ' +
+      '<code>ts-profanity-filter/batch</code> nimmt ein Iterable — ein Array, einen Generator, ' +
+      'einen Datenbank-Cursor, eine Datei — und liefert die Ergebnisse als Strom, sodass der ' +
+      'Speicherbedarf bei einem Datensatz liegt und nicht beim ganzen Korpus. ' +
+      '<strong>Dieses Panel führt den echten Runner aus</strong>, in deinem Browser, auf den ' +
+      'Zeilen unten.',
+    'batch.pii.note': 'Den Erkenner für personenbezogene Daten mitlaufen lassen.',
+    'batch.segments.note':
+      'Die Segmente pro Datensatz behalten. Standardmäßig aus: es ist der eine Teil eines ' +
+      'Ergebnisses, dessen Größe mit dem Text wächst — bei einer Million Zeilen relevant, bei ' +
+      'sechs nicht.',
+    'batch.gate':
+      '<strong>Ein Modell läuft nur, wenn du es verlangst</strong>, und dann getort statt pro ' +
+      'Datensatz: <code>when: \'matched\'</code> fragt nur zu Datensätzen, die eine Wortliste ' +
+      'schon getroffen hat — das ist die Zitat-Prüfung und meist ein kleiner Teil der Datei. ' +
+      '<code>maxCalls</code> ist eine harte Decke, denn ein Stapellauf ist genau die Stelle, an ' +
+      'der ein Aufruf pro Zeile zur Rechnung wird. Diese Hälfte kann der Browser ohne deinen ' +
+      'Schlüssel nicht zeigen — das AI-Panel weiter oben kann es.',
+    'batch.cli':
+      'Für Dateien gibt es einen Befehl: ' +
+      '<code>npx ts-profanity-filter scan comments.ndjson --pii</code> liest NDJSON, CSV oder ' +
+      'einfache Zeilen, schreibt die markierten Datensätze als NDJSON zurück und endet mit Code 1 ' +
+      'bei <code>--fail-on-findings</code> für CI. ' +
+      '<a href="https://github.com/Kevinci/ts-profanity-filter/blob/main/docs/cli.md">Die vollständige CLI-Anleitung →</a>',
     'pii': 'Personenbezogene Daten',
     'pii.input': 'Zu prüfender Text',
     'pii.count': '{n} gefunden',
@@ -4917,6 +5557,14 @@ const els = {
   piiRows: $('pii-rows'),
   piiCount: $('pii-count'),
   piiSuppressed: $('pii-suppressed'),
+  batchInput: $('batch-input'),
+  batchPresets: $('batch-presets'),
+  batchPii: $('batch-pii'),
+  batchSegments: $('batch-segments'),
+  batchRows: $('batch-rows'),
+  batchSummary: $('batch-summary'),
+  batchSnippet: $('batch-snippet'),
+  batchCount: $('batch-count'),
   presetHint: $('preset-hint'),
   aiProvider: $('ai-provider'),
   aiModel: $('ai-model'),
@@ -5185,6 +5833,186 @@ const AI_EXAMPLES = {
  * example has an innocent twin that must come back clean. A moderation layer
  * that only ever says yes is not a moderation layer.
  */
+/* --- batch ------------------------------------------------------------ */
+
+/**
+ * Records for the batch panel, one per line.
+ *
+ * Half of them have to come back clean — a batch panel that flags everything
+ * demonstrates nothing about a filter.
+ */
+const BATCH_EXAMPLES = {
+  en: [
+    'A perfectly ordinary comment.',
+    'You @sshole, honestly.',
+    'Please pass the class list to the assistant.',
+    'Write to kevin@example.com or call +1 202 5550123',
+    'IBAN GB82 WEST 1234 5698 7654 32 please transfer',
+    'We shipped version 1.2.3.4 last night.',
+    'I know where you live and I will be waiting outside tonight.',
+  ].join('\n'),
+  de: [
+    'Ein ganz normaler Kommentar.',
+    'Du @rschloch, echt jetzt?',
+    'Der Klassiker war klasse, harscher Marsch zur Massage.',
+    'Schreib an kevin@example.com oder ruf +49 170 1234567 an',
+    'IBAN DE44 5001 0517 5407 3249 31 bitte überweisen',
+    'Wir haben gestern Version 1.2.3.4 ausgeliefert.',
+    'Ich weiß, wo du wohnst, und ich warte heute Abend draußen.',
+  ].join('\n'),
+};
+
+const BATCH_PRESETS = [
+  { id: 'mixed', label: { en: 'Mixed', de: 'Gemischt' }, text: BATCH_EXAMPLES },
+  {
+    id: 'clean',
+    label: { en: 'All clean', de: 'Alles sauber' },
+    text: {
+      en: [
+        'Thanks for the quick reply.',
+        'Please pass the class list to the assistant.',
+        'Order 4711 from 12.05.2026 is still open.',
+        'We shipped version 1.2.3.4 last night.',
+        'She moved to Scunthorpe last year.',
+      ].join('\n'),
+      de: [
+        'Danke für die schnelle Antwort.',
+        'Der Klassiker war klasse, ehrlich.',
+        'Bestellnummer 4711 vom 12.05.2026 ist noch offen.',
+        'Wir haben gestern Version 1.2.3.4 ausgeliefert.',
+        'Ein harscher Marsch zur Massage, danach die Analyse.',
+      ].join('\n'),
+    },
+  },
+  {
+    id: 'pii',
+    label: { en: 'Personal data', de: 'Personenbezogen' },
+    text: {
+      en: [
+        'Write to kevin@example.com if it happens again.',
+        'Or call me on +1 202 5550123.',
+        'IBAN GB82 WEST 1234 5698 7654 32 for the refund.',
+        'The card 4111 1111 1111 1111 was declined.',
+        'server 192.168.1.1 is not answering',
+        'Internal reference 86095742719 goes in the subject.',
+      ].join('\n'),
+      de: [
+        'Schreib an kevin@example.com, falls es wieder passiert.',
+        'Oder ruf mich auf +49 170 1234567 an.',
+        'IBAN DE44 5001 0517 5407 3249 31 für die Rückzahlung.',
+        'Die Karte 4111 1111 1111 1111 wurde abgelehnt.',
+        'Server 192.168.1.1 antwortet nicht',
+        'Steuer-ID 86095742719 für die Rechnung.',
+      ].join('\n'),
+    },
+  },
+];
+
+function drawBatchPresets() {
+  els.batchPresets.textContent = '';
+  for (const preset of BATCH_PRESETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.textContent = preset.label[ui];
+    btn.addEventListener('click', () => {
+      els.batchInput.value = preset.text[ui];
+      void runBatchPanel();
+    });
+    els.batchPresets.append(btn);
+  }
+}
+
+/** The example follows the page language until the reader has edited it. */
+function seedBatchExample() {
+  const current = els.batchInput.value.trim();
+  const untouched =
+    current === '' ||
+    BATCH_PRESETS.some((preset) => Object.values(preset.text).some((t) => t.trim() === current));
+  if (untouched) els.batchInput.value = BATCH_EXAMPLES[ui];
+}
+
+function batchOptions() {
+  return {
+    filter: { languages: activeLanguages() },
+    ...(els.batchPii.checked ? { pii: true } : {}),
+    ...(els.batchSegments.checked ? { segments: true } : {}),
+  };
+}
+
+/** What flagged a record, in the order the runner decided it. */
+function batchReasons(result) {
+  const reasons = [];
+  if (result.matchedList) reasons.push('word list');
+  for (const finding of result.pii) reasons.push(finding.kind);
+  if (result.ai && result.ai.flagged) reasons.push('model');
+  return reasons;
+}
+
+async function runBatchPanel() {
+  const records = els.batchInput.value
+    .split('\n')
+    .map((line, index) => ({ text: line, id: index + 1 }))
+    .filter((record) => record.text.trim() !== '');
+
+  const options = batchOptions();
+  const results = [];
+  const summary = await runBatch(records, { ...options, onResult: (r) => results.push(r) });
+
+  els.batchCount.textContent = t('batch.count')
+    .replace('{n}', String(summary.flagged))
+    .replace('{m}', String(summary.processed));
+
+  els.batchRows.textContent = '';
+  for (const result of results) {
+    const row = document.createElement('tr');
+    if (!result.flagged) row.className = 'row-weak';
+
+    const index = document.createElement('td');
+    index.textContent = String(result.id);
+
+    const text = document.createElement('td');
+    text.className = 'seg-text';
+    text.textContent = result.text;
+
+    const why = document.createElement('td');
+    const reasons = batchReasons(result);
+    if (reasons.length === 0) {
+      why.textContent = t('batch.clean');
+    } else {
+      for (const reason of reasons) {
+        const tag = document.createElement('span');
+        tag.className = 'kind-tag';
+        tag.textContent = reason;
+        why.append(tag, document.createTextNode(' '));
+      }
+    }
+
+    row.append(index, text, why);
+    els.batchRows.append(row);
+  }
+
+  // The library's own report function, not a copy of it for the page.
+  els.batchSummary.textContent = formatSummary(summary);
+
+  const optionLines = [
+    `  filter: { languages: ${JSON.stringify(options.filter.languages)} },`,
+    els.batchPii.checked ? '  pii: true,' : '',
+    els.batchSegments.checked ? '  segments: true,' : '',
+    '  onResult: (result) => { if (result.flagged) hold(result.id); },',
+  ].filter(Boolean);
+
+  els.batchSnippet.textContent = [
+    "import { runBatch, formatSummary } from 'ts-profanity-filter/batch';",
+    '',
+    'const summary = await runBatch(records, {',
+    ...optionLines,
+    '});',
+    '',
+    'console.log(formatSummary(summary));',
+  ].join('\n');
+}
+
 /* --- personal data ---------------------------------------------------- */
 
 /**
@@ -6315,6 +7143,9 @@ function applyLanguage() {
   seedPiiExample();
   drawPiiPresets();
   runPii();
+  seedBatchExample();
+  drawBatchPresets();
+  void runBatchPanel();
   drawCoverage();
   drawAiSegments();
   drawNav();
@@ -6378,6 +7209,10 @@ els.aiRun.addEventListener('click', runAiCheck);
 
 els.piiInput.addEventListener('input', runPii);
 els.piiSuppressed.addEventListener('change', runPii);
+
+els.batchInput.addEventListener('input', () => void runBatchPanel());
+els.batchPii.addEventListener('change', () => void runBatchPanel());
+els.batchSegments.addEventListener('change', () => void runBatchPanel());
 
 els.complianceProvider.addEventListener('change', drawComplianceModels);
 els.complianceGenerate.addEventListener('click', generateCompliance);

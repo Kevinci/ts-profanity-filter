@@ -462,3 +462,75 @@ test('the PDF report renders, and is reproducible when asked to be', async () =>
   const second = await renderSummaryPdf(summary, { title: 'Test run', deterministic: true });
   assert.deepEqual(first, second, 'deterministic: true must give byte-identical output');
 });
+
+/* --------------------- picking the right column ------------------------ */
+
+test('the text column is guessed from the header when nobody names one', async () => {
+  const dir = await tempDir();
+  const path = join(dir, 'chat.csv');
+  await writeFile(path, 'id,author,message\n1,anna,you @sshole\n2,ben,ordinary\n');
+
+  const chosen: { name?: string; index: number; detected: boolean }[] = [];
+  const records = [];
+  for await (const record of csvFrom(path, { onColumn: (c) => chosen.push(c) })) {
+    records.push(record);
+  }
+
+  assert.deepEqual(chosen, [{ index: 2, detected: true, name: 'message' }]);
+  assert.deepEqual(records.map((r) => r.text), ['you @sshole', 'ordinary']);
+});
+
+test('an unguessable header is a question, not a silent scan of column 0', async () => {
+  const dir = await tempDir();
+  const path = join(dir, 'odd.csv');
+  // Reading column 0 here would report a clean file — indistinguishable from a
+  // real result, which is the outcome worth failing over.
+  await writeFile(path, 'id,autor,freitext\n1,anna,you @sshole\n');
+
+  await assert.rejects(
+    async () => {
+      for await (const _ of csvFrom(path)) void _;
+    },
+    /which column holds the text\?.*id, autor, freitext/s,
+  );
+
+  const named = [];
+  for await (const record of csvFrom(path, { column: 'freitext' })) named.push(record);
+  assert.deepEqual(named.map((r) => r.text), ['you @sshole']);
+});
+
+test('a single column needs no guessing, and an explicit choice is not announced as one', async () => {
+  const dir = await tempDir();
+  const path = join(dir, 'one.csv');
+  await writeFile(path, 'whatever\nyou @sshole\n');
+
+  const chosen: { detected: boolean }[] = [];
+  const records = [];
+  for await (const record of csvFrom(path, { onColumn: (c) => chosen.push(c) })) {
+    records.push(record);
+  }
+  assert.equal(chosen[0]?.detected, true);
+  assert.deepEqual(records.map((r) => r.text), ['you @sshole']);
+
+  const explicit: { detected: boolean }[] = [];
+  for await (const _ of csvFrom(path, { column: 0, onColumn: (c) => explicit.push(c) })) void _;
+  assert.equal(explicit[0]?.detected, false);
+});
+
+test('skipped NDJSON lines are counted by reason', async () => {
+  const dir = await tempDir();
+  const path = join(dir, 'mixed.ndjson');
+  await writeFile(
+    path,
+    ['{"body":"wrong field"}', 'not json', '"a bare string"', '{"text":"you @sshole"}'].join('\n'),
+  );
+
+  const reasons: string[] = [];
+  const records = [];
+  for await (const record of ndjsonFrom(path, { onSkip: (_l, why) => reasons.push(why) })) {
+    records.push(record);
+  }
+
+  assert.deepEqual(reasons.sort(), ['json', 'no-text', 'not-object']);
+  assert.equal(records.length, 1);
+});

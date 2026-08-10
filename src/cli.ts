@@ -183,7 +183,25 @@ async function main(argv: readonly string[]): Promise<number> {
 
   const options = buildOptions(flags);
   const quiet = flags.present.has('quiet');
+
+  // Counted so that "0 records" can explain itself instead of looking like a
+  // clean file. A wrong --text-field skips every line, and silence there is the
+  // one failure mode a scanner must never have.
+  const skipped = { json: 0, 'not-object': 0, 'no-text': 0 };
+
   const source = recordsFrom(file, {
+    onColumn: ({ name, index, detected }) => {
+      if (quiet) return;
+      const label = name !== undefined ? `${name} (index ${index})` : `index ${index}`;
+      process.stderr.write(
+        detected
+          ? `  column: ${label} — guessed; pass --column to choose another\n`
+          : `  column: ${label}\n`,
+      );
+    },
+    onSkip: (_line, reason) => {
+      skipped[reason]++;
+    },
     ...(flags.values.get('text-field') !== undefined
       ? { textField: flags.values.get('text-field') as string }
       : {}),
@@ -261,6 +279,26 @@ async function main(argv: readonly string[]): Promise<number> {
       process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
     } else {
       process.stdout.write(`\n${formatSummary(summary)}\n`);
+    }
+
+    // A skipped line is fine in ones and twos and suspicious in bulk, so say so
+    // either way rather than only when nothing at all came through.
+    const totalSkipped = skipped.json + skipped['not-object'] + skipped['no-text'];
+    if (totalSkipped > 0 && !quiet) {
+      const parts = [
+        skipped['no-text'] > 0
+          ? `${skipped['no-text']} without a usable text field (--text-field)`
+          : '',
+        skipped.json > 0 ? `${skipped.json} not valid JSON` : '',
+        skipped['not-object'] > 0 ? `${skipped['not-object']} not a JSON object` : '',
+      ].filter(Boolean);
+      process.stderr.write(`\n  Skipped ${totalSkipped} lines: ${parts.join(', ')}\n`);
+    }
+
+    if (summary.processed === 0 && !quiet) {
+      process.stderr.write(
+        '  Nothing was analysed. Check --text-field for NDJSON or --column for CSV.\n',
+      );
     }
 
     const pdfPath = flags.values.get('pdf');

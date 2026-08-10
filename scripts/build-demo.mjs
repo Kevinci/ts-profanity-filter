@@ -40,6 +40,12 @@ const MODULES = [
   'dist/pii/recognizers.js',
   'dist/pii/resolve.js',
   'dist/pii/index.js',
+  'dist/batch/concurrency.js',
+  // report.js reaches for fast-pdf through a *dynamic* import inside
+  // renderSummaryPdf, which the page never calls. The specifier is therefore
+  // never resolved, and the module strippers leave function bodies alone.
+  'dist/batch/report.js',
+  'dist/batch/index.js',
 ];
 
 /** Every `from '…'` in a module, whether it is an import or a re-export. */
@@ -53,8 +59,10 @@ function deModule(source) {
     // plumbing here: in one shared scope the binding is already the declaration
     // in y.js, so the line has nothing left to do.
     .replace(/^export\s*\{[^}]*\}\s*(?:from\s+'[^']*'\s*)?;$/gm, '')
-    // Unwrap declarations, `async function` among them.
-    .replace(/^export\s+(?=(?:async\s+)?(?:const|function|class|let)\s)/gm, '')
+    // Unwrap declarations, `async function` among them — and `function*`, whose
+    // star sits where the regex was looking for a space. Generators only entered
+    // the bundle with the batch runner, so this held until then.
+    .replace(/^export\s+(?=(?:async\s+)?(?:const|function\*?|class|let)\s)/gm, '')
     .replace(/^\/\/# sourceMappingURL=.*$/gm, '')
     .trim();
 }

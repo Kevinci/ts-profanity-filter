@@ -43,6 +43,15 @@ export interface NdjsonOptions {
    * `skip` (default) ignores it, `throw` stops the run at that line.
    */
   onBadLine?: 'skip' | 'throw';
+  /**
+   * Called for every skipped line.
+   *
+   * Skipping is right for a handful of broken lines in a large export, and wrong
+   * as a silent behaviour when *every* line is skipped — a wrong `textField`
+   * then looks exactly like an empty file. Counting the reasons is what lets a
+   * caller tell those two apart.
+   */
+  onSkip?: (line: number, reason: 'json' | 'not-object' | 'no-text') => void;
 }
 
 /** One JSON object per line — the format every log pipeline already speaks. */
@@ -66,11 +75,13 @@ export async function* ndjsonFrom(
       if (strict) {
         throw new Error(`${path}:${lineNumber} is not valid JSON: ${(cause as Error).message}`);
       }
+      options.onSkip?.(lineNumber, 'json');
       continue;
     }
 
     if (typeof parsed !== 'object' || parsed === null) {
       if (strict) throw new Error(`${path}:${lineNumber} is not a JSON object`);
+      options.onSkip?.(lineNumber, 'not-object');
       continue;
     }
 
@@ -78,6 +89,7 @@ export async function* ndjsonFrom(
     const text = row[textField];
     if (typeof text !== 'string') {
       if (strict) throw new Error(`${path}:${lineNumber} has no string field ${textField}`);
+      options.onSkip?.(lineNumber, 'no-text');
       continue;
     }
 
@@ -89,7 +101,14 @@ export async function* ndjsonFrom(
 }
 
 export interface CsvOptions {
-  /** Column holding the text: a header name, or a zero-based index. Default 0. */
+  /**
+   * Column holding the text: a header name, or a zero-based index.
+   *
+   * Omitted, and with a header present, one of the names in `TEXT_COLUMN_NAMES`
+   * is used. If none of them is there and the file has more than one column,
+   * reading **throws** rather than picking the first — scanning the id column and
+   * reporting nothing found is not a result, it only looks like one.
+   */
   column?: string | number;
   /** Column holding the id, if any. */
   idColumn?: string | number;
@@ -97,7 +116,27 @@ export interface CsvOptions {
   delimiter?: string;
   /** Treat the first row as names. Default true. Required for named columns. */
   header?: boolean;
+  /** Called once with the column that ended up being read. */
+  onColumn?: (chosen: { name?: string; index: number; detected: boolean }) => void;
 }
+
+/**
+ * Header names that obviously hold the text, tried in this order.
+ *
+ * English and German, because that is what this library ships word lists for.
+ */
+export const TEXT_COLUMN_NAMES: readonly string[] = [
+  'text',
+  'message',
+  'comment',
+  'body',
+  'content',
+  'msg',
+  'review',
+  'nachricht',
+  'kommentar',
+  'inhalt',
+];
 
 /**
  * Rows of a CSV file, parsed properly.
@@ -179,6 +218,29 @@ function columnIndex(
   return at;
 }
 
+/**
+ * Which column holds the text when nobody said.
+ *
+ * A single column is unambiguous. A recognised name is a safe guess worth
+ * announcing. Anything else is a question the caller has to answer, because the
+ * alternative — reading column 0 and reporting a clean file — is the worst
+ * outcome available: it is indistinguishable from a real result.
+ */
+function detectTextColumn(header: string[], path: string): number {
+  if (header.length === 1) return 0;
+
+  const lower = header.map((name) => name.trim().toLowerCase());
+  for (const candidate of TEXT_COLUMN_NAMES) {
+    const at = lower.indexOf(candidate);
+    if (at !== -1) return at;
+  }
+
+  throw new Error(
+    `${path}: which column holds the text? Pass --column (or the \`column\` option) ` +
+      `with one of: ${header.join(', ')}`,
+  );
+}
+
 /** Records from one column of a CSV file. */
 export async function* csvFrom(
   path: string,
@@ -191,17 +253,29 @@ export async function* csvFrom(
   let textAt: number | undefined;
   let idAt: number | undefined;
 
+  const announce = (index: number, detected: boolean): void => {
+    if (!options.onColumn) return;
+    const name = header?.[index];
+    options.onColumn({ index, detected, ...(name !== undefined ? { name } : {}) });
+  };
+
   for await (const row of csvRowsFrom(path, delimiter)) {
     if (hasHeader && header === undefined) {
       header = row;
-      textAt = columnIndex(options.column, header, 0, path);
+      const detected = options.column === undefined;
+      textAt = detected
+        ? detectTextColumn(header, path)
+        : (columnIndex(options.column, header, 0, path) as number);
       idAt = columnIndex(options.idColumn, header, undefined, path);
+      announce(textAt, detected);
       continue;
     }
 
     if (textAt === undefined) {
+      // No header row to name anything, so index 0 is the only default there is.
       textAt = columnIndex(options.column, header, 0, path);
       idAt = columnIndex(options.idColumn, header, undefined, path);
+      announce(textAt ?? 0, options.column === undefined);
     }
 
     const text = row[textAt ?? 0];
