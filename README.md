@@ -1065,8 +1065,10 @@ npx ts-profanity-filter scan comments.ndjson --languages en,de --pii \
 Progress goes to stderr and the summary to stdout, so the command composes.
 `--fail-on-findings` exits 1 for CI, `--json` prints the summary as JSON, and
 `--max-calls` defaults to **100** when `--ai` is used — a command that can spend
-money should not spend an unbounded amount of it by default. `--help` lists the
-rest.
+money should not spend an unbounded amount of it by default.
+
+**[The full CLI guide →](docs/cli.md)** — every format, every flag, exit codes,
+recipes for CI and nightly runs, and what to check when a scan comes back empty.
 
 ### The PDF report
 
