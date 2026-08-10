@@ -83,6 +83,54 @@ nothing leaves your machine — the word-list half never calls out at all.
 
 ---
 
+## DSA Article 17 · the part after the verdict
+
+**In the EU, deleting the comment is only half the obligation.** Article 17 of
+the Digital Services Act requires that whoever is moderated gets a *statement of
+reasons*: what was done, on which ground, on which facts, whether an automated
+system was involved, how long it lasts, and where to contest it — in their
+language, on a durable medium they can keep.
+
+A filter that returns `flagged: true` gives you none of that. So
+`ts-profanity-filter/compliance` builds the notice out of the moderation result
+you already have:
+
+```ts
+import { moderateText } from 'ts-profanity-filter/ai';
+import {
+  generateJustification,
+  formatJustificationAsText,
+} from 'ts-profanity-filter/compliance';
+
+const result = await moderateText(comment, {
+  languages: ['de'],
+  ai: { provider: 'gemini', enabled: true },   // the graded verdict
+});
+
+const notice = await generateJustification(comment, result, {
+  action: 'CONTENT_REMOVED',
+  policyBases: [{ name: 'Community Guidelines', section: '§4.2' }],
+  appealUrl: 'https://example.com/appeal/8f21',
+  ai: { provider: 'gemini', enabled: true },   // wording only — optional
+});
+
+formatJustificationAsText(notice);   // the text you send the user
+exportJustification(notice);         // the JSON you keep for your records
+```
+
+**The facts are never the model's to decide.** Action, policy basis, categories,
+severity, confidence, the quoted excerpt and the timestamp are all fixed by the
+code before any model is asked. What a model contributes is the two things a
+template cannot write: a `reason` that names the measure and the behaviour in one
+breath, and an `assessment` that weighs the case — and says so plainly when the
+call is uncertain. Leave `ai` out and the built-in German and English templates
+carry the notice on their own.
+
+[The full section →](#dsa-art-17-justifications) ·
+[See one generated →](https://kevinci.github.io/ts-profanity-filter/#sec-compliance)
+
+---
+
 ## Usage
 
 ```ts
@@ -628,6 +676,134 @@ another model if Anthropic's own safety layer declines the request — moderatio
 text is exactly the kind of input that trips those classifiers, and a refusal is
 not a verdict. Turn that off with `fallback: false`.
 
+## DSA Art. 17 justifications
+
+Article 17 of the [Digital Services
+Act](https://eur-lex.europa.eu/eli/reg/2022/2065/oj) applies to any hosting
+provider that restricts something a user posted — removal, demotion, a feature
+lock, a suspension. The user is owed a statement of reasons, and the article
+lists what has to be in it: the measure and its scope and duration, the facts
+the decision rests on, the ground relied on, whether automated means were used,
+and how to contest it.
+
+`ts-profanity-filter/compliance` assembles that from a `ModerationResult`.
+
+```ts
+import {
+  generateJustification,
+  exportJustification,
+  formatJustificationAsText,
+  InMemoryJustificationStore,
+} from 'ts-profanity-filter/compliance';
+```
+
+### What ends up in the record
+
+| Field | Comes from | Art. 17 point it answers |
+| --- | --- | --- |
+| `action` | you | which measure — `CONTENT_REMOVED`, `CONTENT_DEMOTION`, `ACCOUNT_SUSPENSION`, `ACCOUNT_TERMINATION`, `FEATURE_RESTRICTION` |
+| `duration` | you | its scope in time — `'7d'`, `'permanent'`, … |
+| `policyBases` | you | the ground: a name, an optional `section`, an optional `url` to the rule |
+| `facts.quote` | the model's excerpt, else the words the lists matched | *which* content, verbatim |
+| `facts.categories` | the AI check | what it was classified as |
+| `facts.severity` | the AI check | how heavily it weighs |
+| `facts.confidence` | the AI check | how sure the classification was |
+| `facts.automatedDetection` | computed | whether automation was involved — Art. 17(3)(c) |
+| `facts.humanReview` | always `false` | see below |
+| `reason` | template or model | one sentence, in the user's language |
+| `assessment` | template or model | two or three sentences weighing the case |
+| `appealUrl` | you | the redress route |
+| `timestamp`, `language` | computed | when, and in which language |
+
+`language` is auto-detected between `de` and `en` from the text unless you pass
+one. Pass it explicitly if you know the user's language — which you usually do,
+and it is *their* language the notice owes, not the language they happened to
+write that sentence in.
+
+### The division of labour
+
+**A model may word the notice. It may not decide anything in it.** The facts are
+handed to it as data, together with an instruction that quoted text is material
+under judgement and not instructions to follow. It writes two fields and nothing
+else; a reply that fails to parse leaves the templates in place.
+
+That split is what makes the optional model safe here. An invented category or a
+made-up date in a notice like this is exactly the error that loses an appeal.
+
+```ts
+ai: {
+  enabled: true,
+  provider: 'gemini',
+  extraInstructions: 'Sign off as the Beispiel.de moderation team.',
+}
+```
+
+Same rule as the AI check: **no `ai` option means no model is contacted.** The
+templates then write both fields, in German or English, and that is a complete
+notice — blunter, not incomplete.
+
+### `severity: 'none'` means ungraded, not harmless
+
+When only a word list matched, no model graded anything. Writing "severity:
+none" into the notice would read as a considered finding that the content was
+fine, which is not what happened — so the severity line is simply absent from
+the rendered text, and the template assessment says what was actually
+established:
+
+> Die zitierte Stelle entspricht einem Begriff aus der Wortliste der geprüften
+> Sprachen. Damit steht fest, welche Wörter gefallen sind — nicht, was der Satz
+> mit ihnen tut. Eine solche Feststellung wird hier auch nicht behauptet.
+
+Overstating there would mean inventing grounds. The same reticence applies to
+categories and confidence: those lines are omitted rather than printed as
+`(none)` and `0%`.
+
+### Storing it
+
+Art. 17 wants the statement on a durable medium — retrievable next month, not a
+toast that disappears. `JustificationStore` is a two-method interface for that,
+and `InMemoryJustificationStore` implements it for demos:
+
+```ts
+interface JustificationStore {
+  save(id: string, justification: ComplianceJustification): Promise<void>;
+  get(id: string): Promise<ComplianceJustification | null>;
+  list?(): Promise<string[]>;
+}
+```
+
+**The in-memory one is not a production store** — it is a `Map`, and a restart
+erases every notice you owe. Implement the interface against your database.
+`exportJustification` gives you the JSON to put in a column.
+
+`examples/server` shows the round trip: `POST /api/justifications` moderates,
+generates and stores, returning an id; `GET /api/justifications/:id` is the
+durable link you put in the notice.
+
+### It never throws
+
+A failed model call must not stop a legal notification from going out.
+`generateJustification` catches everything: on a refusal, a timeout or
+unparseable JSON it returns the template wording. There is no code path where
+you get no notice at all.
+
+### What this is not
+
+- **Not legal advice, and not compliance in a box.** It produces the artefact;
+  whether your process around it satisfies the DSA is your assessment to make,
+  with your own counsel.
+- **`humanReview` is hardcoded `false`.** The library cannot know whether a
+  person looked at the case. If one did, set it on the object before you store
+  it — and note that Art. 17 is *why* you would want to: a purely automated
+  restriction has to say so.
+- **Nothing distinguishes "illegal content" from "incompatible with your terms".**
+  Art. 17(3) treats those as different grounds with different consequences. The
+  module has one `policyBases` list, so that distinction is yours to encode —
+  `{ name: 'Legal', section: '§ 130 StGB' }` versus your house rules.
+- **No complaint handling (Art. 20), no transparency database submission
+  (Art. 24(5)).** Those are systems, not strings. This module writes the notice
+  that both of them start from.
+
 ## Framework adapters
 
 Each adapter is a separate subpath import, so nothing you do not use reaches
@@ -798,6 +974,10 @@ and spendable by every visitor.
 - **The Gemini provider disables Google's own safety filtering.** It has to:
   the text a moderation classifier must read is the text those filters refuse to
   look at. Safe here because the output is a verdict, never generated content.
+- **The Art. 17 module writes the notice, not the process.** It does not store
+  anything durably on its own, does not know whether a human reviewed the case,
+  and draws no line between illegal content and a breach of your terms. See
+  [What this is not](#what-this-is-not).
 
 ## Scripts
 
