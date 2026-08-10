@@ -81,12 +81,13 @@ export interface DigitCluster {
 }
 
 /** Characters allowed *between* digit groups. */
-const SEPARATOR = new Set([' ', ' ', ' ', '-', '‑', '.', '/', ')', '(']);
+const DIGIT_SEPARATOR = new Set([' ', ' ', ' ', '-', '‑', '.', '/', ')', '(']);
 
 /** At most this many separator characters may bridge two groups. */
 const MAX_GAP = 2;
 
-const ALNUM = /[\p{L}\p{N}]/u;
+/** Shared with the recognizers: one definition, so the edge rules agree. */
+export const ALNUM = /[\p{L}\p{N}]/u;
 
 /**
  * Merge digit runs that are separated by a little punctuation into clusters.
@@ -119,7 +120,7 @@ export function clusters(text: string, runs: readonly DigitRun[]): DigitCluster[
 
       const gap = text.slice(last.end, next.start);
       if (gap.length === 0 || gap.length > MAX_GAP) break;
-      if (![...gap].every((char) => SEPARATOR.has(char))) break;
+      if (![...gap].every((char) => DIGIT_SEPARATOR.has(char))) break;
 
       last = next;
       j++;

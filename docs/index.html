@@ -291,6 +291,13 @@
 
   .panel-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
+  /* A finding that exists but sits below minConfidence: shown, and shown to be
+     weaker. A dashed underline rather than a block, because the point is that
+     the detector is *not* claiming it. */
+  .faint-mark { border-bottom: 1px dashed var(--faint); color: var(--muted); }
+  .row-weak td { color: var(--muted); }
+  .kind-tag { font-family: var(--mono); color: var(--flag); }
+
   /* ---------- input ---------- */
 
   textarea {
@@ -1026,6 +1033,51 @@
       <p class="note" data-i18n-html="cov.note"></p>
       <div class="cov" id="cov-table"></div>
       <p class="note" data-i18n-html="cov.limit"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="sec-pii">
+    <div class="panel-head">
+      <span class="label" data-i18n="pii">Personal data</span>
+      <span class="pill" id="pii-count"></span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="pii.note"></p>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="field-label" for="pii-input" data-i18n="pii.input">Text to scan</label>
+          <div class="chips" id="pii-presets"></div>
+        </div>
+        <textarea id="pii-input" spellcheck="false"></textarea>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="output">Rendered from segments</span>
+        <div id="pii-rendered" class="rendered"></div>
+      </div>
+
+      <div class="opt-row">
+        <input type="checkbox" id="pii-suppressed" />
+        <span class="opt-text">
+          <label class="opt-name" for="pii-suppressed">minConfidence: 0.2</label>
+          <span class="opt-note" data-i18n-html="pii.suppressed.note"></span>
+        </span>
+      </div>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="pii.col.kind">kind</th>
+              <th data-i18n="pii.col.text">found</th>
+              <th data-i18n="pii.col.conf">confidence</th>
+              <th data-i18n="pii.col.evidence">evidence</th>
+            </tr>
+          </thead>
+          <tbody id="pii-rows"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -3229,8 +3281,811 @@ function formatJustificationAsText(justification) {
     return lines.join('\n');
 }
 
+// ---- dist/pii/checksums.js ----
+// src/pii/checksums.ts — the arithmetic that turns a guess into a fact.
+//
+// These are the whole reason this module can be strict. A pattern says "this
+// looks like an IBAN"; mod-97 says "this is one, or somebody mistyped it".
+// Every function here is exported, because they are useful on their own and
+// because a checksum you cannot test in isolation is a checksum you cannot
+// trust.
+/** ISO 7812 / Luhn. Used by payment cards, IMEIs and a few national ids. */
+function isValidLuhn(digits) {
+    if (!/^[0-9]+$/.test(digits) || digits.length < 2)
+        return false;
+    let sum = 0;
+    let double = false;
+    // Right to left: every second digit is doubled, and a doubled digit over 9
+    // has its digits added — which is the same as subtracting 9.
+    for (let i = digits.length - 1; i >= 0; i--) {
+        let d = digits.charCodeAt(i) - 48;
+        if (double) {
+            d *= 2;
+            if (d > 9)
+                d -= 9;
+        }
+        sum += d;
+        double = !double;
+    }
+    return sum % 10 === 0;
+}
+/**
+ * The published length of an IBAN per country. This is not decoration: the
+ * checksum alone accepts a truncated IBAN often enough to matter, and the
+ * length is what stops the scanner from swallowing the next number on the line.
+ */
+const IBAN_LENGTHS = {
+    AD: 24, AE: 23, AL: 28, AT: 20, AZ: 28, BA: 20, BE: 16, BG: 22, BH: 22,
+    BR: 29, BY: 28, CH: 21, CR: 22, CY: 28, CZ: 24, DE: 22, DK: 18, DO: 28,
+    EE: 20, EG: 29, ES: 24, FI: 18, FO: 18, FR: 27, GB: 22, GE: 22, GI: 23,
+    GL: 18, GR: 27, GT: 28, HR: 21, HU: 28, IE: 22, IL: 23, IQ: 23, IS: 26,
+    IT: 27, JO: 30, KW: 30, KZ: 20, LB: 28, LC: 32, LI: 21, LT: 20, LU: 20,
+    LV: 21, LY: 25, MC: 27, MD: 24, ME: 22, MK: 19, MR: 27, MT: 31, MU: 30,
+    NL: 18, NO: 15, PK: 24, PL: 28, PS: 29, PT: 25, QA: 29, RO: 24, RS: 22,
+    SA: 24, SC: 31, SD: 18, SE: 24, SI: 19, SK: 24, SM: 27, ST: 25, SV: 28,
+    TL: 23, TN: 24, TR: 26, UA: 29, VA: 22, VG: 24, XK: 20,
+};
+/**
+ * ISO 13616 check: move the first four characters to the end, replace every
+ * letter by its position in the alphabet plus 9, and the result must be
+ * congruent to 1 mod 97.
+ *
+ * The remainder is taken nine digits at a time. The whole number would overflow
+ * a double long before a 34-character IBAN is finished, and doing it in BigInt
+ * would cost an allocation per candidate for arithmetic that fits in an int.
+ */
+function isValidIban(candidate) {
+    const iban = candidate.replace(/[\s.\- ]/g, '').toUpperCase();
+    if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$/.test(iban))
+        return false;
+    const expected = IBAN_LENGTHS[iban.slice(0, 2)];
+    if (expected === undefined || iban.length !== expected)
+        return false;
+    const rearranged = iban.slice(4) + iban.slice(0, 4);
+    let remainder = 0;
+    for (const char of rearranged) {
+        const code = char.charCodeAt(0);
+        // 'A'..'Z' -> "10".."35", digits stay themselves.
+        const part = code >= 65 ? String(code - 55) : char;
+        remainder = Number(String(remainder) + part) % 97;
+    }
+    return remainder === 1;
+}
+/**
+ * ISO 7064 MOD 11,10 — the check digit of the German Steuerliche
+ * Identifikationsnummer (IdNr).
+ */
+function iso7064Mod1110(digits) {
+    let product = 10;
+    for (const char of digits) {
+        let sum = (char.charCodeAt(0) - 48 + product) % 10;
+        if (sum === 0)
+            sum = 10;
+        product = (sum * 2) % 11;
+    }
+    const check = 11 - product;
+    return check === 10 ? 0 : check;
+}
+/**
+ * German tax id: eleven digits, and two rules that are easy to miss.
+ *
+ * The check digit is only half of it. The Bundeszentralamt für Steuern also
+ * guarantees a *repetition* rule over the first ten digits — exactly one digit
+ * occurs twice or three times and the rest at most once — which is what makes
+ * a plain counter or a padded phone number fail here even when its check digit
+ * happens to land right.
+ */
+function isValidGermanTaxId(digits) {
+    if (!/^[0-9]{11}$/.test(digits))
+        return false;
+    if (digits[0] === '0')
+        return false;
+    const body = digits.slice(0, 10);
+    const counts = new Map();
+    for (const char of body)
+        counts.set(char, (counts.get(char) ?? 0) + 1);
+    let repeated = 0;
+    for (const count of counts.values()) {
+        if (count > 3)
+            return false;
+        if (count > 1)
+            repeated++;
+    }
+    if (repeated !== 1)
+        return false;
+    return iso7064Mod1110(body) === digits.charCodeAt(10) - 48;
+}
+
+// ---- dist/pii/scan.js ----
+// src/pii/scan.ts — one pass over the text, then everything derives from it.
+//
+// The naive design runs one regex per kind over the whole input, so the text is
+// walked six times and each walk pays for the others' misses. This walks it
+// once, recording only the three things any recognizer could anchor on: where
+// the '@' signs are, where the digits are, and where the colons are.
+//
+// Everything else is a local question asked at an anchor. An IBAN is "a digit
+// run with two letters in front of it". A card is "a digit cluster of the right
+// length". No recognizer ever scans the whole string again.
+const ZERO = 48;
+const NINE = 57;
+function scan(text) {
+    const atSigns = [];
+    const digitRuns = [];
+    const colons = [];
+    let runStart = -1;
+    for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        const isDigit = code >= ZERO && code <= NINE;
+        if (isDigit) {
+            if (runStart === -1)
+                runStart = i;
+            continue;
+        }
+        if (runStart !== -1) {
+            digitRuns.push({ start: runStart, end: i });
+            runStart = -1;
+        }
+        if (code === 64)
+            atSigns.push(i); // '@'
+        else if (code === 58)
+            colons.push(i); // ':'
+    }
+    if (runStart !== -1)
+        digitRuns.push({ start: runStart, end: text.length });
+    return { atSigns, digitRuns, colons };
+}
+/** Characters allowed *between* digit groups. */
+const DIGIT_SEPARATOR = new Set([' ', ' ', ' ', '-', '‑', '.', '/', ')', '(']);
+/** At most this many separator characters may bridge two groups. */
+const MAX_GAP = 2;
+/** Shared with the recognizers: one definition, so the edge rules agree. */
+const ALNUM = /[\p{L}\p{N}]/u;
+/**
+ * Merge digit runs that are separated by a little punctuation into clusters.
+ *
+ * The gap limit is what keeps `12 34` together and `1234, aber 5678` apart, and
+ * the alphanumeric edge check is what keeps `abc123` from being read as a
+ * number at all — it is an identifier, and treating its tail as a phone number
+ * is the classic way these detectors embarrass themselves.
+ */
+function clusters(text, runs) {
+    const out = [];
+    let i = 0;
+    while (i < runs.length) {
+        const first = runs[i];
+        if (first === undefined)
+            break;
+        // A run glued to a letter is part of a word, not a number.
+        if (first.start > 0 && ALNUM.test(text[first.start - 1])) {
+            i++;
+            continue;
+        }
+        let last = first;
+        let j = i + 1;
+        while (j < runs.length) {
+            const next = runs[j];
+            if (next === undefined)
+                break;
+            const gap = text.slice(last.end, next.start);
+            if (gap.length === 0 || gap.length > MAX_GAP)
+                break;
+            if (![...gap].every((char) => DIGIT_SEPARATOR.has(char)))
+                break;
+            last = next;
+            j++;
+        }
+        // A trailing letter means the same thing as a leading one.
+        if (last.end < text.length && ALNUM.test(text[last.end])) {
+            i = j;
+            continue;
+        }
+        let start = first.start;
+        let plus = false;
+        if (start > 0 && text[start - 1] === '+') {
+            start--;
+            plus = true;
+        }
+        else if (start > 0 && text[start - 1] === '(') {
+            // Keep an area code's opening bracket with it, since its closing one is
+            // inside the cluster anyway.
+            if (text.slice(start, last.end).includes(')'))
+                start--;
+        }
+        const groups = [];
+        let digits = '';
+        for (let k = i; k < j; k++) {
+            const run = runs[k];
+            if (run === undefined)
+                continue;
+            groups.push(run.end - run.start);
+            digits += text.slice(run.start, run.end);
+        }
+        out.push({
+            start,
+            end: last.end,
+            digits,
+            groups,
+            plus,
+            raw: text.slice(start, last.end),
+        });
+        i = j;
+    }
+    return out;
+}
+
+// ---- dist/pii/recognizers.js ----
+// src/pii/recognizers.ts — what each anchor might mean.
+//
+// Every recognizer answers a local question at an anchor the scanner already
+// found, and returns *candidates* rather than findings. Two of them are allowed
+// to claim the same characters; deciding between them is `resolve()`'s job.
+//
+// The scoring rule throughout: arithmetic outranks shape, shape outranks
+// punctuation, and a word nearby only ever adjusts what the string itself
+// already argued for. Nothing reaches the default threshold on context alone.
+
+
+const LETTER = /\p{L}/u;
+/** Words that agree with a reading, per kind. Lower case; matched on a boundary. */
+const CONTEXT_WORDS = {
+    email: ['mail', 'email', 'e-mail', 'kontakt', 'contact', 'absender', 'sender'],
+    // `nummer` on its own is deliberately absent: it sits in front of order
+    // numbers and customer numbers as often as phone numbers, and for a bare
+    // digit run the keyword is the only evidence there is.
+    phone: [
+        'tel', 'telefon', 'phone', 'handy', 'mobil', 'mobile', 'fax', 'rufnummer',
+        'anruf', 'call', 'erreichbar', 'hotline', 'durchwahl',
+    ],
+    iban: ['iban', 'konto', 'account', 'bank', 'überweis', 'transfer', 'zahlung', 'payment'],
+    card: ['karte', 'card', 'kreditkarte', 'visa', 'mastercard', 'amex', 'credit', 'zahlung'],
+    // `ipv4`/`ipv6` are listed separately because the boundary rule that keeps
+    // `ip` out of `Prinzip` also keeps it out of `IPv6`.
+    ip: ['ip', 'ipv4', 'ipv6', 'server', 'host', 'client', 'adresse', 'address', 'zugriff', 'log'],
+    'taxid-de': [
+        'steuer', 'steuerid', 'steuer-id', 'idnr', 'id-nr', 'identifikationsnummer',
+        'taxid', 'tax id', 'finanzamt',
+    ],
+};
+/**
+ * Is one of `words` in the neighbourhood?
+ *
+ * Short keywords are boundary-checked on both sides, because `ip` lives inside
+ * `Prinzip` and `Equipment` and would otherwise turn every dotted number in a
+ * German sentence into an address.
+ */
+function hasContext(text, start, end, window, words) {
+    const from = Math.max(0, start - window);
+    const to = Math.min(text.length, end + window);
+    const haystack = (text.slice(from, start) + ' ' + text.slice(end, to)).toLowerCase();
+    for (const word of words) {
+        let at = haystack.indexOf(word);
+        while (at !== -1) {
+            const before = at === 0 ? '' : haystack[at - 1] ?? '';
+            const afterIndex = at + word.length;
+            const after = haystack[afterIndex] ?? '';
+            const leftOk = before === '' || !LETTER.test(before);
+            const rightOk = word.length > 3 || after === '' || !LETTER.test(after);
+            if (leftOk && rightOk)
+                return true;
+            at = haystack.indexOf(word, at + 1);
+        }
+    }
+    return false;
+}
+/**
+ * What a nearby word is worth, per kind — because it is not worth the same
+ * everywhere.
+ *
+ * `Telefon` in front of a ten-digit number is nearly the whole case, since
+ * nothing about the digits themselves distinguishes a phone number from a
+ * customer number. `IBAN:` in front of a string that already passes mod-97 adds
+ * almost nothing, because the arithmetic had already settled it. A flat bonus
+ * would have to be wrong in one of those two directions.
+ */
+const CONTEXT_BOOST = {
+    email: 0.04,
+    iban: 0.01,
+    card: 0.2,
+    phone: 0.35,
+    'taxid-de': 0.2,
+    ip: 0.15,
+};
+function candidate(text, kind, start, end, confidence, evidence, ctx) {
+    let score = confidence;
+    const reasons = [...evidence];
+    if (hasContext(text, start, end, ctx.contextWindow, CONTEXT_WORDS[kind])) {
+        score = Math.min(0.99, score + CONTEXT_BOOST[kind]);
+        reasons.push('context');
+    }
+    return {
+        kind,
+        text: text.slice(start, end),
+        start,
+        end,
+        confidence: Math.round(score * 100) / 100,
+        evidence: reasons,
+    };
+}
+/* ------------------------------- e-mail -------------------------------- */
+const LOCAL_CHAR = /[\p{L}\p{N}._%+\-!#$&'*/=?^`{|}~]/u;
+const DOMAIN_CHAR = /[\p{L}\p{N}.\-]/u;
+const LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u;
+const TLD = /^\p{L}{2,24}$/u;
+function findEmails(ctx) {
+    const { text } = ctx;
+    const out = [];
+    for (const at of ctx.anchors.atSigns) {
+        let start = at;
+        while (start > 0 && LOCAL_CHAR.test(text[start - 1]))
+            start--;
+        while (start < at && text[start] === '.')
+            start++;
+        let end = at + 1;
+        while (end < text.length && DOMAIN_CHAR.test(text[end]))
+            end++;
+        while (end > at + 1 && (text[end - 1] === '.' || text[end - 1] === '-'))
+            end--;
+        const local = text.slice(start, at);
+        const domain = text.slice(at + 1, end);
+        if (local.length === 0 || local.length > 64 || local.includes('..'))
+            continue;
+        if (local.endsWith('.'))
+            continue;
+        const labels = domain.split('.');
+        if (labels.length < 2)
+            continue;
+        if (labels.some((label) => label.length === 0 || label.length > 63 || !LABEL.test(label))) {
+            continue;
+        }
+        if (!TLD.test(labels[labels.length - 1]))
+            continue;
+        out.push(candidate(text, 'email', start, end, 0.95, ['format', 'structure'], ctx));
+    }
+    return out;
+}
+/* --------------------------------- IBAN -------------------------------- */
+const IBAN_SEPARATOR = new Set([' ', ' ', ' ', '.', '-']);
+function findIbans(ctx) {
+    const { text } = ctx;
+    const out = [];
+    for (const run of ctx.anchors.digitRuns) {
+        const start = run.start - 2;
+        if (start < 0)
+            continue;
+        const prefix = text.slice(start, run.start);
+        if (!/^[A-Za-z]{2}$/.test(prefix))
+            continue;
+        if (start > 0 && ALNUM.test(text[start - 1]))
+            continue;
+        const expected = IBAN_LENGTHS[prefix.toUpperCase()];
+        if (expected === undefined)
+            continue;
+        // Consume `expected` alphanumerics, tolerating one separator between them —
+        // which is how every printed IBAN is grouped, in fours.
+        let collected = '';
+        let pos = start;
+        while (pos < text.length && collected.length < expected) {
+            const char = text[pos];
+            if (ALNUM.test(char)) {
+                collected += char;
+                pos++;
+                continue;
+            }
+            const next = text[pos + 1];
+            if (IBAN_SEPARATOR.has(char) && next !== undefined && ALNUM.test(next)) {
+                pos++;
+                continue;
+            }
+            break;
+        }
+        if (collected.length !== expected)
+            continue;
+        if (pos < text.length && ALNUM.test(text[pos]))
+            continue;
+        if (!isValidIban(collected))
+            continue;
+        out.push(candidate(text, 'iban', start, pos, 0.98, ['structure', 'checksum'], ctx));
+    }
+    return out;
+}
+/* --------------------------------- card -------------------------------- */
+/** Issuer prefixes with their published lengths. */
+const CARD_BRANDS = [
+    { pattern: /^4/, lengths: [13, 16, 19] }, // Visa
+    { pattern: /^(5[1-5]|2(2[2-9]|[3-6][0-9]|7[01]|720))/, lengths: [16] }, // Mastercard
+    { pattern: /^3[47]/, lengths: [15] }, // American Express
+    { pattern: /^3(0[0-5]|[68])/, lengths: [14, 16, 17, 18, 19] }, // Diners
+    { pattern: /^(6011|64[4-9]|65)/, lengths: [16, 17, 18, 19] }, // Discover
+    { pattern: /^35(2[89]|[3-8][0-9])/, lengths: [16, 17, 18, 19] }, // JCB
+    { pattern: /^62/, lengths: [16, 17, 18, 19] }, // UnionPay
+];
+function findCards(ctx) {
+    const out = [];
+    for (const cluster of ctx.clusters) {
+        const { digits } = cluster;
+        if (digits.length < 13 || digits.length > 19)
+            continue;
+        if (cluster.plus)
+            continue; // a `+` means a phone number, never a card
+        if (!isValidLuhn(digits))
+            continue;
+        const branded = CARD_BRANDS.some((brand) => brand.pattern.test(digits) && brand.lengths.includes(digits.length));
+        // Luhn alone is a one-in-ten coincidence, so an unbranded number stays
+        // below the default threshold until something else speaks for it.
+        out.push(candidate(ctx.text, 'card', cluster.start, cluster.end, branded ? 0.95 : 0.5, branded ? ['structure', 'checksum'] : ['checksum'], ctx));
+    }
+    return out;
+}
+/* -------------------------------- phone -------------------------------- */
+const DATE_SHAPED = /^[0-9]{1,2}[.\/][0-9]{1,2}[.\/][0-9]{2,4}\.?$/;
+function findPhones(ctx) {
+    const out = [];
+    for (const cluster of ctx.clusters) {
+        const { digits, raw } = cluster;
+        if (DATE_SHAPED.test(raw))
+            continue;
+        let confidence = 0;
+        const evidence = ['structure'];
+        if (cluster.plus) {
+            // E.164: the `+` is the format declaring itself.
+            if (digits.length < 8 || digits.length > 15 || digits.startsWith('0'))
+                continue;
+            confidence = 0.9;
+            evidence.unshift('format');
+        }
+        else if (digits.startsWith('00')) {
+            const international = digits.slice(2);
+            if (international.length < 8 || international.length > 15)
+                continue;
+            confidence = 0.85;
+            evidence.unshift('format');
+        }
+        else if (digits.startsWith('0')) {
+            if (digits.length < 7 || digits.length > 14)
+                continue;
+            confidence = 0.75;
+        }
+        else {
+            // No `+`, no trunk zero: this is just a number. It only becomes a phone
+            // number if a word next to it says so.
+            if (digits.length < 7 || digits.length > 14)
+                continue;
+            confidence = 0.3;
+        }
+        if (cluster.groups.length >= 2)
+            confidence = Math.min(0.95, confidence + 0.05);
+        out.push(candidate(ctx.text, 'phone', cluster.start, cluster.end, confidence, evidence, ctx));
+    }
+    return out;
+}
+/* ------------------------------- tax id -------------------------------- */
+function findGermanTaxIds(ctx) {
+    const out = [];
+    for (const cluster of ctx.clusters) {
+        if (cluster.plus)
+            continue;
+        if (cluster.digits.length !== 11)
+            continue;
+        if (!isValidGermanTaxId(cluster.digits))
+            continue;
+        // Both checks passed, which is worth roughly one in a hundred by chance —
+        // not enough on its own for a number that looks like every other long
+        // number, so this one leans on context to clear the bar.
+        out.push(candidate(ctx.text, 'taxid-de', cluster.start, cluster.end, 0.45, ['structure', 'checksum'], ctx));
+    }
+    return out;
+}
+/* ------------------------------ IP address ----------------------------- */
+function isValidIpv4(value) {
+    const parts = value.split('.');
+    if (parts.length !== 4)
+        return false;
+    return parts.every((part) => /^[0-9]{1,3}$/.test(part) && Number(part) <= 255 && (part === '0' || !part.startsWith('0')));
+}
+function isValidIpv6(value) {
+    if (value.includes(':::'))
+        return false;
+    const doubleAt = value.indexOf('::');
+    const compressed = doubleAt !== -1;
+    if (compressed && doubleAt !== value.lastIndexOf('::'))
+        return false;
+    const head = compressed ? value.slice(0, doubleAt) : value;
+    const tail = compressed ? value.slice(doubleAt + 2) : '';
+    const parts = [
+        ...(head === '' ? [] : head.split(':')),
+        ...(tail === '' ? [] : tail.split(':')),
+    ];
+    if (parts.some((part) => part === ''))
+        return false;
+    let count = parts.length;
+    const last = parts[parts.length - 1];
+    const embedsIpv4 = last !== undefined && last.includes('.');
+    if (embedsIpv4) {
+        if (!isValidIpv4(last))
+            return false;
+        count += 1; // an embedded IPv4 occupies two groups
+    }
+    const hexParts = embedsIpv4 ? parts.slice(0, -1) : parts;
+    if (hexParts.some((part) => !/^[0-9a-fA-F]{1,4}$/.test(part)))
+        return false;
+    return compressed ? count <= 7 : count === 8;
+}
+const VERSION_BEFORE = /\bv(?:ersion)?\s*$/i;
+function findIps(ctx) {
+    const { text, anchors } = ctx;
+    const out = [];
+    const runs = anchors.digitRuns;
+    /* IPv4: four digit runs joined by single dots. */
+    for (let i = 0; i + 3 < runs.length; i++) {
+        const quad = [runs[i], runs[i + 1], runs[i + 2], runs[i + 3]];
+        if (quad.some((run) => run === undefined))
+            continue;
+        let joined = true;
+        for (let k = 0; k < 3; k++) {
+            const left = quad[k];
+            const right = quad[k + 1];
+            if (left === undefined || right === undefined)
+                continue;
+            if (right.start - left.end !== 1 || text[left.end] !== '.')
+                joined = false;
+        }
+        if (!joined)
+            continue;
+        const first = quad[0];
+        const last = quad[3];
+        if (first === undefined || last === undefined)
+            continue;
+        const before = first.start === 0 ? '' : text[first.start - 1];
+        const after = last.end >= text.length ? '' : text[last.end];
+        if (before !== '' && (ALNUM.test(before) || before === '.'))
+            continue;
+        if (after !== '' && (ALNUM.test(after) || after === '.'))
+            continue;
+        const value = text.slice(first.start, last.end);
+        if (!isValidIpv4(value))
+            continue;
+        // `1.2.3.4` is a valid address and also how everyone writes a version
+        // number. The word in front is the only thing that separates them.
+        if (VERSION_BEFORE.test(text.slice(Math.max(0, first.start - 10), first.start)))
+            continue;
+        // Four single digits is the shape of a version number — except when they
+        // are all the same digit, which no version has ever been and which is what
+        // the well-known resolvers look like (8.8.8.8, 1.1.1.1).
+        const octets = value.split('.');
+        const allSingle = octets.every((part) => part.length === 1);
+        const allEqual = octets.every((part) => part === octets[0]);
+        const ambiguous = allSingle && !allEqual;
+        out.push(candidate(text, 'ip', first.start, last.end, ambiguous ? 0.5 : 0.8, ['structure'], ctx));
+    }
+    /* IPv6: expand around colons over hex, colons and dots. */
+    const HEX_SPAN = /[0-9a-fA-F:.]/;
+    let cursor = -1;
+    for (const colon of anchors.colons) {
+        if (colon <= cursor)
+            continue;
+        let start = colon;
+        while (start > 0 && HEX_SPAN.test(text[start - 1]))
+            start--;
+        let end = colon + 1;
+        while (end < text.length && HEX_SPAN.test(text[end]))
+            end++;
+        while (start < end && (text[start] === ':' || text[start] === '.')) {
+            if (text.startsWith('::', start))
+                break;
+            start++;
+        }
+        while (end > start && (text[end - 1] === '.' || (text[end - 1] === ':' && !text.startsWith('::', end - 2)))) {
+            end--;
+        }
+        cursor = end;
+        if (start > 0 && ALNUM.test(text[start - 1]))
+            continue;
+        if (end < text.length && ALNUM.test(text[end]))
+            continue;
+        const value = text.slice(start, end);
+        if (!value.includes(':') || !isValidIpv6(value))
+            continue;
+        out.push(candidate(text, 'ip', start, end, 0.85, ['structure'], ctx));
+    }
+    return out;
+}
+const RECOGNIZERS = {
+    email: findEmails,
+    iban: findIbans,
+    card: findCards,
+    phone: findPhones,
+    'taxid-de': findGermanTaxIds,
+    ip: findIps,
+};
+
+// ---- dist/pii/resolve.js ----
+// src/pii/resolve.ts — deciding who owns a span.
+//
+// Recognizers are deliberately allowed to disagree. `DE44 5001 0517 5407 3249
+// 31` contains a sixteen-digit run that passes Luhn often enough to matter, and
+// an IPv6 address contains an IPv4 address by construction. Something has to
+// choose, and choosing greedily left to right gets it wrong: the first
+// candidate is not the best one, it is merely the earliest.
+//
+// So this is weighted interval scheduling — the classic dynamic program. Sort by
+// end, and for each candidate compare "take it, plus the best solution ending
+// before it starts" against "skip it". O(m log m), and it is *optimal* over the
+// whole set rather than locally sensible.
+//
+// The weight is confidence × length. Length is what makes a verified 22-
+// character IBAN outrank the speculative phone number hiding inside it, and
+// confidence is what stops a long unverified span from outranking a short
+// certain one.
+function weight(match) {
+    return match.confidence * (match.end - match.start);
+}
+/**
+ * The largest-weight set of non-overlapping findings, in reading order.
+ *
+ * Touching spans do not overlap: `end <= start` is allowed, so two adjacent
+ * numbers both survive.
+ */
+function resolve(matches) {
+    if (matches.length <= 1)
+        return [...matches];
+    const sorted = [...matches].sort((a, b) => a.end - b.end || a.start - b.start);
+    const n = sorted.length;
+    // best[i] = total weight of the optimal solution over the first i candidates.
+    const best = new Float64Array(n + 1);
+    // predecessor[i] = how many candidates remain in play if we take candidate i.
+    const predecessor = new Int32Array(n + 1);
+    for (let i = 1; i <= n; i++) {
+        const current = sorted[i - 1];
+        if (current === undefined)
+            continue;
+        // Rightmost j whose end is at or before this candidate's start.
+        let low = 0;
+        let high = i - 1;
+        let p = 0;
+        while (low <= high) {
+            const mid = (low + high) >> 1;
+            if (mid === 0) {
+                low = mid + 1;
+                continue;
+            }
+            const probe = sorted[mid - 1];
+            if (probe !== undefined && probe.end <= current.start) {
+                p = mid;
+                low = mid + 1;
+            }
+            else {
+                high = mid - 1;
+            }
+        }
+        predecessor[i] = p;
+        const taking = weight(current) + (best[p] ?? 0);
+        const skipping = best[i - 1] ?? 0;
+        best[i] = taking >= skipping ? taking : skipping;
+    }
+    const kept = [];
+    let i = n;
+    while (i > 0) {
+        if ((best[i] ?? 0) === (best[i - 1] ?? 0)) {
+            i--;
+            continue;
+        }
+        const chosen = sorted[i - 1];
+        if (chosen !== undefined)
+            kept.push(chosen);
+        i = predecessor[i] ?? 0;
+    }
+    return kept.reverse();
+}
+
+// ---- dist/pii/index.js ----
+// src/pii/index.ts — import from 'ts-profanity-filter/pii'
+//
+// Personal data detection, built the same way as the rest of this library: it
+// reports spans and never rewrites your string, so the redaction stays yours to
+// render.
+//
+// The pipeline is four steps, and each one exists because the obvious
+// alternative is worse:
+//
+//   1. scan      — one O(n) pass for anchors. Six regexes over the text would
+//                  walk it six times and still miss the grouped spellings.
+//   2. clusters  — build the "digits with punctuation in them" objects once.
+//                  Phone, card and tax id are the same object at this stage.
+//   3. recognize — ask a local question at each anchor, and *score* the answer.
+//                  Checksums are facts; shape is an argument; a nearby word only
+//                  adjusts what the string already said.
+//   4. resolve   — weighted interval scheduling over the survivors, because an
+//                  IBAN contains a Luhn-passing run and an IPv6 address
+//                  contains an IPv4 one, and greedy resolution picks wrong.
+
+
+
+
+/** Every kind this module knows, in the order findings are reported for ties. */
+const PII_KINDS = [
+    'email',
+    'iban',
+    'card',
+    'phone',
+    'taxid-de',
+    'ip',
+];
+const DEFAULT_MIN_CONFIDENCE = 0.6;
+const DEFAULT_CONTEXT_WINDOW = 48;
+function selectedKinds(requested) {
+    if (requested === undefined || requested === '*')
+        return PII_KINDS;
+    for (const kind of requested) {
+        if (!PII_KINDS.includes(kind)) {
+            // Same rule as an unknown language in the filter: silently scanning for
+            // nothing is the worst way for a detector to fail, because it looks
+            // exactly like a clean result.
+            throw new TypeError(`detectPii: unknown kind ${JSON.stringify(kind)}. Known kinds: ${PII_KINDS.join(', ')}.`);
+        }
+    }
+    return requested;
+}
+/**
+ * Find personal data in `text`.
+ *
+ * Findings never overlap and are returned in reading order, each with the span
+ * it occupies, a confidence and the evidence behind it.
+ */
+function detectPii(text, options = {}) {
+    const kinds = selectedKinds(options.kinds);
+    if (typeof text !== 'string' || text.length === 0)
+        return [];
+    const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
+    const contextWindow = options.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+    const anchors = scan(text);
+    const context = {
+        text,
+        anchors,
+        clusters: clusters(text, anchors.digitRuns),
+        contextWindow,
+    };
+    const candidates = [];
+    for (const kind of kinds) {
+        for (const match of RECOGNIZERS[kind](context)) {
+            if (match.confidence >= minConfidence)
+                candidates.push(match);
+        }
+    }
+    return resolve(candidates);
+}
+/** True if anything at or above the threshold was found. Stops at the first hit. */
+function hasPii(text, options = {}) {
+    return detectPii(text, options).length > 0;
+}
+/**
+ * The same text, split into segments — the shape `filterFWordsToSegments`
+ * returns, so the two can be rendered by the same code.
+ *
+ * Concatenating every `segment.text` reproduces the input exactly.
+ */
+function piiToSegments(text, options = {}) {
+    const matches = detectPii(text, options);
+    if (matches.length === 0) {
+        return text.length === 0 ? [] : [{ text, isPii: false }];
+    }
+    const segments = [];
+    let cursor = 0;
+    for (const match of matches) {
+        if (match.start > cursor) {
+            segments.push({ text: text.slice(cursor, match.start), isPii: false });
+        }
+        segments.push({ text: match.text, isPii: true, kind: match.kind });
+        cursor = match.end;
+    }
+    if (cursor < text.length) {
+        segments.push({ text: text.slice(cursor), isPii: false });
+    }
+    return segments;
+}
+
 /* ---- name, version, license and author, injected from package.json ---- */
-const META = {"name":"ts-profanity-filter","version":"1.3.0","license":"MIT","author":"Kevin Imig"};
+const META = {"name":"ts-profanity-filter","version":"1.4.0","license":"MIT","author":"Kevin Imig"};
 
 /* Footer profile links. Two lines to change if a handle ever differs. */
 const PROFILES = {
@@ -3341,6 +4196,26 @@ const I18N = {
       'This is what the <a href="#sec-ai">AI check</a> is for: it reads who the ' +
       'sentence is aimed at. Paste the same text there and it comes back ' +
       '<strong>sexual</strong> and <strong>racism</strong>.',
+    'pii': 'Personal data',
+    'pii.input': 'Text to scan',
+    'pii.count': '{n} found',
+    'pii.none': 'nothing found',
+    'pii.empty': 'Nothing at or above the threshold. That is a result, not a gap.',
+    'pii.note':
+      'A separate detector, <code>ts-profanity-filter/pii</code>, and the admission criterion is ' +
+      'that a finding can be <em>verified</em>: an IBAN passes mod-97, a card passes Luhn, a ' +
+      'German tax id passes ISO 7064 and the repetition rule. Names and postal addresses are ' +
+      'missing on purpose — nothing inside the string can confirm them, and a detector that ' +
+      'guesses at those turns every capitalised word into a finding.',
+    'pii.suppressed.note':
+      'Drop the threshold from 0.6 to 0.2 to see what is being held back rather than wondering. ' +
+      'A row in grey scored too low to be reported: a bare digit run with no <code>+</code>, no ' +
+      'trunk zero and no word next to it, or the four single digits of ' +
+      '<code>1.2.3.4</code>, which is a version number as often as an address.',
+    'pii.col.kind': 'kind',
+    'pii.col.text': 'found',
+    'pii.col.conf': 'confidence',
+    'pii.col.evidence': 'evidence',
     'cov': 'What gets caught',
     'cov.count': '{n} by the list · {m} only by the model',
     'cov.byList': 'word list',
@@ -3563,6 +4438,26 @@ const I18N = {
       'Dafür gibt es die <a href="#sec-ai">KI-Prüfung</a>: Sie liest, an wen der Satz ' +
       'gerichtet ist. Denselben Text dort einfügen — zurück kommt ' +
       '<strong>sexual</strong> und <strong>racism</strong>.',
+    'pii': 'Personenbezogene Daten',
+    'pii.input': 'Zu prüfender Text',
+    'pii.count': '{n} gefunden',
+    'pii.none': 'nichts gefunden',
+    'pii.empty': 'Nichts ab der Schwelle. Das ist ein Ergebnis, keine Lücke.',
+    'pii.note':
+      'Ein eigener Erkenner, <code>ts-profanity-filter/pii</code>, und aufgenommen wird nur, was ' +
+      '<em>nachprüfbar</em> ist: eine IBAN besteht mod-97, eine Kartennummer Luhn, eine ' +
+      'Steuer-ID ISO 7064 samt Wiederholungsregel. Namen und Anschriften fehlen absichtlich — ' +
+      'nichts im String kann sie bestätigen, und wer dort rät, macht aus jedem großgeschriebenen ' +
+      'Wort einen Fund.',
+    'pii.suppressed.note':
+      'Senkt die Schwelle von 0,6 auf 0,2 — dann sieht man, was zurückgehalten wird, statt es zu ' +
+      'vermuten. Eine graue Zeile lag zu niedrig für einen Fund: eine blanke Ziffernfolge ohne ' +
+      '<code>+</code>, ohne führende Null und ohne Wort daneben, oder die vier einstelligen ' +
+      'Zahlen von <code>1.2.3.4</code>, das ebenso oft eine Versionsnummer ist wie eine Adresse.',
+    'pii.col.kind': 'Art',
+    'pii.col.text': 'gefunden',
+    'pii.col.conf': 'Sicherheit',
+    'pii.col.evidence': 'Beweis',
     'cov': 'Was erkannt wird',
     'cov.count': '{n} über die Liste · {m} nur über das Modell',
     'cov.byList': 'Wortliste',
@@ -4016,6 +4911,12 @@ const els = {
   aiPresets: $('ai-presets'),
   covTable: $('cov-table'),
   covCount: $('cov-count'),
+  piiInput: $('pii-input'),
+  piiPresets: $('pii-presets'),
+  piiRendered: $('pii-rendered'),
+  piiRows: $('pii-rows'),
+  piiCount: $('pii-count'),
+  piiSuppressed: $('pii-suppressed'),
   presetHint: $('preset-hint'),
   aiProvider: $('ai-provider'),
   aiModel: $('ai-model'),
@@ -4284,6 +5185,156 @@ const AI_EXAMPLES = {
  * example has an innocent twin that must come back clean. A moderation layer
  * that only ever says yes is not a moderation layer.
  */
+/* --- personal data ---------------------------------------------------- */
+
+/**
+ * Four examples, and the third one is the important one: a line of ordinary
+ * business prose that must come back empty. A PII detector is judged by what it
+ * leaves alone at least as much as by what it finds.
+ */
+const PII_PRESETS = [
+  {
+    id: 'contact',
+    label: { en: 'Contact details', de: 'Kontaktdaten' },
+    text: {
+      en: 'Write to kevin@example.de or call +49 170 1234567, fax (030) 123456.',
+      de: 'Schreib an kevin@example.de oder ruf +49 170 1234567 an, Fax (030) 123456.',
+    },
+  },
+  {
+    id: 'payment',
+    label: { en: 'Payment data', de: 'Zahlungsdaten' },
+    text: {
+      en: 'IBAN DE44 5001 0517 5407 3249 31, card 4111 1111 1111 1111.',
+      de: 'IBAN DE44 5001 0517 5407 3249 31, Karte 4111 1111 1111 1111.',
+    },
+  },
+  {
+    id: 'clean',
+    label: { en: 'Must stay clean', de: 'Muss sauber bleiben' },
+    text: {
+      en: 'Order 4711 of 12.05.2026, version 1.2.3.4, invoice for 1,234.56 EUR, ISBN 978-3-16-148410-0.',
+      de: 'Bestellnummer 4711 vom 12.05.2026, Version 1.2.3.4, Rechnung über 1.234,56 EUR, ISBN 978-3-16-148410-0.',
+    },
+  },
+  {
+    id: 'threshold',
+    label: { en: 'Where context decides', de: 'Wo der Kontext entscheidet' },
+    text: {
+      en: 'Tax id 86095742719, server 192.168.1.1, and the plain number 1701234567.',
+      de: 'Steuer-ID 86095742719, Server 192.168.1.1, und die blanke Zahl 1701234567.',
+    },
+  },
+];
+
+const PII_DEFAULT_THRESHOLD = 0.6;
+const PII_AUDIT_THRESHOLD = 0.2;
+
+function drawPiiPresets() {
+  els.piiPresets.textContent = '';
+  for (const preset of PII_PRESETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.textContent = preset.label[ui];
+    btn.addEventListener('click', () => {
+      els.piiInput.value = preset.text[ui];
+      runPii();
+    });
+    els.piiPresets.append(btn);
+  }
+}
+
+/** The example follows the page language until the reader has edited it. */
+function seedPiiExample() {
+  const current = els.piiInput.value.trim();
+  const isUntouched =
+    current === '' ||
+    PII_PRESETS.some((preset) => Object.values(preset.text).includes(current));
+  if (isUntouched) els.piiInput.value = PII_PRESETS[0].text[ui];
+}
+
+function runPii() {
+  const text = els.piiInput.value;
+  const auditing = els.piiSuppressed.checked;
+  const matches = detectPii(text, {
+    minConfidence: auditing ? PII_AUDIT_THRESHOLD : PII_DEFAULT_THRESHOLD,
+  });
+
+  const reported = matches.filter((m) => m.confidence >= PII_DEFAULT_THRESHOLD);
+  els.piiCount.textContent = reported.length
+    ? t('pii.count').replace('{n}', String(reported.length))
+    : t('pii.none');
+
+  /* The highlight is built from the spans themselves, which is also the proof
+     that the offsets are right: the text is only ever sliced, never rebuilt. */
+  els.piiRendered.textContent = '';
+  if (text === '') {
+    const empty = document.createElement('span');
+    empty.className = 'placeholder';
+    empty.textContent = t('placeholder');
+    els.piiRendered.append(empty);
+  } else {
+    let cursor = 0;
+    for (const match of matches) {
+      if (match.start > cursor) {
+        const clean = document.createElement('span');
+        clean.className = 'clean';
+        clean.textContent = text.slice(cursor, match.start);
+        els.piiRendered.append(clean);
+      }
+      const hit = document.createElement('span');
+      hit.className = match.confidence >= PII_DEFAULT_THRESHOLD ? 'marked' : 'faint-mark';
+      hit.title = `${match.kind} · ${match.confidence}`;
+      hit.textContent = match.text;
+      els.piiRendered.append(hit);
+      cursor = match.end;
+    }
+    if (cursor < text.length) {
+      const tail = document.createElement('span');
+      tail.className = 'clean';
+      tail.textContent = text.slice(cursor);
+      els.piiRendered.append(tail);
+    }
+  }
+
+  els.piiRows.textContent = '';
+  if (matches.length === 0) {
+    const row = document.createElement('tr');
+    row.className = 'row-weak';
+    const cell = document.createElement('td');
+    cell.colSpan = 4;
+    cell.textContent = t('pii.empty');
+    row.append(cell);
+    els.piiRows.append(row);
+    return;
+  }
+
+  for (const match of matches) {
+    const row = document.createElement('tr');
+    if (match.confidence < PII_DEFAULT_THRESHOLD) row.className = 'row-weak';
+
+    const kind = document.createElement('td');
+    const tag = document.createElement('span');
+    tag.className = 'kind-tag';
+    tag.textContent = match.kind;
+    kind.append(tag);
+
+    const value = document.createElement('td');
+    value.className = 'seg-text';
+    value.textContent = match.text;
+
+    const confidence = document.createElement('td');
+    confidence.textContent = match.confidence.toFixed(2);
+
+    const evidence = document.createElement('td');
+    evidence.textContent = match.evidence.join(' + ');
+
+    row.append(kind, value, confidence, evidence);
+    els.piiRows.append(row);
+  }
+}
+
 const AI_PRESETS = [
   {
     id: 'ai-hate',
@@ -5261,6 +6312,9 @@ function applyLanguage() {
   drawComplianceModels();
   seedAiExample();
   drawAiPresets();
+  seedPiiExample();
+  drawPiiPresets();
+  runPii();
   drawCoverage();
   drawAiSegments();
   drawNav();
@@ -5321,6 +6375,9 @@ els.aiInput.addEventListener('input', () => {
 });
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);
+
+els.piiInput.addEventListener('input', runPii);
+els.piiSuppressed.addEventListener('change', runPii);
 
 els.complianceProvider.addEventListener('change', drawComplianceModels);
 els.complianceGenerate.addEventListener('click', generateCompliance);

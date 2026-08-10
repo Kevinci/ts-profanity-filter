@@ -35,6 +35,11 @@ const MODULES = [
   'dist/ai/index.js',
   'dist/compliance/prompt.js',
   'dist/compliance/generator.js',
+  'dist/pii/checksums.js',
+  'dist/pii/scan.js',
+  'dist/pii/recognizers.js',
+  'dist/pii/resolve.js',
+  'dist/pii/index.js',
 ];
 
 /** Every `from '…'` in a module, whether it is an import or a re-export. */
@@ -80,6 +85,28 @@ for (const file of MODULES) {
     throw new Error(`${file} still contains module syntax after stripping`);
   }
   parts.push(`// ---- ${file} ----\n${code}`);
+}
+
+// Two modules may each declare `const SEPARATOR` and be perfectly correct as
+// modules — but they land in one scope here, and the second one is a
+// SyntaxError that blanks the whole page. The clash check further down catches
+// bundle-versus-page; this catches the bundle against itself, which is how
+// dist/pii/scan.js and dist/normalize.js first collided.
+{
+  const owner = new Map();
+  for (const part of parts) {
+    const [, file] = part.match(/^\/\/ ---- (.+?) ----$/m) ?? [];
+    for (const [, name] of part.matchAll(/^(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+      const first = owner.get(name);
+      if (first !== undefined && first !== file) {
+        throw new Error(
+          `Both ${first} and ${file} declare a top-level '${name}'. They share one ` +
+            'scope on the page, so one of them has to be renamed at the source.',
+        );
+      }
+      owner.set(name, file);
+    }
+  }
 }
 
 const bundle = parts.join('\n\n');

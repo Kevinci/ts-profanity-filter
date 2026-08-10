@@ -14,7 +14,7 @@ import {
   isValidIban,
   isValidLuhn,
 } from './checksums.js';
-import type { Anchors, DigitCluster } from './scan.js';
+import { ALNUM, type Anchors, type DigitCluster } from './scan.js';
 import type { PiiEvidence, PiiKind, PiiMatch } from './types.js';
 
 export interface RecognizerContext {
@@ -24,7 +24,6 @@ export interface RecognizerContext {
   contextWindow: number;
 }
 
-const ALNUM = /[\p{L}\p{N}]/u;
 const LETTER = /\p{L}/u;
 
 /** Words that agree with a reading, per kind. Lower case; matched on a boundary. */

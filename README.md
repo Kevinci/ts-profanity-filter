@@ -27,7 +27,54 @@ npm install ts-profanity-filter
 
 ---
 
-## New in 1.3.0 · DSA Article 17 justifications
+## New in 1.4.0 · PII detection
+
+**A moderation filter that cannot see an IBAN is half a filter.** The same
+comment box that collects insults collects phone numbers, bank details and card
+numbers, and `ts-profanity-filter/pii` reports those the way this library reports
+everything — as spans, so the redaction stays yours to render.
+
+```ts
+import { detectPii } from 'ts-profanity-filter/pii';
+
+detectPii('IBAN DE44 5001 0517 5407 3249 31, Tel. 030 12345678');
+// [
+//   { kind: 'iban',  confidence: 0.99, evidence: ['structure', 'checksum', 'context'], … },
+//   { kind: 'phone', confidence: 0.99, evidence: ['structure', 'context'], … },
+// ]
+```
+
+**The admission criterion is that a finding can be verified.** An IBAN passes
+mod-97 and its country's length, a card passes Luhn and owns its issuer prefix, a
+German tax id passes ISO 7064 *and* the repetition rule the BZSt guarantees.
+Names, postal addresses and dates of birth are missing on purpose: nothing inside
+the string can confirm them, and a detector that guesses at those turns every
+capitalised word into a finding.
+
+**It is one pass, not six regexes.** The text is walked once for anchors, digit
+clusters are built once and interpreted by three recognizers, every candidate is
+*scored* rather than accepted, and overlaps are settled by weighted interval
+scheduling — because `::ffff:192.168.1.1` is an IPv6 address containing an IPv4
+one, and resolving greedily from the left picks the earliest candidate rather
+than the best one.
+
+[The full section →](#personal-data) ·
+[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/#sec-pii)
+
+**Also in this release:**
+
+- **The playground shows what it suppresses.** The new panel has a switch that
+  drops `minConfidence` to 0.2, so the findings that scored too low to be
+  reported become visible in grey instead of being invisible.
+- **The demo build now catches a clash the old guard could not.** Its modules
+  share one script scope on the page, and two of them declaring the same
+  top-level `const` is a `SyntaxError` that blanks the whole page. The check
+  compared the bundle against the page script but never against itself — it now
+  does, which is how `SEPARATOR` and `ALNUM` were caught before shipping.
+
+---
+
+## DSA Article 17 · the statement of reasons
 
 **In the EU, deleting the comment is only half the obligation.** Article 17 of
 the Digital Services Act requires that whoever is moderated gets a *statement of
@@ -73,7 +120,7 @@ carry the notice on their own.
 [The full section →](#dsa-art-17-justifications) ·
 [See one generated →](https://kevinci.github.io/ts-profanity-filter/#sec-compliance)
 
-**Also in this release:**
+**Also in 1.3.0, alongside this:**
 
 - **A third AI provider that needs no network.** `ollama` runs the check on your
   own machine — no key, no third party, the same JSON Schema constraining the
@@ -371,7 +418,7 @@ import are the whole setup — no build step, nothing to install.
 </style>
 
 <script type="module">
-  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.3.0/+esm';
+  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.4.0/+esm';
 
   const draft = document.getElementById('draft');
   const output = document.getElementById('output');
@@ -407,13 +454,13 @@ lists every published file and version.
 
 | CDN | URL |
 | --- | --- |
-| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.3.0/+esm` |
-| esm.sh | `https://esm.sh/ts-profanity-filter@1.3.0` |
-| unpkg | `https://unpkg.com/ts-profanity-filter@1.3.0/dist/index.js` |
+| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.4.0/+esm` |
+| esm.sh | `https://esm.sh/ts-profanity-filter@1.4.0` |
+| unpkg | `https://unpkg.com/ts-profanity-filter@1.4.0/dist/index.js` |
 
 ```js
-import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.3.0/react';
-import { de } from 'https://esm.sh/ts-profanity-filter@1.3.0/lang/de';
+import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.4.0/react';
+import { de } from 'https://esm.sh/ts-profanity-filter@1.4.0/lang/de';
 ```
 
 **Pin the version.** An unpinned URL like `https://esm.sh/ts-profanity-filter`

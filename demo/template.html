@@ -291,6 +291,13 @@
 
   .panel-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
+  /* A finding that exists but sits below minConfidence: shown, and shown to be
+     weaker. A dashed underline rather than a block, because the point is that
+     the detector is *not* claiming it. */
+  .faint-mark { border-bottom: 1px dashed var(--faint); color: var(--muted); }
+  .row-weak td { color: var(--muted); }
+  .kind-tag { font-family: var(--mono); color: var(--flag); }
+
   /* ---------- input ---------- */
 
   textarea {
@@ -1029,6 +1036,51 @@
     </div>
   </section>
 
+  <section class="panel" id="sec-pii">
+    <div class="panel-head">
+      <span class="label" data-i18n="pii">Personal data</span>
+      <span class="pill" id="pii-count"></span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="pii.note"></p>
+
+      <div class="field">
+        <div class="field-head">
+          <label class="field-label" for="pii-input" data-i18n="pii.input">Text to scan</label>
+          <div class="chips" id="pii-presets"></div>
+        </div>
+        <textarea id="pii-input" spellcheck="false"></textarea>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="output">Rendered from segments</span>
+        <div id="pii-rendered" class="rendered"></div>
+      </div>
+
+      <div class="opt-row">
+        <input type="checkbox" id="pii-suppressed" />
+        <span class="opt-text">
+          <label class="opt-name" for="pii-suppressed">minConfidence: 0.2</label>
+          <span class="opt-note" data-i18n-html="pii.suppressed.note"></span>
+        </span>
+      </div>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="pii.col.kind">kind</th>
+              <th data-i18n="pii.col.text">found</th>
+              <th data-i18n="pii.col.conf">confidence</th>
+              <th data-i18n="pii.col.evidence">evidence</th>
+            </tr>
+          </thead>
+          <tbody id="pii-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="sec-ai">
     <div class="panel-head">
       <span class="label" data-i18n="ai">AI check</span>
@@ -1358,6 +1410,26 @@ const I18N = {
       'This is what the <a href="#sec-ai">AI check</a> is for: it reads who the ' +
       'sentence is aimed at. Paste the same text there and it comes back ' +
       '<strong>sexual</strong> and <strong>racism</strong>.',
+    'pii': 'Personal data',
+    'pii.input': 'Text to scan',
+    'pii.count': '{n} found',
+    'pii.none': 'nothing found',
+    'pii.empty': 'Nothing at or above the threshold. That is a result, not a gap.',
+    'pii.note':
+      'A separate detector, <code>ts-profanity-filter/pii</code>, and the admission criterion is ' +
+      'that a finding can be <em>verified</em>: an IBAN passes mod-97, a card passes Luhn, a ' +
+      'German tax id passes ISO 7064 and the repetition rule. Names and postal addresses are ' +
+      'missing on purpose — nothing inside the string can confirm them, and a detector that ' +
+      'guesses at those turns every capitalised word into a finding.',
+    'pii.suppressed.note':
+      'Drop the threshold from 0.6 to 0.2 to see what is being held back rather than wondering. ' +
+      'A row in grey scored too low to be reported: a bare digit run with no <code>+</code>, no ' +
+      'trunk zero and no word next to it, or the four single digits of ' +
+      '<code>1.2.3.4</code>, which is a version number as often as an address.',
+    'pii.col.kind': 'kind',
+    'pii.col.text': 'found',
+    'pii.col.conf': 'confidence',
+    'pii.col.evidence': 'evidence',
     'cov': 'What gets caught',
     'cov.count': '{n} by the list · {m} only by the model',
     'cov.byList': 'word list',
@@ -1580,6 +1652,26 @@ const I18N = {
       'Dafür gibt es die <a href="#sec-ai">KI-Prüfung</a>: Sie liest, an wen der Satz ' +
       'gerichtet ist. Denselben Text dort einfügen — zurück kommt ' +
       '<strong>sexual</strong> und <strong>racism</strong>.',
+    'pii': 'Personenbezogene Daten',
+    'pii.input': 'Zu prüfender Text',
+    'pii.count': '{n} gefunden',
+    'pii.none': 'nichts gefunden',
+    'pii.empty': 'Nichts ab der Schwelle. Das ist ein Ergebnis, keine Lücke.',
+    'pii.note':
+      'Ein eigener Erkenner, <code>ts-profanity-filter/pii</code>, und aufgenommen wird nur, was ' +
+      '<em>nachprüfbar</em> ist: eine IBAN besteht mod-97, eine Kartennummer Luhn, eine ' +
+      'Steuer-ID ISO 7064 samt Wiederholungsregel. Namen und Anschriften fehlen absichtlich — ' +
+      'nichts im String kann sie bestätigen, und wer dort rät, macht aus jedem großgeschriebenen ' +
+      'Wort einen Fund.',
+    'pii.suppressed.note':
+      'Senkt die Schwelle von 0,6 auf 0,2 — dann sieht man, was zurückgehalten wird, statt es zu ' +
+      'vermuten. Eine graue Zeile lag zu niedrig für einen Fund: eine blanke Ziffernfolge ohne ' +
+      '<code>+</code>, ohne führende Null und ohne Wort daneben, oder die vier einstelligen ' +
+      'Zahlen von <code>1.2.3.4</code>, das ebenso oft eine Versionsnummer ist wie eine Adresse.',
+    'pii.col.kind': 'Art',
+    'pii.col.text': 'gefunden',
+    'pii.col.conf': 'Sicherheit',
+    'pii.col.evidence': 'Beweis',
     'cov': 'Was erkannt wird',
     'cov.count': '{n} über die Liste · {m} nur über das Modell',
     'cov.byList': 'Wortliste',
@@ -2033,6 +2125,12 @@ const els = {
   aiPresets: $('ai-presets'),
   covTable: $('cov-table'),
   covCount: $('cov-count'),
+  piiInput: $('pii-input'),
+  piiPresets: $('pii-presets'),
+  piiRendered: $('pii-rendered'),
+  piiRows: $('pii-rows'),
+  piiCount: $('pii-count'),
+  piiSuppressed: $('pii-suppressed'),
   presetHint: $('preset-hint'),
   aiProvider: $('ai-provider'),
   aiModel: $('ai-model'),
@@ -2301,6 +2399,156 @@ const AI_EXAMPLES = {
  * example has an innocent twin that must come back clean. A moderation layer
  * that only ever says yes is not a moderation layer.
  */
+/* --- personal data ---------------------------------------------------- */
+
+/**
+ * Four examples, and the third one is the important one: a line of ordinary
+ * business prose that must come back empty. A PII detector is judged by what it
+ * leaves alone at least as much as by what it finds.
+ */
+const PII_PRESETS = [
+  {
+    id: 'contact',
+    label: { en: 'Contact details', de: 'Kontaktdaten' },
+    text: {
+      en: 'Write to kevin@example.de or call +49 170 1234567, fax (030) 123456.',
+      de: 'Schreib an kevin@example.de oder ruf +49 170 1234567 an, Fax (030) 123456.',
+    },
+  },
+  {
+    id: 'payment',
+    label: { en: 'Payment data', de: 'Zahlungsdaten' },
+    text: {
+      en: 'IBAN DE44 5001 0517 5407 3249 31, card 4111 1111 1111 1111.',
+      de: 'IBAN DE44 5001 0517 5407 3249 31, Karte 4111 1111 1111 1111.',
+    },
+  },
+  {
+    id: 'clean',
+    label: { en: 'Must stay clean', de: 'Muss sauber bleiben' },
+    text: {
+      en: 'Order 4711 of 12.05.2026, version 1.2.3.4, invoice for 1,234.56 EUR, ISBN 978-3-16-148410-0.',
+      de: 'Bestellnummer 4711 vom 12.05.2026, Version 1.2.3.4, Rechnung über 1.234,56 EUR, ISBN 978-3-16-148410-0.',
+    },
+  },
+  {
+    id: 'threshold',
+    label: { en: 'Where context decides', de: 'Wo der Kontext entscheidet' },
+    text: {
+      en: 'Tax id 86095742719, server 192.168.1.1, and the plain number 1701234567.',
+      de: 'Steuer-ID 86095742719, Server 192.168.1.1, und die blanke Zahl 1701234567.',
+    },
+  },
+];
+
+const PII_DEFAULT_THRESHOLD = 0.6;
+const PII_AUDIT_THRESHOLD = 0.2;
+
+function drawPiiPresets() {
+  els.piiPresets.textContent = '';
+  for (const preset of PII_PRESETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.textContent = preset.label[ui];
+    btn.addEventListener('click', () => {
+      els.piiInput.value = preset.text[ui];
+      runPii();
+    });
+    els.piiPresets.append(btn);
+  }
+}
+
+/** The example follows the page language until the reader has edited it. */
+function seedPiiExample() {
+  const current = els.piiInput.value.trim();
+  const isUntouched =
+    current === '' ||
+    PII_PRESETS.some((preset) => Object.values(preset.text).includes(current));
+  if (isUntouched) els.piiInput.value = PII_PRESETS[0].text[ui];
+}
+
+function runPii() {
+  const text = els.piiInput.value;
+  const auditing = els.piiSuppressed.checked;
+  const matches = detectPii(text, {
+    minConfidence: auditing ? PII_AUDIT_THRESHOLD : PII_DEFAULT_THRESHOLD,
+  });
+
+  const reported = matches.filter((m) => m.confidence >= PII_DEFAULT_THRESHOLD);
+  els.piiCount.textContent = reported.length
+    ? t('pii.count').replace('{n}', String(reported.length))
+    : t('pii.none');
+
+  /* The highlight is built from the spans themselves, which is also the proof
+     that the offsets are right: the text is only ever sliced, never rebuilt. */
+  els.piiRendered.textContent = '';
+  if (text === '') {
+    const empty = document.createElement('span');
+    empty.className = 'placeholder';
+    empty.textContent = t('placeholder');
+    els.piiRendered.append(empty);
+  } else {
+    let cursor = 0;
+    for (const match of matches) {
+      if (match.start > cursor) {
+        const clean = document.createElement('span');
+        clean.className = 'clean';
+        clean.textContent = text.slice(cursor, match.start);
+        els.piiRendered.append(clean);
+      }
+      const hit = document.createElement('span');
+      hit.className = match.confidence >= PII_DEFAULT_THRESHOLD ? 'marked' : 'faint-mark';
+      hit.title = `${match.kind} · ${match.confidence}`;
+      hit.textContent = match.text;
+      els.piiRendered.append(hit);
+      cursor = match.end;
+    }
+    if (cursor < text.length) {
+      const tail = document.createElement('span');
+      tail.className = 'clean';
+      tail.textContent = text.slice(cursor);
+      els.piiRendered.append(tail);
+    }
+  }
+
+  els.piiRows.textContent = '';
+  if (matches.length === 0) {
+    const row = document.createElement('tr');
+    row.className = 'row-weak';
+    const cell = document.createElement('td');
+    cell.colSpan = 4;
+    cell.textContent = t('pii.empty');
+    row.append(cell);
+    els.piiRows.append(row);
+    return;
+  }
+
+  for (const match of matches) {
+    const row = document.createElement('tr');
+    if (match.confidence < PII_DEFAULT_THRESHOLD) row.className = 'row-weak';
+
+    const kind = document.createElement('td');
+    const tag = document.createElement('span');
+    tag.className = 'kind-tag';
+    tag.textContent = match.kind;
+    kind.append(tag);
+
+    const value = document.createElement('td');
+    value.className = 'seg-text';
+    value.textContent = match.text;
+
+    const confidence = document.createElement('td');
+    confidence.textContent = match.confidence.toFixed(2);
+
+    const evidence = document.createElement('td');
+    evidence.textContent = match.evidence.join(' + ');
+
+    row.append(kind, value, confidence, evidence);
+    els.piiRows.append(row);
+  }
+}
+
 const AI_PRESETS = [
   {
     id: 'ai-hate',
@@ -3278,6 +3526,9 @@ function applyLanguage() {
   drawComplianceModels();
   seedAiExample();
   drawAiPresets();
+  seedPiiExample();
+  drawPiiPresets();
+  runPii();
   drawCoverage();
   drawAiSegments();
   drawNav();
@@ -3338,6 +3589,9 @@ els.aiInput.addEventListener('input', () => {
 });
 els.aiProvider.addEventListener('change', drawModels);
 els.aiRun.addEventListener('click', runAiCheck);
+
+els.piiInput.addEventListener('input', runPii);
+els.piiSuppressed.addEventListener('change', runPii);
 
 els.complianceProvider.addEventListener('change', drawComplianceModels);
 els.complianceGenerate.addEventListener('click', generateCompliance);
