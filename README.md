@@ -15,7 +15,8 @@ words and repetition are matched; a cross-check keeps ordinary words like
 
 Zero runtime dependencies. Optional adapters for React, Vue and Angular, an
 optional AI check, a **PII detector** for e-mail addresses, phone numbers,
-IBANs and cards, and an optional generator for the **DSA Art. 17** statement of
+IBANs and cards, a **streaming batch runner** with a CLI for corpora that do not
+fit in memory, and an optional generator for the **DSA Art. 17** statement of
 reasons you owe whoever you moderated. Each is its own subpath, so nothing you
 do not import reaches your bundle.
 
@@ -963,6 +964,143 @@ renderer handles both:
 )}
 ```
 
+## Batch processing
+
+Analysing one comment is a function call. Analysing two million is a different
+problem, and the difference is not speed — it is that the obvious version holds
+the whole corpus in memory, dies at row 900 000 with nothing written, and makes
+one paid model call per row.
+
+```ts
+import { runBatch, formatSummary } from 'ts-profanity-filter/batch';
+import { ndjsonFrom } from 'ts-profanity-filter/batch/node';
+
+const summary = await runBatch(ndjsonFrom('comments.ndjson'), {
+  filter: { languages: ['en', 'de'] },
+  pii: true,
+  onResult: (result) => { if (result.flagged) hold(result.id); },
+});
+
+console.log(formatSummary(summary));
+```
+
+Nothing is buffered: the file is read a chunk at a time, results are handed to
+`onResult` and dropped, and peak memory is one record regardless of file size.
+
+### Two shapes
+
+| | |
+| --- | --- |
+| `runBatch(source, options)` | runs to completion, returns the `BatchSummary`, hands each result to `onResult`. For large input. |
+| `streamBatch(source, options)` | an `AsyncGenerator` yielding each result. Its **return value** is the summary, which `for await` discards — drive `.next()` yourself if you want both. |
+
+The source is anything iterable: an array, a generator, a database cursor, one of
+the Node readers below. A record is a `string` or `{ text, id }`, and the `id`
+comes back on the result so you can join to your own data.
+
+### The model is the expensive part, so it is gated
+
+```ts
+ai: {
+  provider: 'gemini',
+  when: 'matched',   // only records a word list already hit — the default
+  maxCalls: 500,     // a hard ceiling for the whole run
+  retries: 2,        // exponential backoff on failure
+}
+```
+
+`when: 'matched'` is the cheap and usually correct reading: it is the quotation
+check on the records the lists flagged. **`when: 'unmatched'` is the expensive
+one** — most records in any real corpus are clean, so it sends nearly all of
+them. `'all'` sends everything, and a predicate lets you decide per record.
+
+`maxCalls` exists because a batch is exactly where one call per row becomes a
+bill. Once it is reached the run continues locally and the summary says
+`aiBudgetExhausted: true`, so a truncated run can never read as a complete one.
+
+A refusal is not retried — the provider's safety layer declining is a decision,
+not a transient fault, and asking again in 500 ms will not change its mind.
+
+### One bad record cannot end the run
+
+Every stage is wrapped per record. A pattern that throws, a hostile input, a
+provider that is down: the result carries `error: { stage, message }`, the other
+stages still ran, and the run continues. `signal` stops it early and the summary
+comes back with `aborted: true` rather than throwing away the work already done.
+
+### Reading files
+
+`ts-profanity-filter/batch/node` is a **separate subpath** so that importing the
+runner itself never drags a Node API into a browser bundle.
+
+| Function | For |
+| --- | --- |
+| `ndjsonFrom(path, { textField, idField, onBadLine })` | one JSON object per line |
+| `csvFrom(path, { column, idColumn, delimiter, header })` | one column of a CSV |
+| `csvRowsFrom(path, delimiter)` | raw rows |
+| `linesFrom(path)` | one text per line |
+| `recordsFrom(path)` | picks the reader from the extension |
+| `createNdjsonWriter(path)` | append results, respecting backpressure |
+
+The CSV reader is a character-level state machine, not `split('\n')` — a quoted
+field may contain the delimiter, a newline or an escaped `""`, and splitting on
+lines first makes the embedded-newline case unrecoverable rather than merely
+wrong.
+
+### From the command line
+
+```bash
+npx ts-profanity-filter scan comments.ndjson --languages en,de --pii \
+  --out flagged.ndjson --pdf report.pdf
+```
+
+```
+  Records processed           5
+  Flagged                     3 (60.0%)
+  Matched a word list         1
+  Records with personal data  2 (3 findings)
+  Duration                    50 ms · 100/s
+```
+
+Progress goes to stderr and the summary to stdout, so the command composes.
+`--fail-on-findings` exits 1 for CI, `--json` prints the summary as JSON, and
+`--max-calls` defaults to **100** when `--ai` is used — a command that can spend
+money should not spend an unbounded amount of it by default. `--help` lists the
+rest.
+
+### The PDF report
+
+`renderSummaryPdf(summary)` returns the bytes of a report — the same rows as the
+text version, from the same function, so the two can never disagree.
+
+```ts
+import { renderSummaryPdf } from 'ts-profanity-filter/batch';
+await writeFile('report.pdf', await renderSummaryPdf(summary, { title: 'Nightly scan' }));
+```
+
+It needs [`fast-pdf`](https://www.npmjs.com/package/fast-pdf), and **this does
+not change the dependency count.** It is an *optional* peer dependency reached
+through a dynamic import in that one function, exactly as the Anthropic SDK is:
+`dependencies` stays empty, an install that never renders a PDF pulls nothing,
+and the call throws with an install hint if the package is absent. Pass
+`deterministic: true` for byte-identical output — useful for hashing or
+archiving a report.
+
+### `BatchOptions`
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `filter` | `FilterOptions \| false` | `{}` | Word lists, or `false` to skip them. |
+| `pii` | `PiiOptions \| true \| false` | off | Off unless asked, like the AI check. |
+| `ai` | `BatchAiOptions` | absent | Absent means no model is contacted. |
+| `segments` | `boolean` | `false` | Include the segments per record — the one part of a result whose size grows with the text. |
+| `concurrency` | `number` | `8` | In-flight records. Only matters with a model. |
+| `ordered` | `boolean` | `true` | `false` is faster when durations vary: nothing waits behind a slow neighbour. |
+| `onProgress` | `(p) => void` | — | Called every `progressEvery` records, and once at the end. |
+| `progressEvery` | `number` | `500` | Per-record callbacks are their own cost at this scale. |
+| `signal` | `AbortSignal` | — | Stops pulling; the summary reports `aborted`. |
+| `sampleLimit` | `number` | `20` | Flagged records kept in the summary. A summary must not grow with the input. |
+
 ## Framework adapters
 
 Each adapter is a separate subpath import, so nothing you do not use reaches
@@ -1133,6 +1271,13 @@ and spendable by every visitor.
 - **The Gemini provider disables Google's own safety filtering.** It has to:
   the text a moderation classifier must read is the text those filters refuse to
   look at. Safe here because the output is a verdict, never generated content.
+- **A batch is one thread with bounded concurrency, not a thread pool.** That is
+  the right answer for the model path, where the network waits rather than the
+  CPU. For millions of records through the word lists alone, the ceiling is one
+  core — shard the input across processes if that is not enough.
+- **`maxCalls` defaults to unlimited in the library** and to 100 in the CLI. A
+  batch with a model and no ceiling is the easiest way to spend real money by
+  accident; set it explicitly.
 - **PII detection finds only what a string can prove.** No names, no postal
   addresses, no dates of birth — see [Only what can be verified](#only-what-can-be-verified).
   A phone number without a `+`, a trunk zero or a word next to it stays below the

@@ -43,6 +43,14 @@
       "types": "./dist/pii/index.d.ts",
       "default": "./dist/pii/index.js"
     },
+    "./batch": {
+      "types": "./dist/batch/index.d.ts",
+      "default": "./dist/batch/index.js"
+    },
+    "./batch/node": {
+      "types": "./dist/batch/node.d.ts",
+      "default": "./dist/batch/node.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
@@ -70,6 +78,12 @@
       ],
       "pii": [
         "./dist/pii/index.d.ts"
+      ],
+      "batch": [
+        "./dist/batch/index.d.ts"
+      ],
+      "batch/node": [
+        "./dist/batch/node.d.ts"
       ]
     }
   },
@@ -109,7 +123,11 @@
     "ollama",
     "dsa",
     "digital-services-act",
-    "compliance"
+    "compliance",
+    "batch",
+    "streaming",
+    "pii",
+    "cli"
   ],
   "author": "Kevin Imig <kevinci.coding@gmail.com>",
   "license": "MIT",
@@ -124,7 +142,8 @@
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.60",
     "react": ">=16.8",
-    "vue": ">=3.3"
+    "vue": ">=3.3",
+    "fast-pdf": ">=0.7"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -135,17 +154,24 @@
     },
     "@anthropic-ai/sdk": {
       "optional": true
+    },
+    "fast-pdf": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
+    "fast-pdf": "^0.7.1",
     "react": "^19.2.8",
     "typescript": "^5.9.3",
     "vue": "^3.5.41"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "bin": {
+    "ts-profanity-filter": "./dist/cli.js"
   }
 }
