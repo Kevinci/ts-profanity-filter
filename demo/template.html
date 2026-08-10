@@ -42,6 +42,21 @@
 
   * { box-sizing: border-box; }
 
+  /* Clicking a nav entry glides instead of teleporting, which is the difference
+     between "where am I now" and watching the page move to the section. Guarded
+     by the media query: someone who asked the system for less motion means it. */
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+    .nav, .nav-list { scroll-behavior: smooth; }
+  }
+
+  /* A jumped-to panel must not end up under the pinned language control, or on a
+     phone under the nav strip that is now sticky. */
+  .panel { scroll-margin-top: 18px; }
+  @media (max-width: 1000px) {
+    .panel { scroll-margin-top: 72px; }
+  }
+
   body {
     margin: 0;
     background: var(--paper);
@@ -102,9 +117,15 @@
   @media (max-width: 1000px) {
     .page { grid-template-columns: minmax(0, 1fr); }
     .nav {
-      position: static;
+      /* Sticky rather than static: the whole point of a section list is to be
+         reachable while you are somewhere in the middle of the page. It needs an
+         opaque background for that, since content now scrolls underneath it. */
+      position: sticky;
+      top: 0;
+      z-index: 15;
       max-height: none;
-      padding: 24px 24px 0;
+      padding: 12px 68px 0 24px;
+      background: var(--paper);
       border-bottom: 1px solid var(--rule);
     }
     .nav-title { display: none; }
@@ -4875,8 +4896,42 @@ function drawNav() {
 let sectionWatcher = null;
 
 /** Highlights whichever section is nearest the top of the viewport. */
+/** The section the nav is currently marking, so a repaint is only done on change. */
+let activeSection;
+
+/**
+ * Scroll the *navigation* so its marked entry is visible — never the page.
+ *
+ * `scrollIntoView` is the obvious call and the wrong one: with `block: 'nearest'`
+ * it still moves the window when the element is off-screen there too, which
+ * fights the scrolling that triggered this in the first place. Adjusting the
+ * container's own scroll offset by the measured overshoot cannot do that.
+ */
+function revealNavEntry(link) {
+  const list = document.getElementById('nav-list');
+  const aside = list.closest('.nav');
+  if (!aside) return;
+
+  // Below 1000px the list is a horizontal strip; above it, a vertical column.
+  const horizontal = list.scrollWidth > list.clientWidth + 1;
+  const box = link.getBoundingClientRect();
+
+  if (horizontal) {
+    const frame = list.getBoundingClientRect();
+    if (box.left < frame.left) list.scrollLeft -= frame.left - box.left + 16;
+    else if (box.right > frame.right) list.scrollLeft += box.right - frame.right + 16;
+    return;
+  }
+
+  if (aside.scrollHeight <= aside.clientHeight + 1) return; // nothing to scroll
+  const frame = aside.getBoundingClientRect();
+  if (box.top < frame.top) aside.scrollTop -= frame.top - box.top + 12;
+  else if (box.bottom > frame.bottom) aside.scrollTop += box.bottom - frame.bottom + 12;
+}
+
 function watchSections() {
   if (sectionWatcher) sectionWatcher.disconnect();
+  activeSection = undefined;
   const links = new Map(
     [...document.querySelectorAll('#nav-list a')].map((a) => [a.getAttribute('href').slice(1), a]),
   );
@@ -4892,6 +4947,15 @@ function watchSections() {
       const current = order.find((id) => visible.has(id));
       for (const [id, link] of links) {
         link.setAttribute('aria-current', String(id === current));
+      }
+
+      // With sixteen entries the list can be taller than the viewport, and the
+      // marked entry is then somewhere the reader cannot see. Only act on a
+      // change, so this never fights someone scrolling the nav by hand.
+      if (current !== undefined && current !== activeSection) {
+        activeSection = current;
+        const link = links.get(current);
+        if (link) revealNavEntry(link);
       }
     },
     { rootMargin: '0px 0px -70% 0px' },
