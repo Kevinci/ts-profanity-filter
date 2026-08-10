@@ -35,6 +35,9 @@
     "directory": "adversarial"
   },
   "homepage": "https://github.com/Kevinci/ts-profanity-filter/tree/main/adversarial",
+  "bugs": {
+    "url": "https://github.com/Kevinci/ts-profanity-filter/issues"
+  },
   "scripts": {
     "build": "tsc",
     "test": "npm run build && node --test test/*.test.ts",

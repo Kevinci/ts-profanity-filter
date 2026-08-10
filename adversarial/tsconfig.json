@@ -7,6 +7,10 @@
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
+    // `files` ships src/ — these are what make that useful: "go to definition"
+    // in a consumer's IDE lands on the real TypeScript, not on the .d.ts.
+    "declarationMap": true,
+    "sourceMap": true,
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
