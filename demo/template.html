@@ -1634,6 +1634,7 @@
       </div>
 
       <p class="note" data-i18n-html="batch.cli"></p>
+      <p class="note" data-i18n-html="batch.pdf"></p>
     </div>
   </section>
 
@@ -2056,6 +2057,14 @@ const I18N = {
       '<code>maxCalls</code> is a hard ceiling, because a batch is exactly where one call per row ' +
       'becomes a bill. The browser cannot demonstrate that half without your key — the AI panel ' +
       'above can.',
+    'batch.pdf':
+      '<strong>A run can hand you a PDF.</strong> <code>renderSummaryPdf(summary)</code> returns the ' +
+      'bytes of a report — the same rows as the text version, from the same function, so the two ' +
+      'cannot disagree — and the CLI writes one with <code>--pdf report.pdf</code>. It goes through ' +
+      '<a href="https://www.npmjs.com/package/fast-pdf">fast-pdf</a>, an <strong>optional peer ' +
+      'dependency</strong> loaded by dynamic import in that one function: <code>dependencies</code> ' +
+      'stays empty, an install that never renders a PDF pulls nothing extra, and fast-pdf brings no ' +
+      'dependencies of its own. Pass <code>deterministic: true</code> for byte-identical output.',
     'batch.cli':
       'For files there is a command: <code>npx ts-profanity-filter scan comments.ndjson --pii</code> ' +
       'reads NDJSON, CSV or plain lines, writes the flagged records back as NDJSON, and exits 1 ' +
@@ -2474,6 +2483,16 @@ const I18N = {
       '<code>maxCalls</code> ist eine harte Decke, denn ein Stapellauf ist genau die Stelle, an ' +
       'der ein Aufruf pro Zeile zur Rechnung wird. Diese Hälfte kann der Browser ohne deinen ' +
       'Schlüssel nicht zeigen — das AI-Panel weiter oben kann es.',
+    'batch.pdf':
+      '<strong>Ein Lauf kann dir eine PDF liefern.</strong> <code>renderSummaryPdf(summary)</code> ' +
+      'gibt die Bytes eines Berichts zurück — dieselben Zeilen wie die Textfassung, aus derselben ' +
+      'Funktion, also können beide sich nicht widersprechen — und das CLI schreibt sie mit ' +
+      '<code>--pdf report.pdf</code>. Es läuft über ' +
+      '<a href="https://www.npmjs.com/package/fast-pdf">fast-pdf</a>, eine <strong>optionale ' +
+      'Peer-Dependency</strong>, die nur in dieser einen Funktion dynamisch geladen wird: ' +
+      '<code>dependencies</code> bleibt leer, wer nie eine PDF rendert installiert nichts ' +
+      'zusätzlich, und fast-pdf bringt selbst keine Abhängigkeiten mit. ' +
+      '<code>deterministic: true</code> liefert byte-identische Ausgabe.',
     'batch.cli':
       'Für Dateien gibt es einen Befehl: ' +
       '<code>npx ts-profanity-filter scan comments.ndjson --pii</code> liest NDJSON, CSV oder ' +
