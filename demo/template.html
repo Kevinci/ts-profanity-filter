@@ -454,7 +454,57 @@
   .kind-tag { font-family: var(--mono); color: var(--flag); }
 
 
-/* ---------- throughput ---------- */
+  /* ---------- scrolling ---------- */
+
+  /* How far down the page you are. Two pixels at the very top edge: enough to
+     read at a glance, not enough to be furniture. No transition — it has to
+     track the scroll exactly, and easing a progress bar makes it lag behind the
+     thing it is reporting. */
+  .progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0;
+    z-index: 30;
+    background: var(--accent);
+  }
+
+  /*
+   * Panels rise into place as they come into view.
+   *
+   * The hidden state applies *only* when the script has said it is handling this
+   * — `html.reveal` — so a page with a broken or absent observer shows
+   * everything, which is the failure mode that matters. Each panel animates once
+   * and is then left alone: re-animating on the way back up is a fidget, not a
+   * feature.
+   */
+  .reveal .panel[data-seen='false'] {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  .reveal .panel[data-seen='true'] {
+    opacity: 1;
+    transform: none;
+    transition: opacity 420ms ease-out, transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* The pipeline nodes arrive one after another, left to right, because that is
+     the direction the data flows. */
+  .reveal .pipeline[data-seen='false'] .pipe-node,
+  .reveal .pipeline[data-seen='false'] .pipe-arrow {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  .reveal .pipeline[data-seen='true'] .pipe-node,
+  .reveal .pipeline[data-seen='true'] .pipe-arrow {
+    opacity: 1;
+    transform: none;
+    transition: opacity 320ms ease-out, transform 320ms ease-out;
+    transition-delay: var(--stagger, 0ms);
+  }
+
+  /* ---------- throughput ---------- */
 
   .speed { display: flex; flex-direction: column; gap: 9px; }
   .speed-num {
@@ -1233,6 +1283,7 @@
 </style>
 </head>
 <body>
+<div class="progress" id="progress" aria-hidden="true"></div>
 <div class="page">
 
   <aside class="nav">
@@ -3494,6 +3545,91 @@ function drawEvasions() {
   els.evCount.textContent = caught + '/' + EVASIONS.length;
 }
 
+/* --- scrolling ---------------------------------------------------------- */
+
+/**
+ * The progress bar, driven by the scroll position.
+ *
+ * Read in the scroll handler and written in a frame, because reading
+ * `scrollTop` and setting a width in the same tick is a layout thrashing pattern
+ * that shows up as jank on exactly the long pages this bar is for.
+ */
+function trackProgress() {
+  const bar = document.getElementById('progress');
+  let queued = false;
+
+  const paint = () => {
+    queued = false;
+    const doc = document.documentElement;
+    const reach = doc.scrollHeight - doc.clientHeight;
+    const done = reach <= 0 ? 1 : Math.min(1, Math.max(0, doc.scrollTop / reach));
+    bar.style.width = (done * 100).toFixed(2) + '%';
+  };
+
+  const onScroll = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(paint);
+  };
+
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll, { passive: true });
+  paint();
+}
+
+/**
+ * Panels rise into view as they are reached.
+ *
+ * The hidden state lives behind `html.reveal`, added here and only here, so a
+ * browser without IntersectionObserver — or a reader who asked for less motion —
+ * gets the page with everything visible rather than a page of blank boxes.
+ *
+ * Each element is unobserved the moment it has been seen: this is an entrance,
+ * not a state that tracks the viewport, and re-running it on the way back up
+ * would be a fidget.
+ */
+function revealOnScroll() {
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still || typeof IntersectionObserver === 'undefined') return;
+
+  const targets = [...document.querySelectorAll('.panel[id^="sec-"], .pipeline')];
+  for (const target of targets) target.dataset.seen = 'false';
+
+  // Only now does the CSS start hiding anything.
+  document.documentElement.classList.add('reveal');
+
+  const watcher = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.dataset.seen = 'true';
+        watcher.unobserve(entry.target);
+      }
+    },
+    // A little into the viewport rather than exactly at its edge, so the movement
+    // has finished by the time the panel is properly in front of the reader.
+    { rootMargin: '0px 0px -12% 0px', threshold: 0.02 },
+  );
+
+  for (const target of targets) watcher.observe(target);
+
+  // Whatever is already on screen should not animate in — it was never away.
+  requestAnimationFrame(() => {
+    for (const target of targets) {
+      const box = target.getBoundingClientRect();
+      if (box.top < innerHeight && box.bottom > 0) target.dataset.seen = 'true';
+    }
+  });
+
+  // The pipeline's children come in left to right; the delay is per child.
+  const pipeline = document.querySelector('.pipeline');
+  if (pipeline) {
+    [...pipeline.querySelectorAll('.pipe-node, .pipe-arrow')].forEach((node, index) => {
+      node.style.setProperty('--stagger', index * 45 + 'ms');
+    });
+  }
+}
+
 /* --- throughput, measured here ----------------------------------------- */
 
 /** A 60 Hz frame, in milliseconds — the only scale that makes a per-record
@@ -5370,6 +5506,9 @@ els.piiInput.addEventListener('input', runPii);
 els.piiSuppressed.addEventListener('change', runPii);
 
 els.speedRun.addEventListener('click', runSpeed);
+
+trackProgress();
+revealOnScroll();
 
 els.batchInput.addEventListener('input', () => void runBatchPanel());
 els.batchPii.addEventListener('change', () => void runBatchPanel());
