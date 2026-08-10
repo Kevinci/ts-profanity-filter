@@ -454,6 +454,95 @@
   .kind-tag { font-family: var(--mono); color: var(--flag); }
 
 
+/* ---------- throughput ---------- */
+
+  .speed { display: flex; flex-direction: column; gap: 9px; }
+  .speed-num {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--mono);
+  }
+  .speed-num span {
+    font-size: clamp(26px, 5vw, 38px);
+    color: var(--flag);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .speed-num small {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  /* One frame of a 60 Hz display, to scale. The filled part is the share of it
+     the measured run actually spent — which is the point of the picture: for a
+     handful of records there is almost nothing to fill. */
+  .frame {
+    position: relative;
+    height: 26px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    background: var(--sunken);
+    overflow: hidden;
+  }
+  .frame-fill {
+    height: 100%;
+    width: 0;
+    min-width: 2px;
+    background: var(--accent-soft);
+    border-right: 2px solid var(--accent);
+    transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* The measured count, riding at the right end of the frame. */
+  .frame-count {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    padding-right: 9px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .frame-count b {
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--flag);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .frame-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding-left: 9px;
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--faint);
+    pointer-events: none;
+  }
+  .speed-detail {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  /* The measurement itself blocks for a fraction of a second, so the button
+     says it is working rather than looking dead. */
+  #speed-run[aria-busy='true'] { color: var(--faint); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .frame-fill { transition: none; }
+  }
+
   /* ---------- terminal ---------- */
 
   /* A terminal, because the CLI is a terminal. The output inside is recorded
@@ -1656,6 +1745,24 @@
 
       <p class="note" data-i18n-html="batch.cli"></p>
       <p class="note" data-i18n-html="batch.pdf"></p>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label" data-i18n="speed">Throughput on this machine</span>
+          <button class="chip" type="button" id="speed-run" data-i18n="speed.run"></button>
+        </div>
+        <p class="note" data-i18n-html="speed.note"></p>
+
+        <div class="speed" id="speed" hidden>
+          <div class="speed-num"><span id="speed-value">0</span><small data-i18n="speed.unit">records / second</small></div>
+          <div class="frame">
+            <div class="frame-fill" id="speed-fill"></div>
+            <span class="frame-label" data-i18n="speed.frame">one 60 Hz frame · 16.7 ms</span>
+            <span class="frame-count"><b id="speed-frame">0</b> <span data-i18n="speed.fits">records fit in it</span></span>
+          </div>
+          <p class="speed-detail" id="speed-detail"></p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -5352,6 +5459,23 @@ const I18N = {
       'This is what the <a href="#sec-ai">AI check</a> is for: it reads who the ' +
       'sentence is aimed at. Paste the same text there and it comes back ' +
       '<strong>sexual</strong> and <strong>racism</strong>.',
+    'speed': 'Throughput on this machine',
+    'speed.run': 'Measure',
+    'speed.running': 'measuring…',
+    'speed.again': 'Measure again',
+    'speed.unit': 'records / second',
+    'speed.frame': 'one 60 Hz frame · 16.7 ms',
+    'speed.fits': 'records fit in it',
+    'speed.note':
+      'Nothing here is a stored number. The button times the filter on <em>your</em> machine, over the ' +
+      'records in the box above, with the languages you have selected — warmed up first, because the ' +
+      'first call for a set of options compiles the patterns and timing that would measure the regex ' +
+      'compiler instead of the filter.',
+    'speed.detail':
+      'One record took {us} µs. The bar above is a single 60 Hz frame, and {frame} records fit inside ' +
+      'it — which is why a filter in the request path is not the thing that makes a page slow. That is ' +
+      '{chars} characters per second. Measured over {n} distinct records, filtered {runs} times in ' +
+      '{ms} ms.',
     'batch': 'Batch processing',
     'batch.input': 'One record per line',
     'batch.count': '{n} of {m} flagged',
@@ -5775,6 +5899,23 @@ const I18N = {
       'Dafür gibt es die <a href="#sec-ai">KI-Prüfung</a>: Sie liest, an wen der Satz ' +
       'gerichtet ist. Denselben Text dort einfügen — zurück kommt ' +
       '<strong>sexual</strong> und <strong>racism</strong>.',
+    'speed': 'Durchsatz auf dieser Maschine',
+    'speed.run': 'Messen',
+    'speed.running': 'messe…',
+    'speed.again': 'Erneut messen',
+    'speed.unit': 'Datensätze / Sekunde',
+    'speed.frame': 'ein 60-Hz-Frame · 16,7 ms',
+    'speed.fits': 'Datensätze passen hinein',
+    'speed.note':
+      'Hier steht keine gespeicherte Zahl. Der Knopf misst den Filter auf <em>deiner</em> Maschine, ' +
+      'über die Datensätze im Feld oben, mit den Sprachen, die du gewählt hast — vorher warmgelaufen, ' +
+      'denn der erste Aufruf für eine Optionskombination kompiliert die Muster, und das zu messen ' +
+      'würde den Regex-Compiler messen statt den Filter.',
+    'speed.detail':
+      'Ein Datensatz brauchte {us} µs. Der Balken oben ist ein einzelnes 60-Hz-Frame, und {frame} ' +
+      'Datensätze passen hinein — deshalb ist ein Filter im Anfragepfad nicht das, was eine Seite ' +
+      'langsam macht. Das sind {chars} Zeichen pro Sekunde. Gemessen über {n} verschiedene ' +
+      'Datensätze, {runs}-mal gefiltert in {ms} ms.',
     'batch': 'Stapelverarbeitung',
     'batch.input': 'Ein Datensatz pro Zeile',
     'batch.count': '{n} von {m} markiert',
@@ -6316,6 +6457,12 @@ const els = {
   cliDemo: $('cli-demo'),
   cliFlags: $('cli-flags'),
   evRows: $('ev-rows'),
+  speed: $('speed'),
+  speedRun: $('speed-run'),
+  speedValue: $('speed-value'),
+  speedFill: $('speed-fill'),
+  speedFrame: $('speed-frame'),
+  speedDetail: $('speed-detail'),
   evCount: $('ev-count'),
   lossless: $('lossless'),
   xcViews: $('xc-views'),
@@ -6645,6 +6792,110 @@ function drawEvasions() {
   }
 
   els.evCount.textContent = caught + '/' + EVASIONS.length;
+}
+
+/* --- throughput, measured here ----------------------------------------- */
+
+/** A 60 Hz frame, in milliseconds — the only scale that makes a per-record
+ *  timing mean something to a reader. */
+const FRAME_MS = 1000 / 60;
+
+/** How long to keep filtering before trusting the number. */
+const MEASURE_MS = 120;
+
+/**
+ * Time the filter on the visitor's own machine.
+ *
+ * Warmed up first, on purpose: the first call for a set of options compiles and
+ * caches the patterns, and timing that measures the regex compiler rather than
+ * the filter. Everything reported here is measured — there is no stored number
+ * to fall back on, because a made-up one would be worse than none.
+ */
+function measureThroughput() {
+  const typed = els.batchInput.value.split('\n').filter((line) => line.trim() !== '');
+  const corpus = typed.length > 0 ? typed : BATCH_EXAMPLES[ui].split('\n');
+  const options = { languages: activeLanguages() };
+  const chars = corpus.reduce((sum, text) => sum + text.length, 0);
+
+  for (let round = 0; round < 3; round++) {
+    for (const text of corpus) filterFWordsToSegments(text, options);
+  }
+
+  let records = 0;
+  let elapsed = 0;
+  const started = performance.now();
+  while (elapsed < MEASURE_MS) {
+    for (const text of corpus) {
+      filterFWordsToSegments(text, options);
+      records++;
+    }
+    elapsed = performance.now() - started;
+  }
+
+  const perSecond = records / (elapsed / 1000);
+  const msPerRecord = elapsed / records;
+  return {
+    perSecond,
+    msPerRecord,
+    charsPerSecond: (chars / corpus.length) * perSecond,
+    perFrame: FRAME_MS / msPerRecord,
+    corpus: corpus.length,
+    records,
+    elapsed,
+  };
+}
+
+/** Count up to a number, easing out. Skipped entirely for reduced motion. */
+function countUp(node, target, ms = 700) {
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const format = (value) => Math.round(value).toLocaleString(ui === 'de' ? 'de-DE' : 'en-US');
+  if (still) {
+    node.textContent = format(target);
+    return;
+  }
+
+  const started = performance.now();
+  const step = (now) => {
+    const progress = Math.min(1, (now - started) / ms);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    node.textContent = format(target * eased);
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function runSpeed() {
+  els.speedRun.setAttribute('aria-busy', 'true');
+  els.speedRun.textContent = t('speed.running');
+
+  // Yield first: the measurement blocks the thread for MEASURE_MS, and without
+  // a frame in between the button never repaints to say so.
+  requestAnimationFrame(() => {
+    const result = measureThroughput();
+
+    els.speed.hidden = false;
+    countUp(els.speedValue, result.perSecond);
+
+    // One record against one frame would be a 0.05% sliver — true, and invisible.
+    // So the bar is one frame being *filled*, and the number riding in it is how
+    // many records that took. Same measurement, a picture that can be read.
+    els.speedFill.style.width = '0';
+    requestAnimationFrame(() => {
+      els.speedFill.style.width = '100%';
+    });
+    countUp(els.speedFrame, result.perFrame, 800);
+
+    els.speedDetail.textContent = t('speed.detail')
+      .replace('{us}', (result.msPerRecord * 1000).toFixed(1))
+      .replace('{frame}', Math.round(result.perFrame).toLocaleString(ui === 'de' ? 'de-DE' : 'en-US'))
+      .replace('{chars}', Math.round(result.charsPerSecond).toLocaleString(ui === 'de' ? 'de-DE' : 'en-US'))
+      .replace('{n}', String(result.corpus))
+      .replace('{runs}', result.records.toLocaleString(ui === 'de' ? 'de-DE' : 'en-US'))
+      .replace('{ms}', result.elapsed.toFixed(0));
+
+    els.speedRun.removeAttribute('aria-busy');
+    els.speedRun.textContent = t('speed.again');
+  });
 }
 
 /* --- benchmark, CLI ---------------------------------------------------- */
@@ -8417,6 +8668,8 @@ els.aiRun.addEventListener('click', runAiCheck);
 
 els.piiInput.addEventListener('input', runPii);
 els.piiSuppressed.addEventListener('change', runPii);
+
+els.speedRun.addEventListener('click', runSpeed);
 
 els.batchInput.addEventListener('input', () => void runBatchPanel());
 els.batchPii.addEventListener('change', () => void runBatchPanel());
