@@ -39,6 +39,10 @@
       "types": "./dist/compliance/index.d.ts",
       "default": "./dist/compliance/index.js"
     },
+    "./pii": {
+      "types": "./dist/pii/index.d.ts",
+      "default": "./dist/pii/index.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
@@ -63,6 +67,9 @@
       ],
       "compliance": [
         "./dist/compliance/index.d.ts"
+      ],
+      "pii": [
+        "./dist/pii/index.d.ts"
       ]
     }
   },

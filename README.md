@@ -14,9 +14,10 @@ words and repetition are matched; a cross-check keeps ordinary words like
 `Klassik` and `classic` out of the results.
 
 Zero runtime dependencies. Optional adapters for React, Vue and Angular, an
-optional AI check, and an optional generator for the **DSA Art. 17** statement
-of reasons you owe whoever you moderated. Each is its own subpath, so nothing
-you do not import reaches your bundle.
+optional AI check, a **PII detector** for e-mail addresses, phone numbers,
+IBANs and cards, and an optional generator for the **DSA Art. 17** statement of
+reasons you owe whoever you moderated. Each is its own subpath, so nothing you
+do not import reaches your bundle.
 
 **[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/)**
 
@@ -820,6 +821,101 @@ you get no notice at all.
   (Art. 24(5)).** Those are systems, not strings. This module writes the notice
   that both of them start from.
 
+## Personal data
+
+`ts-profanity-filter/pii` finds e-mail addresses, phone numbers, IBANs, payment
+cards, IP addresses and German tax ids — as spans, like everything else here, so
+the redaction stays yours to render.
+
+```ts
+import { detectPii, piiToSegments } from 'ts-profanity-filter/pii';
+
+detectPii('Meine IBAN ist DE44 5001 0517 5407 3249 31, Tel. 030 12345678');
+// [
+//   { kind: 'iban',  text: 'DE44 5001 0517 5407 3249 31', start: 15, end: 42,
+//     confidence: 0.99, evidence: ['structure', 'checksum', 'context'] },
+//   { kind: 'phone', text: '030 12345678', start: 49, end: 61,
+//     confidence: 0.99, evidence: ['structure', 'context'] },
+// ]
+```
+
+### Only what can be verified
+
+| Kind | What confirms it |
+| --- | --- |
+| `email` | structure — local part, labels, TLD, all length-checked |
+| `iban` | **ISO 13616 mod-97**, plus the country's published length |
+| `card` | **Luhn**, plus an issuer prefix that owns that length |
+| `taxid-de` | **ISO 7064 MOD 11,10**, plus the BZSt repetition rule |
+| `ip` | octet ranges; IPv6 group counting, compression and embedded IPv4 |
+| `phone` | E.164 length, a trunk zero, or a word nearby that says so |
+
+**Names, postal addresses and dates of birth are missing on purpose.** They are
+personal data too, but nothing inside the string can confirm them, and a
+detector that guesses turns every capitalised word into a finding. Everything on
+that list either verifies arithmetically or is honest about leaning on context.
+
+### How it decides
+
+Four stages, and each exists because the obvious alternative is worse:
+
+1. **One O(n) scan** records the only three things worth anchoring on: `@`
+   positions, digit runs, colons. Six regexes over the text would walk it six
+   times and still miss the grouped spellings.
+2. **Digit clusters are built once.** `030 12 34 56` becomes one object with its
+   groups and separators intact. A phone number, a card and a tax id are the
+   same object at this stage; telling them apart is not the scanner's job.
+3. **Recognizers score, they do not vote.** A checksum is a fact, a shape is an
+   argument, punctuation like `+` is a hint, and a nearby word only adjusts what
+   the string already said.
+4. **Overlaps are resolved optimally** by weighted interval scheduling —
+   confidence × length, `O(m log m)`. This is not decoration: `::ffff:192.168.1.1`
+   is an IPv6 address containing an IPv4 one, and a grouped IBAN contains digit
+   runs that pass Luhn. Resolving left to right greedily picks the earliest
+   candidate, which is not the same as the best one.
+
+### Confidence is not uniform, on purpose
+
+A verified IBAN sits at `0.98` because the arithmetic says so. A bare
+ten-digit number sits at `0.3` until a word next to it agrees, and then at
+`0.65`. The threshold is `0.6`, so:
+
+```ts
+detectPii('Die Zahl 1701234567 steht hier');   // []
+detectPii('Telefon 1701234567');                // phone, 0.65
+detectPii('1.2.3.4');                           // [] — that is a version number
+detectPii('8.8.8.8');                           // ip, 0.8 — no version repeats one component
+```
+
+Lower `minConfidence` to audit what is being suppressed rather than wondering.
+What a nearby word is worth also differs per kind: `Telefon` in front of ten
+digits is nearly the whole case, while `IBAN:` in front of a string that already
+passes mod-97 adds almost nothing.
+
+### API
+
+| Function | Returns |
+| --- | --- |
+| `detectPii(text, options?)` | `PiiMatch[]` — non-overlapping, in reading order |
+| `hasPii(text, options?)` | `boolean` |
+| `piiToSegments(text, options?)` | `PiiSegment[]`, same shape as the filter's — concatenates back to the input exactly |
+| `isValidIban` · `isValidLuhn` · `isValidGermanTaxId` · `iso7064Mod1110` | the checksums on their own |
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `kinds` | `PiiKind[] \| '*'` | `'*'` | Narrow the search. An unknown kind throws. |
+| `minConfidence` | `number` | `0.6` | Findings below this are dropped. |
+| `contextWindow` | `number` | `48` | How many characters either side count as context. |
+
+Because segments come back in the same shape as the profanity filter's, one
+renderer handles both:
+
+```tsx
+{piiToSegments(comment).map((seg, i) =>
+  seg.isPii ? <span key={i} className="redacted" title={seg.kind}>{seg.text}</span> : seg.text,
+)}
+```
+
 ## Framework adapters
 
 Each adapter is a separate subpath import, so nothing you do not use reaches
@@ -990,6 +1086,13 @@ and spendable by every visitor.
 - **The Gemini provider disables Google's own safety filtering.** It has to:
   the text a moderation classifier must read is the text those filters refuse to
   look at. Safe here because the output is a verdict, never generated content.
+- **PII detection finds only what a string can prove.** No names, no postal
+  addresses, no dates of birth — see [Only what can be verified](#only-what-can-be-verified).
+  A phone number without a `+`, a trunk zero or a word next to it stays below the
+  threshold, which means bare digit runs in prose are missed on purpose.
+- **`1.2.3.4` is not reported as an IP address.** It is equally a version
+  number, and the only thing that separates them is the word in front. Lower
+  `minConfidence` if you would rather see both.
 - **The Art. 17 module writes the notice, not the process.** It does not store
   anything durably on its own, does not know whether a human reviewed the case,
   and draws no line between illegal content and a breach of your terms. See
