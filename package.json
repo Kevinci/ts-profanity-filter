@@ -60,6 +60,9 @@
       ],
       "ai": [
         "./dist/ai/index.d.ts"
+      ],
+      "compliance": [
+        "./dist/compliance/index.d.ts"
       ]
     }
   },
