@@ -51,6 +51,10 @@
       "types": "./dist/batch/node.d.ts",
       "default": "./dist/batch/node.js"
     },
+    "./allowlist": {
+      "types": "./dist/allowlist/index.d.ts",
+      "default": "./dist/allowlist/index.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
@@ -84,6 +88,9 @@
       ],
       "batch/node": [
         "./dist/batch/node.d.ts"
+      ],
+      "allowlist": [
+        "./dist/allowlist/index.d.ts"
       ]
     }
   },

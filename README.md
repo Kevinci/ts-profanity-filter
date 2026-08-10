@@ -1024,6 +1024,83 @@ renderer handles both:
 )}
 ```
 
+## Tuning the allowlist against your own text
+
+The cross-check keeps `class`, `Klassik` and `Scunthorpe` out of the results, and
+the built-in allowlist was written against English and German as they are
+generally used — **not against your domain**. A medical corpus, a Dutch user
+base, a supplier called Assmann: each finds holes the shipped lists never saw.
+
+`ts-profanity-filter/allowlist` finds them in your text and proposes entries to
+close them.
+
+```ts
+import { tuneAllowlist, formatAllowEntries } from 'ts-profanity-filter/allowlist';
+
+const report = await tuneAllowlist(() => ndjsonTexts('comments.ndjson'), {
+  languages: ['en', 'de'],
+  ai: { provider: 'gemini' },   // optional — see below
+});
+
+report.before;    // 412 records were flagged
+report.after;     //  37 still are
+report.entries;   // ['assmann\\p{L}*', 'diagnos\\p{L}*', …]
+console.log(formatAllowEntries(report, 'en-house'));
+```
+
+### Three stages, and only the middle one is optional
+
+1. **Scan** — read the corpus, collect the *whole words* the lists flagged, count
+   them. Entirely local. Frequency is the first signal: an ordinary word appears
+   everywhere, a slur appears rarely.
+2. **Judge** — ordinary word or genuine insult? A model can answer, or you can
+   through `verdicts`, or both. Without an `ai` option **no model is contacted**
+   and only your own verdicts are used.
+3. **Verify** — compile each proposal and *test* it.
+
+**Stage 3 is the whole point.** A model asked to fix `Klassiker` may answer
+`\p{L}*ass\p{L}*`, which technically clears it and destroys the filter for the
+entire language. No amount of prompting reliably prevents that; compiling the
+suggestion and measuring it does. Every proposed entry must
+
+- clear the word it was written for — otherwise `why: 'no-effect'`;
+- **not** clear any word judged offensive — otherwise `why: 'too-broad'`, naming
+  the word it would have cleared;
+- be a valid pattern under the `u` flag — otherwise `why: 'invalid'`.
+
+Nothing is dropped silently: rejected proposals come back in `report.rejected`
+with the reason.
+
+### It reads the corpus twice
+
+Once to find what gets flagged, once to prove the accepted entries helped. So pass
+an **array or a factory**, not a spent iterator:
+
+```ts
+tuneAllowlist(() => linesFrom('comments.txt'), { … });   // before/after measured
+tuneAllowlist(oneShotGenerator, { … });                  // rerun: false, after unmeasured
+```
+
+### `unsure` is a real answer
+
+The model may say it cannot tell, and that verdict is never acted on. The same
+goes for a word you did not judge at all: no verdict, no entry.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `languages` | `Language[] \| '*'` | `['en']` | Which lists to tune against. |
+| `minCount` | `number` | `1` | Ignore words appearing fewer times than this. |
+| `limit` | `number` | `50` | Judge at most this many distinct words, most frequent first. |
+| `sampleLimit` | `number` | `3` | Records kept per word as evidence. |
+| `verdicts` | `Record<string, WordVerdict>` | — | Judgements by hand. Never sent to a model. |
+| `ai` | `AiOptions` | absent | Absent means no model is contacted. |
+
+`findFlaggedWords()` is exported on its own if all you want is the scan.
+
+**A generated entry is a proposal, not a policy.** It has been proved not to
+break the corpus you gave it, which is a real guarantee and a narrow one — a
+native speaker should still read the list before it ships.
+
 ## Batch processing
 
 Analysing one comment is a function call. Analysing two million is a different

@@ -12,6 +12,7 @@ warum es so gebaut ist — zuerst englisch, dann deutsch.
 | AI check | `ts-profanity-filter/ai` |
 | personal data | `ts-profanity-filter/pii` |
 | DSA Art. 17 | `ts-profanity-filter/compliance` |
+| allowlist tuning | `ts-profanity-filter/allowlist` |
 | batch runner | `ts-profanity-filter/batch` |
 | file readers | `ts-profanity-filter/batch/node` |
 | React · Vue · Angular | `ts-profanity-filter/react` · `/vue` · `/angular` |
@@ -271,6 +272,31 @@ inventing grounds.
 gedruckt, und die Bewertung sagt genau, was feststeht — nicht mehr.
 *Warum:* „Schweregrad: keiner" würde als erwogene Feststellung der
 Harmlosigkeit gelesen. Mehr zu behaupten hieße, Gründe zu erfinden.
+
+---
+
+### Tuning the allowlist against your own text · Erlaubnisliste auf den eigenen Text abstimmen
+
+**EN** `tuneAllowlist()` reads your corpus, collects the ordinary words the lists
+flag, has them judged — by a model, by you, or both — and then **compiles and
+tests** every proposed allowlist entry before accepting it. Rejected proposals
+come back with the reason: `no-effect`, `too-broad` (naming the offensive word it
+would have cleared), or `invalid`.
+*Why:* a model asked to fix `Klassiker` may answer `\p{L}*ass\p{L}*`, which
+clears it and destroys the filter for the whole language. Prompting does not
+reliably prevent that; measuring does. Without an `ai` option no model is
+contacted at all and your own verdicts are verified the same way.
+
+**DE** `tuneAllowlist()` liest deinen Korpus, sammelt die harmlosen Wörter, die
+die Listen markieren, lässt sie bewerten — von einem Modell, von dir, oder von
+beiden — und **kompiliert und testet** dann jeden vorgeschlagenen Eintrag, bevor
+er angenommen wird. Abgelehnte Vorschläge kommen mit Begründung zurück:
+`no-effect`, `too-broad` (samt dem beleidigenden Wort, das er freigegeben hätte),
+oder `invalid`.
+*Warum:* Ein Modell, das `Klassiker` reparieren soll, kann `\p{L}*ass\p{L}*`
+antworten — das klärt das Wort und zerstört den Filter für die ganze Sprache.
+Prompten verhindert das nicht zuverlässig, Messen schon. Ohne `ai`-Option wird
+kein Modell kontaktiert, und deine eigenen Urteile werden genauso geprüft.
 
 ---
 

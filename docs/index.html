@@ -2603,7 +2603,12 @@ function allowRegexFor(patterns, aggressive) {
         return compilePatterns(`^(?:${source})$`, 'iu');
     });
 }
-/** Grows a match outwards to the word it sits in, e.g. `ass` -> `Klassik`. */
+/**
+ * Grows a match outwards to the word it sits in, e.g. `ass` -> `Klassik`.
+ *
+ * Exported because the allowlist tuner needs exactly this notion of "the word a
+ * hit sits in", and two definitions of it would drift apart.
+ */
 function enclosingWord(text, start, end) {
     let a = start;
     let b = end;

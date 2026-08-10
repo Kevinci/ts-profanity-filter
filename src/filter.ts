@@ -112,8 +112,13 @@ function allowRegexFor(patterns: readonly string[], aggressive: boolean): RegExp
   });
 }
 
-/** Grows a match outwards to the word it sits in, e.g. `ass` -> `Klassik`. */
-function enclosingWord(text: string, start: number, end: number): string {
+/**
+ * Grows a match outwards to the word it sits in, e.g. `ass` -> `Klassik`.
+ *
+ * Exported because the allowlist tuner needs exactly this notion of "the word a
+ * hit sits in", and two definitions of it would drift apart.
+ */
+export function enclosingWord(text: string, start: number, end: number): string {
   let a = start;
   let b = end;
   while (a > 0 && WORD_CHAR.test(text.charAt(a - 1))) a--;
