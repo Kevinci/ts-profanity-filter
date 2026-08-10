@@ -28,7 +28,67 @@ npm install ts-profanity-filter
 
 ---
 
-## New in 1.4.0 · PII detection
+## New in 1.5.0 · Batch processing and a CLI
+
+**Analysing one comment is a function call. Analysing two million is a different
+problem** — and the difference is not speed. The obvious version holds the whole
+corpus in memory, dies at row 900 000 with nothing written, and makes one paid
+model call per row.
+
+```ts
+import { runBatch, formatSummary } from 'ts-profanity-filter/batch';
+import { ndjsonFrom } from 'ts-profanity-filter/batch/node';
+
+const summary = await runBatch(ndjsonFrom('comments.ndjson'), {
+  filter: { languages: ['en', 'de'] },
+  pii: true,
+  ai: { provider: 'gemini', when: 'matched', maxCalls: 500 },
+  onResult: (result) => { if (result.flagged) hold(result.id); },
+});
+
+console.log(formatSummary(summary));
+```
+
+Iterable in, results streamed out: **peak memory is one record**, whatever the
+file size. Every stage is wrapped per record, so one hostile input costs a result
+and not the run. And the model is *gated* rather than called per row — `when:
+'matched'` asks only about records a word list already hit, and `maxCalls` is a
+hard ceiling, because a batch is exactly where one call per row becomes a bill.
+
+**There is a command now:**
+
+```bash
+npx ts-profanity-filter scan comments.ndjson --pii --out flagged.ndjson --pdf report.pdf
+```
+
+It reads NDJSON, CSV, TSV or plain lines, guesses the text column from the CSV
+header and says which one it picked, writes the flagged records back as NDJSON,
+and exits 1 under `--fail-on-findings` for CI. Progress goes to stderr and the
+summary to stdout, so it composes.
+
+[The full section →](#batch-processing) ·
+[The CLI guide →](docs/cli.md) ·
+[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/#sec-batch)
+
+**Also in this release:**
+
+- **A chat log to test against.** [`examples/batch/chat-log.csv`](examples/batch/chat-log.csv)
+  is 25 messages with a documented expected verdict for every row — twelve of them
+  deliberately clean, which is the half that catches a detector getting eager.
+- **The CSV reader no longer scans the wrong column quietly.** It used to default
+  to column 0, so pointing it at a file whose first column is an id reported
+  `0 flagged` — indistinguishable from a genuinely clean file. It now guesses from
+  the header, announces the choice, and stops and asks when it cannot.
+- **PDF reports** via `renderSummaryPdf()`, through
+  [`fast-pdf`](https://www.npmjs.com/package/fast-pdf) as an **optional** peer
+  dependency loaded by dynamic import in that one function. `dependencies` stays
+  empty.
+- **[FEATURES.md](FEATURES.md)** lists every feature with one line of what it is
+  and one of why it works that way, in English and German.
+
+---
+
+## PII detection · only what a string can prove
 
 **A moderation filter that cannot see an IBAN is half a filter.** The same
 comment box that collects insults collects phone numbers, bank details and card
@@ -62,9 +122,9 @@ than the best one.
 [The full section →](#personal-data) ·
 [Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/#sec-pii)
 
-**Also in this release:**
+**Also in 1.4.0, alongside this:**
 
-- **The playground shows what it suppresses.** The new panel has a switch that
+- **The playground shows what it suppresses.** The panel has a switch that
   drops `minConfidence` to 0.2, so the findings that scored too low to be
   reported become visible in grey instead of being invisible.
 - **The demo build now catches a clash the old guard could not.** Its modules
@@ -419,7 +479,7 @@ import are the whole setup — no build step, nothing to install.
 </style>
 
 <script type="module">
-  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.4.0/+esm';
+  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.5.0/+esm';
 
   const draft = document.getElementById('draft');
   const output = document.getElementById('output');
@@ -455,13 +515,13 @@ lists every published file and version.
 
 | CDN | URL |
 | --- | --- |
-| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.4.0/+esm` |
-| esm.sh | `https://esm.sh/ts-profanity-filter@1.4.0` |
-| unpkg | `https://unpkg.com/ts-profanity-filter@1.4.0/dist/index.js` |
+| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.5.0/+esm` |
+| esm.sh | `https://esm.sh/ts-profanity-filter@1.5.0` |
+| unpkg | `https://unpkg.com/ts-profanity-filter@1.5.0/dist/index.js` |
 
 ```js
-import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.4.0/react';
-import { de } from 'https://esm.sh/ts-profanity-filter@1.4.0/lang/de';
+import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.5.0/react';
+import { de } from 'https://esm.sh/ts-profanity-filter@1.5.0/lang/de';
 ```
 
 **Pin the version.** An unpinned URL like `https://esm.sh/ts-profanity-filter`
