@@ -1,0 +1,28 @@
+id,timestamp,channel,author,message
+1,2026-08-10T09:01:12Z,general,lena,"Morning everyone, standup in ten."
+2,2026-08-10T09:02:44Z,general,ben,On my way.
+3,2026-08-10T09:14:03Z,dev,ben,what the sh1t is this build doing
+4,2026-08-10T09:15:10Z,dev,lena,Please pass the class list to the assistant before the assessment.
+5,2026-08-10T09:20:31Z,support,cem,Ping me at lena.brandt@example.com if it happens again.
+6,2026-08-10T09:22:02Z,support,lena,"Or call me on +1 202 5550123, I am at the desk."
+7,2026-08-10T09:31:55Z,support,ben,Tel. 030 12345678 falls es wirklich brennt.
+8,2026-08-10T09:40:19Z,dev,anon,"Du @rschloch, echt jetzt?"
+9,2026-08-10T09:41:02Z,dev,lena,"Der Klassiker war klasse, ehrlich — harscher Marsch zur Massage."
+10,2026-08-10T10:02:47Z,billing,cem,IBAN GB82 WEST 1234 5698 7654 32 for the refund please.
+11,2026-08-10T10:03:58Z,billing,cem,The card 4111 1111 1111 1111 was declined again.
+12,2026-08-10T10:15:23Z,ops,ben,"server 192.168.1.1 is not answering, and neither is 2001:db8::1"
+13,2026-08-10T10:16:40Z,ops,lena,"We shipped version 1.2.3.4 last night, could be that."
+14,2026-08-10T10:31:07Z,billing,anna,"Order 4711 from 12.05.2026 is still open, invoice for 1,234.56 EUR."
+15,2026-08-10T10:44:12Z,general,anna,"He said ""you @sshole"", loudly, in front of the whole room."
+16,2026-08-10T10:51:00Z,general,ben,"Two things:
+- the build
+- the invoice, in that order"
+17,2026-08-10T11:02:33Z,dev,anon,"d r e c k s a u, anders kann man das nicht nennen"
+18,2026-08-10T11:03:01Z,dev,anon,Аrschloch mit kyrillischem A
+19,2026-08-10T11:03:44Z,dev,anon,Ｄｒｅｃｋｓａｕ in Vollbreite
+20,2026-08-10T11:20:18Z,dm,anon,I know where you live and I will be waiting outside tonight.
+21,2026-08-10T11:35:02Z,billing,lena,"Steuer-ID 86095742719 für die Rechnung, bitte nicht weiterleiten."
+22,2026-08-10T11:36:19Z,billing,lena,Internal reference 86095742719 goes in the subject line.
+23,2026-08-10T11:48:55Z,support,cem,"The number 1701234567 came up in the export, no idea what it is."
+24,2026-08-10T12:01:09Z,general,anna,"She moved to Scunthorpe last year, by the way."
+25,2026-08-10T12:14:37Z,general,lena,"Thanks all, closing this out."

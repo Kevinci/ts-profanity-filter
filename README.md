@@ -1069,6 +1069,9 @@ money should not spend an unbounded amount of it by default.
 
 **[The full CLI guide →](docs/cli.md)** — every format, every flag, exit codes,
 recipes for CI and nightly runs, and what to check when a scan comes back empty.
+[`examples/batch/chat-log.csv`](examples/batch/chat-log.csv) is 25 chat messages
+with a documented expected verdict for every row, so you can point the command at
+something real before pointing it at your own data.
 
 ### The PDF report
 
@@ -1284,9 +1287,10 @@ and spendable by every visitor.
   addresses, no dates of birth — see [Only what can be verified](#only-what-can-be-verified).
   A phone number without a `+`, a trunk zero or a word next to it stays below the
   threshold, which means bare digit runs in prose are missed on purpose.
-- **`1.2.3.4` is not reported as an IP address.** It is equally a version
-  number, and the only thing that separates them is the word in front. Lower
-  `minConfidence` if you would rather see both.
+- **`1.2.3.4` is not reported as an IP address.** It is equally a version number.
+  A bare one appears once `minConfidence` drops below 0.5 — but with the word
+  *version* in front of it the candidate is **discarded**, not scored low, so no
+  threshold will surface that one.
 - **The Art. 17 module writes the notice, not the process.** It does not store
   anything durably on its own, does not know whether a human reviewed the case,
   and draws no line between illegal content and a breach of your terms. See

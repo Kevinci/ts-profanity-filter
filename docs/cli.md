@@ -34,31 +34,84 @@ node dist/cli.js scan comments.ndjson
 
 ---
 
-## The first run
+## Something to try it on
+
+The repository ships a chat history built for exactly this:
+[`examples/batch/chat-log.csv`](../examples/batch/chat-log.csv) — 25 messages
+where **every row has an expected verdict**, half of them deliberately clean.
+
+```bash
+node dist/cli.js scan examples/batch/chat-log.csv \
+  --column message --id-column id --languages en,de --pii
+```
+
+```
+Scanning examples/batch/chat-log.csv
+  25 records · 13 flagged · 161/s
+
+  Records processed           25
+  Flagged                     13 (52.0%)
+  Matched a word list         6
+  Records with personal data  7 (8 findings)
+  Duration                    167 ms · 150/s
+
+  Personal data by kind
+    phone     2
+    ip        2
+    email     1
+    iban      1
+    card      1
+    taxid-de  1
+
+  Examples (13 of 13)
+    #3  [word list]  what the sh1t is this build doing
+    #5  [email]  Ping me at lena.brandt@example.com if it happens again.
+    #6  [phone]  Or call me on +1 202 5550123, I am at the desk.
+    #7  [phone]  Tel. 030 12345678 falls es wirklich brennt.
+    #8  [word list]  Du @rschloch, echt jetzt?
+    #10  [iban]  IBAN GB82 WEST 1234 5698 7654 32 for the refund please.
+    #11  [card]  The card 4111 1111 1111 1111 was declined again.
+    #12  [ip/ip]  server 192.168.1.1 is not answering, and neither is 2001:db8::1
+    #15  [word list]  He said "you @sshole", loudly, in front of the whole room.
+    #17  [word list]  d r e c k s a u, anders kann man das nicht nennen
+    #18  [word list]  Аrschloch mit kyrillischem A
+    #19  [word list]  Ｄｒｅｃｋｓａｕ in Vollbreite
+    #21  [taxid-de]  Steuer-ID 86095742719 für die Rechnung, bitte nicht weiterleiten.
+```
+
+The twelve rows that stayed clean are the interesting half — a cross-check case
+in each language, `version 1.2.3.4`, an order number with a date, a tax id
+without its label, Scunthorpe, and a quoted field containing a real newline.
+[The fixture's own README](../examples/batch/README.md) lists what every row is
+for, so a run that reports something else tells you exactly which row moved.
+
+---
+
+## The first run on your own file
 
 `comments.ndjson`:
 
 ```
-{"id":"c1","text":"Ein ganz normaler Kommentar."}
-{"id":"c2","text":"Du @rschloch, echt."}
-{"id":"c3","text":"Schreib an kevin@example.de oder Tel. 030 12345678"}
-{"id":"c4","text":"Der Klassiker war klasse."}
-{"id":"c5","text":"IBAN DE44 5001 0517 5407 3249 31 bitte überweisen"}
+{"id":"c1","text":"A perfectly ordinary comment."}
+{"id":"c2","text":"You @sshole, honestly."}
+{"id":"c3","text":"Write to kevin@example.com or call +1 202 5550123"}
+{"id":"c4","text":"Please pass the class list to the assistant."}
+{"id":"c5","text":"IBAN GB82 WEST 1234 5698 7654 32 please transfer"}
 ```
 
 ```bash
-node dist/cli.js scan comments.ndjson --languages en,de --pii
+node dist/cli.js scan comments.ndjson --pii
 ```
 
 ```
 Scanning comments.ndjson
-  5 records · 3 flagged · 135/s
+  5 records · 3 flagged · 250/s
 
   Records processed           5
   Flagged                     3 (60.0%)
   Matched a word list         1
   Records with personal data  2 (3 findings)
-  Duration                    50 ms · 100/s
+  Duration                    33 ms · 152/s
 
   Personal data by kind
     email  1
@@ -66,20 +119,20 @@ Scanning comments.ndjson
     iban   1
 
   Examples (3 of 3)
-    #c2  [word list]  Du @rschloch, echt.
-    #c3  [email/phone]  Schreib an kevin@example.de oder Tel. 030 12345678
-    #c5  [iban]  IBAN DE44 5001 0517 5407 3249 31 bitte überweisen
+    #c2  [word list]  You @sshole, honestly.
+    #c3  [email/phone]  Write to kevin@example.com or call +1 202 5550123
+    #c5  [iban]  IBAN GB82 WEST 1234 5698 7654 32 please transfer
 ```
 
-Note `c4`. *Der Klassiker war klasse* contains `ass` twice and is **not**
-flagged — the cross-check cleared it. That is the behaviour worth checking on
-your own data before you trust any of the rest.
+Note `c4`. *Please pass the class list to the assistant* contains `ass` four
+times and is **not** flagged — the cross-check cleared it. That is the behaviour
+worth checking on your own data before you trust any of the rest.
 
 ---
 
 ## Input formats
 
-The reader is picked from the file extension. Nothing is auto-sniffed from the
+The reader is picked from the file extension. Nothing is sniffed from the
 contents, so the extension is the contract.
 
 | Extension | Format | Relevant flags |
@@ -99,7 +152,7 @@ node dist/cli.js scan export.jsonl --text-field body --id-field comment_id
 ```
 
 A line that is not JSON, or has no string in the text field, is **skipped
-silently**. That is deliberate for a 2 GB export where three lines are broken —
+silently**. That is deliberate for a large export where a few lines are broken —
 but it does mean a wrong `--text-field` looks exactly like an empty file. If
 `Records processed` comes back 0, check the field name first.
 
@@ -109,33 +162,27 @@ The parser handles quoted fields containing the delimiter, escaped `""` and
 embedded newlines:
 
 ```csv
-id,autor,kommentar
-1,anna,"Er sagte ""du @rschloch"", laut"
-2,ben,"zwei
-Zeilen, ein Feld"
-3,cem,Alles gut
+id,author,message
+15,anna,"He said ""you @sshole"", loudly, in front of the whole room."
+16,ben,"Two things:
+- the build
+- the invoice, in that order"
 ```
+
+Those are rows 15 and 16 of the shipped fixture, and row 16 is the one that
+matters: a real newline inside a quoted field. A parser that splits on lines
+first reports 26 records instead of 25 and truncates the message.
 
 ```bash
-node dist/cli.js scan data.csv --column kommentar --id-column id --languages de
-```
-
-```
-  Records processed    3
-  Flagged              1 (33.3%)
-  Matched a word list  1
-  Duration             19 ms · 158/s
-
-  Examples (1 of 1)
-    #1  [word list]  Er sagte "du @rschloch", laut
+node dist/cli.js scan examples/batch/chat-log.csv --column message --id-column id
 ```
 
 `--column` and `--id-column` take a header name or a zero-based index. Both
 mistakes fail loudly rather than scanning the wrong column:
 
 ```
-data.csv: column "kommentar" needs header: true
-data.csv: no column "gibtsnicht". Found: id, autor, kommentar
+examples/batch/chat-log.csv: column "message" needs header: true
+examples/batch/chat-log.csv: no column "body". Found: id, timestamp, channel, author, message
 ```
 
 With `--no-header`, use indices.
@@ -160,13 +207,18 @@ Off unless asked:
 ```bash
 --pii
 --kinds email,iban,card      # narrow it
---min-confidence 0.4         # see what the default suppresses
+--min-confidence 0.2         # see what the default suppresses
 ```
 
-The kinds are `email`, `phone`, `iban`, `card`, `ip` and `taxid-de`. Lowering
-`--min-confidence` is how you audit: at 0.6 a bare digit run with no `+`, no
-trunk zero and no word beside it is held back, and so is `1.2.3.4`, which is a
-version number as often as an address.
+The kinds are `email`, `phone`, `iban`, `card`, `ip` and `taxid-de`. Lowering the
+threshold is how you audit rather than guess — on the fixture it turns 8 findings
+into 10, adding the bare ten-digit run in row 23 and the unlabelled tax id in row
+22.
+
+One thing a threshold cannot reveal: `version 1.2.3.4` in row 13 is **discarded**,
+not scored low. The word in front is treated as proof it is a version number, so
+no `--min-confidence` will surface it. A bare `1.2.3.4` with no such word does
+appear once the threshold drops below 0.5.
 
 ### A model
 
@@ -180,7 +232,7 @@ Off unless `--ai` is given, and then **gated** rather than called per record:
 
 ```bash
 export GEMINI_API_KEY=...
-node dist/cli.js scan comments.ndjson --languages en,de --ai gemini --max-calls 500
+node dist/cli.js scan comments.ndjson --ai gemini --max-calls 500
 ```
 
 Providers are `anthropic`, `gemini` and `ollama`; keys come from
@@ -190,6 +242,10 @@ network. The run prints its own budget before it starts:
 ```
   model: gemini, gate matched, at most 500 calls
 ```
+
+Row 20 of the fixture is what this is for — *I know where you live and I will be
+waiting outside tonight* contains no listed word, so only a model reaches it, and
+only under `--ai-when unmatched` or `all`.
 
 ---
 
@@ -211,7 +267,7 @@ have the text:
 
 ```
 {"index":1,"id":"c2","flagged":true,"matchedList":true}
-{"index":2,"id":"c3","flagged":true,"matchedList":false,"pii":[{"kind":"email","start":11,"end":27},{"kind":"phone","start":38,"end":50}]}
+{"index":2,"id":"c3","flagged":true,"matchedList":false,"pii":[{"kind":"email","start":9,"end":26},{"kind":"phone","start":35,"end":49}]}
 {"index":4,"id":"c5","flagged":true,"matchedList":false,"pii":[{"kind":"iban","start":5,"end":32}]}
 ```
 
@@ -242,7 +298,7 @@ node dist/cli.js scan comments.ndjson --json --quiet
   "samples": [
     {
       "index": 1,
-      "text": "Du @rschloch, echt.",
+      "text": "You @sshole, honestly.",
       "flagged": true,
       "matchedList": true,
       "pii": [],
@@ -273,7 +329,7 @@ npm install fast-pdf
 
 It is an *optional peer dependency*, loaded only by this one code path — an
 install that never renders a PDF pulls nothing extra. Without it, `--pdf` fails
-with the install command in the message and the rest of the run is unaffected,
+with the install command in the message, and the rest of the run is unaffected
 because the PDF is written after the summary is already on stdout.
 
 ---
@@ -303,8 +359,8 @@ npx ts-profanity-filter scan fixtures/comments.ndjson \
   --languages en,de --pii --fail-on-findings --quiet
 ```
 
-Exits 1 as soon as anything is flagged, prints the summary so the build log says
-what and where.
+Exits 1 as soon as anything is flagged, and prints the summary so the build log
+says what and where.
 
 ### A nightly scan with a report to keep
 
@@ -362,16 +418,19 @@ the local half is unaffected:
   Model calls              1
   Flagged by the model     0
   Model calls that failed  1
-  Duration                 1.6 s · 1/s
+  Duration                 1.5 s · 1/s
+
+  Examples (1 of 1)
+    #x  [word list]  You @sshole
 ```
 
-The 1.6 seconds for one record are the two backoff waits before the retries gave
-up. A failed check never reports `flagged: true` — absence of a verdict is not a
-clean bill of health.
+The 1.5 seconds for a single record are the two backoff waits before the retries
+gave up. A failed check never reports `flagged: true` — absence of a verdict is
+not a clean bill of health.
 
 **`Model budget exhausted`** in the report — `--max-calls` was reached and the
 records after that point were analysed locally only. Not an error, but the model
-numbers describe a prefix of the file rather than all of it.
+numbers then describe a prefix of the file rather than all of it.
 
 ---
 
@@ -425,9 +484,9 @@ The CLI is a thin wrapper. Everything it does is available directly:
 
 ```ts
 import { runBatch, formatSummary } from 'ts-profanity-filter/batch';
-import { ndjsonFrom } from 'ts-profanity-filter/batch/node';
+import { csvFrom } from 'ts-profanity-filter/batch/node';
 
-const summary = await runBatch(ndjsonFrom('comments.ndjson'), {
+const summary = await runBatch(csvFrom('chat-log.csv', { column: 'message', idColumn: 'id' }), {
   filter: { languages: ['en', 'de'] },
   pii: true,
   ai: { provider: 'gemini', when: 'matched', maxCalls: 500 },
