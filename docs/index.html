@@ -238,6 +238,140 @@
      stay emphasis. */
   .thesis strong { color: var(--title); font-weight: 600; }
 
+  /* ---------- hero ---------- */
+
+  .hero { display: flex; flex-direction: column; gap: 14px; }
+
+  /* The one sentence a visitor reads. Sized by clamp so it stays two lines on a
+     phone and one on a desktop without a media query. */
+  .hero-line {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: clamp(24px, 4.4vw, 36px);
+    line-height: 1.18;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--title);
+    max-width: 30ch;
+    text-wrap: balance;
+  }
+
+  .hero-scope {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--flag);
+  }
+  .hero-scope span:not(:last-child)::after {
+    content: '·';
+    margin-left: 10px;
+    color: var(--faint);
+  }
+
+  /* Eight claims, each with the reason it is true. A grid rather than prose,
+     because this is a specification and not a pitch. */
+  .caps {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    overflow: hidden;
+  }
+  .caps li {
+    background: var(--surface);
+    padding: 11px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .caps b {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--title);
+    letter-spacing: 0.01em;
+  }
+  .caps span {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .caps .opt { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+
+  /* ---------- pipeline ---------- */
+
+  /* A technical diagram, not an illustration: every node is a real stage, and
+     the ones that are opt-in say so rather than looking mandatory. */
+  .pipeline {
+    margin: 4px 0 0;
+    padding: 14px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    background: var(--sunken);
+  }
+  .pipe-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 7px;
+  }
+  .pipe-node {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 7px 11px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    background: var(--surface);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--title);
+    white-space: nowrap;
+  }
+  .pipe-node small {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--faint);
+  }
+  .pipe-node.io { background: var(--sunken); color: var(--muted); }
+  .pipe-node.opt { border-style: dashed; }
+  .pipe-node.out { border-color: var(--accent); color: var(--flag); }
+  .pipe-arrow {
+    align-self: center;
+    color: var(--faint);
+    font-size: 13px;
+    user-select: none;
+  }
+  .pipe-legend {
+    margin: 10px 0 0;
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  /* On a phone the row becomes a column, and the arrows have to turn with it. */
+  @media (max-width: 620px) {
+    .pipe-flow { flex-direction: column; align-items: stretch; gap: 5px; }
+    .pipe-node { white-space: normal; }
+    .pipe-arrow { align-self: flex-start; margin-left: 14px; }
+    .pipe-arrow::before { content: '↓'; }
+    .pipe-arrow span { display: none; }
+  }
+
   .hero-badge {
     display: inline-flex;
     align-items: center;
@@ -297,6 +431,139 @@
   .faint-mark { border-bottom: 1px dashed var(--faint); color: var(--muted); }
   .row-weak td { color: var(--muted); }
   .kind-tag { font-family: var(--mono); color: var(--flag); }
+
+
+  /* ---------- terminal ---------- */
+
+  /* A terminal, because the CLI is a terminal. The output inside is recorded
+     from a real run against the shipped fixture, not typed by hand — the page
+     cannot execute a Node binary and says so rather than faking a prompt. */
+  .term {
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    overflow: hidden;
+    background: var(--sunken);
+  }
+  .term-bar {
+    display: flex;
+    gap: 6px;
+    padding: 8px 11px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .term-bar span {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--rule);
+  }
+  .term-body {
+    margin: 0;
+    padding: 13px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--ink);
+    white-space: pre;
+  }
+  .term-body .cmd { color: var(--flag); }
+  .term-body .dimmed { color: var(--faint); }
+
+  /* ---------- benchmark ---------- */
+
+  .bench-scores { display: flex; flex-direction: column; gap: 12px; }
+  .bench-score { display: flex; flex-direction: column; gap: 5px; }
+  .bench-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .bench-name { font-size: 13px; color: var(--title); letter-spacing: 0.03em; }
+  .bench-num { font-family: var(--mono); font-size: 18px; color: var(--flag); }
+  .bench-of { font-family: var(--sans); font-size: 12px; color: var(--muted); }
+  .bench-bar {
+    height: 7px;
+    border-radius: 100px;
+    background: var(--sunken);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+  .bench-fill { height: 100%; background: var(--accent); }
+
+  .bench-cats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
+  }
+  .bench-cat {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 9px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r);
+    font-size: 12.5px;
+    background: var(--surface);
+  }
+  .bench-cat.leaky { border-color: var(--accent); }
+  .bench-cat b { font-weight: 500; color: var(--muted); font-family: var(--mono); }
+  .bench-cat span { font-family: var(--mono); color: var(--title); }
+  .bench-cat.leaky span { color: var(--flag); }
+
+  /* ---------- closing ---------- */
+
+  .cta { display: flex; flex-direction: column; gap: 12px; }
+  .cta-line {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: clamp(19px, 3vw, 24px);
+    font-weight: 600;
+    color: var(--title);
+  }
+  .cta-links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cta-link {
+    padding: 7px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 100px;
+    background: var(--surface);
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .cta-link:hover { border-color: var(--faint); color: var(--title); }
+  .cta-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .cta-sub {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 60ch;
+  }
+
+  /* ---------- navigation parts ---------- */
+
+  /* The numbered spine of the page. A part label is not a link: it names the
+     group the links under it belong to. */
+  .nav-part {
+    display: flex;
+    gap: 7px;
+    align-items: baseline;
+    margin: 14px 0 4px;
+    font-size: 11px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .nav-part:first-child { margin-top: 0; }
+  .nav-part b { font-family: var(--mono); font-weight: 500; color: var(--flag); }
+
+  @media (max-width: 1000px) {
+    /* The mobile nav is one horizontal strip, so the part labels would break the
+       line. The numbers ride along on the links instead. */
+    .nav-part { display: none; }
+  }
 
   /* ---------- input ---------- */
 
@@ -894,16 +1161,44 @@
       </a>
     </div>
 
-    <p class="thesis" data-i18n-html="thesis"></p>
+    <div class="hero">
+      <p class="hero-line" data-i18n="hero.headline">
+        Content moderation for TypeScript — without rewriting your text.
+      </p>
+      <p class="hero-scope">
+        <span>Profanity</span><span>PII</span><span data-i18n="hero.scope.ai">AI moderation</span><span>DSA Art. 17</span><span data-i18n="hero.scope.batch">Batch processing</span>
+      </p>
 
-    <a class="hero-badge" href="#sec-ai">
-      <span class="pill yes" data-i18n="hero.new">New</span>
-      <span data-i18n="hero.ai">…</span>
-      <span class="hero-arrow" aria-hidden="true">→</span>
-    </a>
+      <p class="thesis" data-i18n-html="thesis"></p>
+
+      <ul class="caps" id="caps"></ul>
+
+      <a class="hero-badge" href="#sec-batch">
+        <span class="pill yes" data-i18n="hero.new">New</span>
+        <span data-i18n="hero.batch">…</span>
+        <span class="hero-arrow" aria-hidden="true">→</span>
+      </a>
+    </div>
+
+    <figure class="pipeline">
+      <div class="pipe-flow">
+        <div class="pipe-node io" data-i18n="pipe.text">TEXT</div>
+        <div class="pipe-arrow" aria-hidden="true"><span>→</span></div>
+        <div class="pipe-node">Profanity<small data-i18n="pipe.profanity.sub">word lists · cross-check</small></div>
+        <div class="pipe-arrow" aria-hidden="true"><span>→</span></div>
+        <div class="pipe-node">PII<small data-i18n="pipe.pii.sub">checksums · structure</small></div>
+        <div class="pipe-arrow" aria-hidden="true"><span>→</span></div>
+        <div class="pipe-node opt">AI<small data-i18n="pipe.ai.sub">optional · off by default</small></div>
+        <div class="pipe-arrow" aria-hidden="true"><span>→</span></div>
+        <div class="pipe-node out" data-i18n="pipe.verdict">ALLOW / FLAG / BLOCK</div>
+        <div class="pipe-arrow" aria-hidden="true"><span>→</span></div>
+        <div class="pipe-node opt">DSA Art. 17<small data-i18n="pipe.dsa.sub">statement of reasons</small></div>
+      </div>
+      <figcaption class="pipe-legend" data-i18n-html="pipe.legend"></figcaption>
+    </figure>
   </header>
 
-  <section class="panel" id="sec-input">
+  <section class="panel" id="sec-input" data-part="01" data-part-key="part.core">
     <div class="panel-head">
       <span class="label" data-i18n="input">Input</span>
       <div class="chips" id="presets"></div>
@@ -915,8 +1210,10 @@
   <section class="panel" id="sec-output">
     <div class="panel-head">
       <span class="label" data-i18n="output">Rendered from segments</span>
+      <span class="pill" id="lossless"></span>
     </div>
     <div class="panel-body">
+      <p class="note" data-i18n-html="usp"></p>
       <div class="switch" role="group" id="modes" data-i18n-aria-label="output">
         <button type="button" data-mode="redact" aria-pressed="true" data-i18n="mode.redact"></button>
         <button type="button" data-mode="mark" aria-pressed="false" data-i18n="mode.mark"></button>
@@ -962,6 +1259,10 @@
   <section class="panel" id="sec-xc">
     <div class="panel-head">
       <span class="label" data-i18n="xc">Suppressed by the cross-check</span>
+      <div class="switch" role="group" id="xc-views" data-i18n-aria-label="xc">
+        <button type="button" data-xc="suppressed" aria-pressed="true" data-i18n="xc.view.suppressed"></button>
+        <button type="button" data-xc="raw" aria-pressed="false" data-i18n="xc.view.raw"></button>
+      </div>
     </div>
     <div class="panel-body">
       <p class="note" data-i18n-html="xc.note"></p>
@@ -1008,35 +1309,76 @@
     </div>
   </section>
 
-  <section class="panel" id="sec-fw">
+  <section class="panel" id="sec-reg">
     <div class="panel-head">
-      <span class="label" data-i18n="fw">Framework integration</span>
-      <div class="switch" role="group" id="fw-modes" data-i18n-aria-label="fw">
-        <button type="button" data-fw="vanilla" aria-pressed="true">Vanilla JS</button>
-        <button type="button" data-fw="react" aria-pressed="false">React</button>
-        <button type="button" data-fw="vue" aria-pressed="false">Vue</button>
-        <button type="button" data-fw="angular" aria-pressed="false">Angular</button>
-      </div>
+      <span class="label" data-i18n="reg">Add a language</span>
+      <button class="copy" type="button" id="reg-reset" data-i18n="reg.reset"></button>
     </div>
     <div class="panel-body">
-      <p class="note" data-i18n-html="fw.intro"></p>
-      <div class="samples" id="fw-samples"></div>
-      <p class="note flagged" id="fw-note"></p>
+      <p class="note" data-i18n-html="reg.note"></p>
+
+      <div class="reg-grid">
+        <label class="field">
+          <span class="field-label" data-i18n="reg.code">code</span>
+          <input type="text" id="reg-code" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="reg.extends">extends</span>
+          <select id="reg-extends"></select>
+        </label>
+      </div>
+
+      <div class="reg-grid">
+        <label class="field">
+          <span class="field-label" data-i18n="reg.profanity">profanity — one regex per line</span>
+          <textarea id="reg-profanity" spellcheck="false"></textarea>
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="reg.allow">allow — one regex per line</span>
+          <textarea id="reg-allow" spellcheck="false"></textarea>
+        </label>
+      </div>
+
+      <div class="reg-actions">
+        <button class="chip solid" type="button" id="reg-submit" data-i18n="reg.submit"></button>
+        <span class="reg-msg" id="reg-msg"></span>
+      </div>
     </div>
   </section>
-  <section class="panel" id="sec-cov">
+
+  <section class="panel" id="sec-cov" data-part="02" data-part-key="part.evasion">
     <div class="panel-head">
       <span class="label" data-i18n="cov">What gets caught</span>
       <span class="pill" id="cov-count"></span>
     </div>
     <div class="panel-body">
       <p class="note" data-i18n-html="cov.note"></p>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label" data-i18n="ev">Evasion, one spelling at a time</span>
+          <span class="pill" id="ev-count"></span>
+        </div>
+        <p class="note" data-i18n-html="ev.note"></p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="ev.col.kind">written as</th>
+                <th data-i18n="ev.col.input">input</th>
+                <th data-i18n="ev.col.verdict">verdict</th>
+              </tr>
+            </thead>
+            <tbody id="ev-rows"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="cov" id="cov-table"></div>
       <p class="note" data-i18n-html="cov.limit"></p>
     </div>
   </section>
 
-  <section class="panel" id="sec-pii">
+  <section class="panel" id="sec-pii" data-part="03" data-part-key="part.pii">
     <div class="panel-head">
       <span class="label" data-i18n="pii">Personal data</span>
       <span class="pill" id="pii-count"></span>
@@ -1081,7 +1423,7 @@
     </div>
   </section>
 
-  <section class="panel" id="sec-ai">
+  <section class="panel" id="sec-ai" data-part="04" data-part-key="part.ai">
     <div class="panel-head">
       <span class="label" data-i18n="ai">AI check</span>
       <span class="pill" data-i18n="ai.optional">optional</span>
@@ -1145,7 +1487,7 @@
     </div>
   </section>
 
-  <section class="panel" id="sec-compliance">
+  <section class="panel" id="sec-compliance" data-part="05" data-part-key="part.dsa">
     <div class="panel-head">
       <span class="label" data-i18n="compliance">Justification (DSA Art. 17)</span>
       <span class="pill" data-i18n="ai.optional">optional</span>
@@ -1221,47 +1563,11 @@
       </div>
 
       <p class="note flagged" data-i18n-html="ai.warning"></p>
+      <p class="note" data-i18n-html="compliance.legal"></p>
     </div>
   </section>
 
-  <section class="panel" id="sec-reg">
-    <div class="panel-head">
-      <span class="label" data-i18n="reg">Add a language</span>
-      <button class="copy" type="button" id="reg-reset" data-i18n="reg.reset"></button>
-    </div>
-    <div class="panel-body">
-      <p class="note" data-i18n-html="reg.note"></p>
-
-      <div class="reg-grid">
-        <label class="field">
-          <span class="field-label" data-i18n="reg.code">code</span>
-          <input type="text" id="reg-code" spellcheck="false" />
-        </label>
-        <label class="field">
-          <span class="field-label" data-i18n="reg.extends">extends</span>
-          <select id="reg-extends"></select>
-        </label>
-      </div>
-
-      <div class="reg-grid">
-        <label class="field">
-          <span class="field-label" data-i18n="reg.profanity">profanity — one regex per line</span>
-          <textarea id="reg-profanity" spellcheck="false"></textarea>
-        </label>
-        <label class="field">
-          <span class="field-label" data-i18n="reg.allow">allow — one regex per line</span>
-          <textarea id="reg-allow" spellcheck="false"></textarea>
-        </label>
-      </div>
-
-      <div class="reg-actions">
-        <button class="chip solid" type="button" id="reg-submit" data-i18n="reg.submit"></button>
-        <span class="reg-msg" id="reg-msg"></span>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel" id="sec-batch">
+  <section class="panel" id="sec-batch" data-part="06" data-part-key="part.batch">
     <div class="panel-head">
       <span class="label" data-i18n="batch">Batch processing</span>
       <span class="pill" id="batch-count"></span>
@@ -1326,9 +1632,112 @@
     </div>
   </section>
 
+  <section class="panel" id="sec-cli" data-part="07" data-part-key="part.cli">
+    <div class="panel-head">
+      <span class="label" data-i18n="cli">Command line</span>
+      <span class="pill" data-i18n="cli.pill">ships as a bin</span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="cli.note"></p>
+
+      <div class="term">
+        <div class="term-bar"><span></span><span></span><span></span></div>
+        <pre class="term-body" id="cli-demo"></pre>
+      </div>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="cli.col.flag">flag</th>
+              <th data-i18n="cli.col.does">what it does</th>
+            </tr>
+          </thead>
+          <tbody id="cli-flags"></tbody>
+        </table>
+      </div>
+
+      <p class="note accent" data-i18n-html="cli.budget"></p>
+      <p class="note" data-i18n-html="cli.guide"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="sec-fw" data-part="08" data-part-key="part.fw">
+    <div class="panel-head">
+      <span class="label" data-i18n="fw">Framework integration</span>
+      <div class="switch" role="group" id="fw-modes" data-i18n-aria-label="fw">
+        <button type="button" data-fw="vanilla" aria-pressed="true">Vanilla JS</button>
+        <button type="button" data-fw="react" aria-pressed="false">React</button>
+        <button type="button" data-fw="vue" aria-pressed="false">Vue</button>
+        <button type="button" data-fw="angular" aria-pressed="false">Angular</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="fw.intro"></p>
+      <div class="samples" id="fw-samples"></div>
+      <p class="note flagged" id="fw-note"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="sec-bench" data-part="09" data-part-key="part.bench">
+    <div class="panel-head">
+      <span class="label" data-i18n="bench">Built to be attacked</span>
+      <span class="pill" id="bench-version"></span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="bench.note"></p>
+
+      <div class="bench-scores" id="bench-scores"></div>
+
+      <p class="note accent" data-i18n-html="bench.both"></p>
+
+      <div class="field">
+        <span class="field-label" data-i18n="bench.cats">By attack category</span>
+        <div class="bench-cats" id="bench-cats"></div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="bench.leaks">What still gets through</span>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="bench.col.case">case</th>
+                <th data-i18n="bench.col.input">input</th>
+                <th data-i18n="bench.col.why">why it works</th>
+              </tr>
+            </thead>
+            <tbody id="bench-leaks"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="note" id="bench-repro" data-i18n-html="bench.repro"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="sec-limits" data-part="10" data-part-key="part.limits">
+    <div class="panel-head">
+      <span class="label" data-i18n="limits">Known limits</span>
+    </div>
+    <div class="panel-body">
+      <p class="note" data-i18n-html="limits.note"></p>
+      <ul class="caveats" id="caveats"></ul>
+    </div>
+  </section>
+
   <footer>
-    <div class="install"><span class="p">$</span> npm install ts-profanity-filter</div>
-    <ul class="caveats" id="caveats"></ul>
+    <div class="cta">
+      <p class="cta-line" data-i18n="cta.line">Use it in your application.</p>
+      <div class="install"><span class="p">$</span> npm install ts-profanity-filter</div>
+      <div class="cta-links">
+        <a class="cta-link" href="https://www.npmjs.com/package/ts-profanity-filter" target="_blank" rel="noopener noreferrer">npm</a>
+        <a class="cta-link" href="https://github.com/Kevinci/ts-profanity-filter" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a class="cta-link" href="https://github.com/Kevinci/ts-profanity-filter#readme" target="_blank" rel="noopener noreferrer" data-i18n="cta.docs">Documentation</a>
+        <a class="cta-link" href="#sec-input" data-i18n="cta.playground">Playground</a>
+      </div>
+      <p class="cta-sub" data-i18n="cta.sub"></p>
+    </div>
 
     <div class="colophon">
       <div class="links">
@@ -4689,8 +5098,142 @@ const I18N = {
       'lasts, the rule it rests on, the excerpt that triggered it, whether a machine decided it, ' +
       'and where to object.',
     input: 'Input',
+    'usp':
+      '<strong>Don\'t censor the string. Understand it.</strong> The library never rewrites your ' +
+      'text — it returns segments, and the UI decides what a hit looks like: a bar, asterisks, a ' +
+      'highlight, a tooltip, or nothing at all. The three buttons below are three renderers over the ' +
+      '<em>same</em> result, not three modes of the filter.',
+    'lossless.ok': 'input === segments joined',
+    'lossless.bad': 'MISMATCH',
+    'compliance.legal':
+      '<strong>What this is and is not.</strong> It provides technical building blocks for Article 17 ' +
+      'workflows — the record, its fields, and the wording. It does not itself establish legal ' +
+      'compliance: whether your process satisfies the DSA is your assessment to make, with your own ' +
+      'counsel.',
+    'xc.view.suppressed': 'Suppressed by cross-check',
+    'xc.view.raw': 'Without cross-check',
+    'xc.raw.none': 'Raw matching finds nothing here either.',
+    'ev': 'Evasion, one spelling at a time',
+    'ev.note':
+      'These are not six features. They are six ways to write the <em>same word</em>, and each one ' +
+      'defeats a different part of a naive matcher. Every row below runs through the filter as this ' +
+      'page loads — the verdict is computed, not stored.',
+    'ev.col.kind': 'written as',
+    'ev.col.input': 'input',
+    'ev.col.verdict': 'verdict',
+    'ev.caught': 'caught',
+    'ev.missed': 'missed',
+    'ev.kind.normal': 'Normal',
+    'ev.kind.leet': 'Leet',
+    'ev.kind.unicode': 'Unicode',
+    'ev.kind.homoglyph': 'Homoglyph',
+    'ev.kind.spaced': 'Spaced',
+    'ev.kind.repeated': 'Repeated',
+    'ev.kind.invisible': 'Zero-width',
+    'part.core': 'Core',
+    'part.evasion': 'Evasion',
+    'part.pii': 'PII',
+    'part.ai': 'AI',
+    'part.dsa': 'DSA',
+    'part.batch': 'Batch',
+    'part.cli': 'CLI',
+    'part.fw': 'Frameworks',
+    'part.bench': 'Benchmark',
+    'part.limits': 'Limits',
+    'cli': 'Command line',
+    'cli.pill': 'ships as a bin',
+    'cli.note':
+      'The batch runner needs a terminal more often than an import: a nightly export, a CI gate, ' +
+      'a one-off audit of a support inbox. <code>npx ts-profanity-filter scan &lt;file&gt;</code> reads ' +
+      'NDJSON, CSV, TSV or plain lines and writes the findings back as NDJSON. ' +
+      '<strong>The output below is recorded from a real run</strong> against the fixture in the ' +
+      'repository — this page cannot spawn a process, so it shows you what the command printed ' +
+      'rather than pretending to run it.',
+    'cli.col.flag': 'flag',
+    'cli.col.does': 'what it does',
+    'cli.flag.pii': 'Also detect personal data. Off by default, like the library.',
+    'cli.flag.ai': '<code>anthropic</code>, <code>gemini</code> or <code>ollama</code>. Without it no model is contacted.',
+    'cli.flag.out': 'Write the flagged records as NDJSON, ids and offsets included, text excluded.',
+    'cli.flag.pdf': 'Render the summary as a PDF. Needs the optional <code>fast-pdf</code> package.',
+    'cli.flag.json': 'Print the summary as JSON instead of text, for a machine.',
+    'cli.flag.fail-on-findings': 'Exit 1 when anything was flagged — the CI form of the command.',
+    'cli.flag.max-calls': 'A hard ceiling on model calls for the whole run. Defaults to 100.',
+    'cli.budget':
+      '<strong>Why <code>--max-calls</code> defaults to 100:</strong> a command that can spend money ' +
+      'should not be able to spend an unbounded amount of it because someone pointed it at a bigger ' +
+      'file than they meant to. AI-enabled batch processing needs an explicit spending boundary, so ' +
+      'the ceiling is on by default and printed before the run starts.',
+    'cli.guide':
+      'Every flag, all three input formats, the exit codes and four recipes are in ' +
+      '<a href="https://github.com/Kevinci/ts-profanity-filter/blob/main/docs/cli.md">the CLI guide</a>.',
+    'bench': 'Built to be attacked',
+    'bench.pill': 'v{v} · {n} attacks',
+    'bench.note':
+      'The useful question about a filter is not how many words it knows. It is <strong>how hard it ' +
+      'is to get past without destroying ordinary text</strong> — and those two pull against each ' +
+      'other. A second package in this repository, <code>profanity-adversarial</code>, exists to ' +
+      'measure both at once: 81 hand-written attacks, each with an expected verdict.',
+    'bench.evasion': 'Evasion resistance',
+    'bench.evasion.of': '{p}/{t} disguises caught',
+    'bench.precision': 'Precision',
+    'bench.precision.of': '{p}/{t} innocent texts left alone',
+    'bench.both':
+      '<strong>Both numbers or neither.</strong> Either one alone is trivial to game: ' +
+      '<code>detect = () =&gt; true</code> scores 100% on evasion resistance and blocks the entire ' +
+      'internet, and <code>detect = () =&gt; false</code> scores 100% on precision and blocks nothing. ' +
+      'Every filter sits somewhere on the line between those two failures; the only honest ' +
+      'description says where.',
+    'bench.cats': 'By attack category',
+    'bench.leaks': 'What still gets through',
+    'bench.col.case': 'case',
+    'bench.col.input': 'input',
+    'bench.col.why': 'why it works',
+    'bench.why.repeat.doubled': 'Every letter doubled. Collapsing doubles would break ordinary spelling — Klasse, Fässer — so it is left alone.',
+    'bench.why.insert.letter': 'A foreign letter wedged into the word. No character class can bridge an insertion.',
+    'bench.why.insert.bracket': 'Brackets around a letter, which the separator rules do not treat as a separator.',
+    'bench.why.reverse': 'Written backwards. A pattern matches in one direction.',
+    'bench.why.phonetic': 'Spelled as it sounds. There is no rule from gg to ck, or ph to f, that does not also mangle real words.',
+    'bench.why.encoding.entity': 'An HTML entity for one letter. Decoding input is the caller\'s job, and doing it inside a filter would invent a second parser.',
+    'bench.why.encoding.percent': 'A percent-encoded letter, for the same reason.',
+    'bench.repro':
+      'Measured against <strong>v{v}</strong> on {d} over {n} attacks ({l}). Reproduce it with ' +
+      '<code>npx profanity-adversarial --preset ts-profanity-filter</code>. These numbers move ' +
+      'between releases, which is the point of keeping the benchmark in the repository rather than ' +
+      'in a blog post.',
+    'limits': 'Known limits',
+    'limits.note':
+      'Every one of these is a trade-off taken deliberately, and knowing them is the difference ' +
+      'between using this library well and being surprised by it in production.',
+    'cta.line': 'Use it in your application.',
+    'cta.docs': 'Documentation',
+    'cta.playground': 'Playground',
+    'cta.sub': 'Built for applications where moderation sits in the request path: no runtime dependencies, no network unless you ask for it, and structured results rather than a rewritten string.',
     'hero.new': 'New',
+    'hero.headline': 'Content moderation for TypeScript — without rewriting your text.',
+    'hero.scope.ai': 'AI moderation',
+    'hero.scope.batch': 'Batch processing',
+    'hero.batch': 'Streaming batch processing and a CLI: a corpus that does not fit in memory, one record at a time.',
     'hero.ai': 'A model can now read the whole sentence — hate, threats and harassment that no word list can see. Optional, and off unless you ask.',
+    'caps': [
+      ['Zero runtime dependencies', 'No `dependencies` field. React, Vue, the Anthropic SDK and fast-pdf are optional peers.'],
+      ['Exact text spans', 'Findings carry start and end offsets into your original string — nothing is rebuilt.'],
+      ['Evasion detection', 'Leet, homoglyphs, spacing, repetition, zero-width characters, NFKC folding.'],
+      ['PII detection', 'E-mail, phone, IBAN, card, IP, German tax id — each verified, not guessed.'],
+      ['Optional AI moderation', 'A model reads the whole sentence. No `ai` option means no model is contacted.', 'opt-in'],
+      ['Local AI with Ollama', 'Same prompt, same schema, same verdict shape. No API key, no network.', 'opt-in'],
+      ['DSA Article 17 tooling', 'Turns a moderation result into a statement of reasons. Building blocks, not legal advice.', 'opt-in'],
+      ['Streaming batch processing', 'Iterable in, results out. Peak memory is one record, whatever the file size.'],
+    ],
+    'pipe.text': 'TEXT',
+    'pipe.profanity.sub': 'word lists · cross-check',
+    'pipe.pii.sub': 'checksums · structure',
+    'pipe.ai.sub': 'optional · off by default',
+    'pipe.verdict': 'ALLOW / FLAG / BLOCK',
+    'pipe.dsa.sub': 'statement of reasons',
+    'pipe.legend':
+      'Solid stages are local, synchronous and always available. <strong>Dashed stages are opt-in</strong> ' +
+      'and reach the network only when you configure them. The verdict is yours to decide: the library ' +
+      'returns segments, findings and a severity, never a decision about the message.',
     options: 'Options',
     'opt.lang.note':
       'Which registered languages to match against. Mixed-language text needs more than one — ' +
@@ -4961,8 +5504,143 @@ const I18N = {
       'zusteht — Maßnahme und Dauer, die Grundlage, die zitierte Stelle, ob automatisiert ' +
       'entschieden wurde, und wohin der Widerspruch geht.',
     input: 'Eingabe',
+    'usp':
+      '<strong>Zensiere den String nicht. Versteh ihn.</strong> Die Bibliothek schreibt deinen Text ' +
+      'nie um — sie liefert Segmente, und das UI entscheidet, wie ein Treffer aussieht: Balken, ' +
+      'Sterne, Hervorhebung, Tooltip oder gar nichts. Die drei Knöpfe unten sind drei Renderer über ' +
+      '<em>dasselbe</em> Ergebnis, nicht drei Modi des Filters.',
+    'lossless.ok': 'Eingabe === Segmente aneinandergehängt',
+    'lossless.bad': 'ABWEICHUNG',
+    'compliance.legal':
+      '<strong>Was das ist und was nicht.</strong> Es liefert technische Bausteine für Abläufe nach ' +
+      'Artikel 17 — den Datensatz, seine Felder und die Formulierung. Es stellt selbst keine ' +
+      'Rechtskonformität her: ob dein Prozess dem DSA genügt, ist deine Einschätzung, mit deiner ' +
+      'eigenen Rechtsberatung.',
+    'xc.view.suppressed': 'Vom Gegencheck unterdrückt',
+    'xc.view.raw': 'Ohne Gegencheck',
+    'xc.raw.none': 'Auch rohes Suchen findet hier nichts.',
+    'ev': 'Umgehung, Schreibweise für Schreibweise',
+    'ev.note':
+      'Das sind nicht sechs Funktionen. Das sind sechs Arten, <em>dasselbe Wort</em> zu schreiben, ' +
+      'und jede besiegt einen anderen Teil eines naiven Matchers. Jede Zeile unten läuft beim Laden ' +
+      'dieser Seite durch den Filter — das Ergebnis ist berechnet, nicht gespeichert.',
+    'ev.col.kind': 'geschrieben als',
+    'ev.col.input': 'Eingabe',
+    'ev.col.verdict': 'Ergebnis',
+    'ev.caught': 'erkannt',
+    'ev.missed': 'verpasst',
+    'ev.kind.normal': 'Normal',
+    'ev.kind.leet': 'Leetspeak',
+    'ev.kind.unicode': 'Unicode',
+    'ev.kind.homoglyph': 'Homoglyph',
+    'ev.kind.spaced': 'Auseinandergezogen',
+    'ev.kind.repeated': 'Wiederholt',
+    'ev.kind.invisible': 'Zero-Width',
+    'part.core': 'Kern',
+    'part.evasion': 'Umgehung',
+    'part.pii': 'PII',
+    'part.ai': 'KI',
+    'part.dsa': 'DSA',
+    'part.batch': 'Stapel',
+    'part.cli': 'CLI',
+    'part.fw': 'Frameworks',
+    'part.bench': 'Benchmark',
+    'part.limits': 'Grenzen',
+    'cli': 'Kommandozeile',
+    'cli.pill': 'liegt als bin bei',
+    'cli.note':
+      'Die Stapelverarbeitung braucht häufiger ein Terminal als einen Import: ein nächtlicher Export, ' +
+      'ein CI-Gate, eine einmalige Prüfung eines Support-Postfachs. ' +
+      '<code>npx ts-profanity-filter scan &lt;datei&gt;</code> liest NDJSON, CSV, TSV oder einfache ' +
+      'Zeilen und schreibt die Funde als NDJSON zurück. <strong>Die Ausgabe unten ist ein Mitschnitt ' +
+      'eines echten Laufs</strong> gegen das Fixture im Repository — diese Seite kann keinen Prozess ' +
+      'starten, also zeigt sie, was der Befehl ausgegeben hat, statt einen Prompt vorzutäuschen.',
+    'cli.col.flag': 'Flag',
+    'cli.col.does': 'was es tut',
+    'cli.flag.pii': 'Erkennt auch personenbezogene Daten. Standardmäßig aus, wie in der Bibliothek.',
+    'cli.flag.ai': '<code>anthropic</code>, <code>gemini</code> oder <code>ollama</code>. Ohne das Flag wird kein Modell kontaktiert.',
+    'cli.flag.out': 'Schreibt die markierten Datensätze als NDJSON — mit IDs und Offsets, ohne den Text.',
+    'cli.flag.pdf': 'Rendert die Bilanz als PDF. Braucht das optionale Paket <code>fast-pdf</code>.',
+    'cli.flag.json': 'Gibt die Bilanz als JSON aus statt als Text, für Maschinen.',
+    'cli.flag.fail-on-findings': 'Endet mit Code 1, wenn etwas markiert wurde — die CI-Form des Befehls.',
+    'cli.flag.max-calls': 'Harte Obergrenze für Modellaufrufe im ganzen Lauf. Standard: 100.',
+    'cli.budget':
+      '<strong>Warum <code>--max-calls</code> auf 100 steht:</strong> Ein Befehl, der Geld ausgeben ' +
+      'kann, darf nicht unbegrenzt viel ausgeben können, weil jemand ihn auf eine größere Datei ' +
+      'gerichtet hat als beabsichtigt. Stapelverarbeitung mit KI braucht eine ausdrückliche ' +
+      'Kostengrenze — deshalb ist die Decke standardmäßig an und wird vor dem Lauf ausgegeben.',
+    'cli.guide':
+      'Alle Flags, alle drei Eingabeformate, die Exit-Codes und vier Rezepte stehen in ' +
+      '<a href="https://github.com/Kevinci/ts-profanity-filter/blob/main/docs/cli.md">der CLI-Anleitung</a>.',
+    'bench': 'Gebaut, um angegriffen zu werden',
+    'bench.pill': 'v{v} · {n} Angriffe',
+    'bench.note':
+      'Die nützliche Frage zu einem Filter ist nicht, wie viele Wörter er kennt. Sie ist, ' +
+      '<strong>wie schwer er zu umgehen ist, ohne normalen Text zu zerstören</strong> — und beides ' +
+      'zieht gegeneinander. Ein zweites Paket in diesem Repository, ' +
+      '<code>profanity-adversarial</code>, existiert, um beides gleichzeitig zu messen: 81 ' +
+      'handgeschriebene Angriffe, jeder mit erwartetem Ergebnis.',
+    'bench.evasion': 'Umgehungsresistenz',
+    'bench.evasion.of': '{p}/{t} Verschleierungen erkannt',
+    'bench.precision': 'Präzision',
+    'bench.precision.of': '{p}/{t} harmlose Texte in Ruhe gelassen',
+    'bench.both':
+      '<strong>Beide Zahlen oder keine.</strong> Jede allein ist trivial zu manipulieren: ' +
+      '<code>detect = () =&gt; true</code> erreicht 100 % Umgehungsresistenz und blockiert das ganze ' +
+      'Internet, <code>detect = () =&gt; false</code> erreicht 100 % Präzision und blockiert nichts. ' +
+      'Jeder Filter liegt irgendwo auf der Linie zwischen diesen beiden Versagensarten; ehrlich ist ' +
+      'nur, wer sagt, wo.',
+    'bench.cats': 'Nach Angriffsart',
+    'bench.leaks': 'Was weiterhin durchkommt',
+    'bench.col.case': 'Fall',
+    'bench.col.input': 'Eingabe',
+    'bench.col.why': 'warum es funktioniert',
+    'bench.why.repeat.doubled': 'Jeder Buchstabe verdoppelt. Doppelungen zu kollabieren würde normale Schreibweisen zerstören — Klasse, Fässer — deshalb bleiben sie stehen.',
+    'bench.why.insert.letter': 'Ein fremder Buchstabe mitten ins Wort geschoben. Keine Zeichenklasse überbrückt eine Einfügung.',
+    'bench.why.insert.bracket': 'Klammern um einen Buchstaben, die die Trennzeichenregeln nicht als Trennzeichen behandeln.',
+    'bench.why.reverse': 'Rückwärts geschrieben. Ein Muster passt in eine Richtung.',
+    'bench.why.phonetic': 'Lautschriftlich geschrieben. Es gibt keine Regel von gg zu ck oder ph zu f, die nicht auch echte Wörter zerlegt.',
+    'bench.why.encoding.entity': 'Eine HTML-Entität für einen Buchstaben. Eingaben zu dekodieren ist Sache des Aufrufers; im Filter zu tun hieße, einen zweiten Parser zu erfinden.',
+    'bench.why.encoding.percent': 'Ein prozentkodierter Buchstabe, aus demselben Grund.',
+    'bench.repro':
+      'Gemessen gegen <strong>v{v}</strong> am {d} über {n} Angriffe ({l}). Nachvollziehbar mit ' +
+      '<code>npx profanity-adversarial --preset ts-profanity-filter</code>. Diese Zahlen ändern sich ' +
+      'zwischen Releases — genau deshalb liegt der Benchmark im Repository und nicht in einem ' +
+      'Blogbeitrag.',
+    'limits': 'Bekannte Grenzen',
+    'limits.note':
+      'Jede davon ist eine bewusst gewählte Abwägung, und sie zu kennen ist der Unterschied ' +
+      'zwischen dieser Bibliothek gut nutzen und von ihr in Produktion überrascht werden.',
+    'cta.line': 'Nutze es in deiner Anwendung.',
+    'cta.docs': 'Dokumentation',
+    'cta.playground': 'Playground',
+    'cta.sub': 'Gebaut für Anwendungen, in denen Moderation im Anfragepfad sitzt: keine Laufzeitabhängigkeiten, kein Netz außer auf Verlangen, und strukturierte Ergebnisse statt eines umgeschriebenen Strings.',
     'hero.new': 'Neu',
+    'hero.headline': 'Content-Moderation für TypeScript — ohne deinen Text umzuschreiben.',
+    'hero.scope.ai': 'KI-Moderation',
+    'hero.scope.batch': 'Stapelverarbeitung',
+    'hero.batch': 'Stapelverarbeitung als Strom, dazu ein CLI: ein Korpus, das nicht in den Speicher passt, Datensatz für Datensatz.',
     'hero.ai': 'Ein Modell kann jetzt den ganzen Satz lesen — Hass, Drohungen und Beleidigung, die keine Wortliste sieht. Optional, standardmäßig aus.',
+    'caps': [
+      ['Keine Laufzeitabhängigkeiten', 'Kein `dependencies`-Feld. React, Vue, das Anthropic-SDK und fast-pdf sind optionale Peers.'],
+      ['Exakte Textbereiche', 'Funde tragen Start- und End-Offsets in deinen Originaltext — nichts wird neu gebaut.'],
+      ['Umgehungserkennung', 'Leetspeak, Homoglyphen, Abstände, Wiederholungen, Zero-Width-Zeichen, NFKC-Faltung.'],
+      ['PII-Erkennung', 'E-Mail, Telefon, IBAN, Karte, IP, deutsche Steuer-ID — jede geprüft, nicht geraten.'],
+      ['Optionale KI-Moderation', 'Ein Modell liest den ganzen Satz. Ohne `ai`-Option wird kein Modell kontaktiert.', 'opt-in'],
+      ['Lokale KI mit Ollama', 'Gleicher Prompt, gleiches Schema, gleiche Ergebnisform. Kein Schlüssel, kein Netz.', 'opt-in'],
+      ['Werkzeug für DSA Artikel 17', 'Macht aus einem Moderationsergebnis eine Begründung. Bausteine, keine Rechtsberatung.', 'opt-in'],
+      ['Stapelverarbeitung als Strom', 'Iterable hinein, Ergebnisse hinaus. Speicherbedarf: ein Datensatz, egal wie groß die Datei.'],
+    ],
+    'pipe.text': 'TEXT',
+    'pipe.profanity.sub': 'Wortlisten · Gegencheck',
+    'pipe.pii.sub': 'Prüfsummen · Struktur',
+    'pipe.ai.sub': 'optional · standardmäßig aus',
+    'pipe.verdict': 'ERLAUBEN / MARKIEREN / SPERREN',
+    'pipe.dsa.sub': 'Begründung',
+    'pipe.legend':
+      'Durchgezogene Stufen sind lokal, synchron und immer verfügbar. <strong>Gestrichelte Stufen sind ' +
+      'opt-in</strong> und gehen nur ins Netz, wenn du sie konfigurierst. Die Entscheidung bleibt deine: ' +
+      'die Bibliothek liefert Segmente, Funde und einen Schweregrad — nie ein Urteil über die Nachricht.',
     options: 'Optionen',
     'opt.lang.note':
       'Gegen welche registrierten Sprachen geprüft wird. Gemischter Text braucht mehr als eine — ' +
@@ -5565,6 +6243,18 @@ const els = {
   batchSummary: $('batch-summary'),
   batchSnippet: $('batch-snippet'),
   batchCount: $('batch-count'),
+  caps: $('caps'),
+  benchVersion: $('bench-version'),
+  benchScores: $('bench-scores'),
+  benchCats: $('bench-cats'),
+  benchLeaks: $('bench-leaks'),
+  benchRepro: $('bench-repro'),
+  cliDemo: $('cli-demo'),
+  cliFlags: $('cli-flags'),
+  evRows: $('ev-rows'),
+  evCount: $('ev-count'),
+  lossless: $('lossless'),
+  xcViews: $('xc-views'),
   presetHint: $('preset-hint'),
   aiProvider: $('ai-provider'),
   aiModel: $('ai-model'),
@@ -5751,7 +6441,8 @@ function run() {
 
   drawOutput(segments);
   drawSegments(segments);
-  drawSuppressed(suppressed, options);
+  drawSuppressed(suppressed, options, text);
+  drawLossless(segments, text);
   drawStats(segments, suppressed, text);
   drawSnippet(options);
   markActivePreset(text);
@@ -5833,6 +6524,269 @@ const AI_EXAMPLES = {
  * example has an innocent twin that must come back clean. A moderation layer
  * that only ever says yes is not a moderation layer.
  */
+
+/* --- evasion, the same word written seven ways ------------------------- */
+
+/**
+ * One word, seven spellings, each defeating a different part of a naive matcher.
+ *
+ * The strings come from the German list's `drecksau` and the documented
+ * homoglyph case, and every verdict on the page is computed by the real filter
+ * as the page loads. If a release stops catching one of these, the row says
+ * "missed" rather than the page quietly continuing to claim otherwise.
+ */
+const EVASIONS = [
+  ['normal', 'Drecksau'],
+  ['leet', 'Dr3cks4u'],
+  ['unicode', '\uFF24\uFF52\uFF45\uFF43\uFF4B\uFF53\uFF41\uFF55'],
+  ['homoglyph', '\u0410rschloch'],
+  ['spaced', 'D r e c k s a u'],
+  ['repeated', 'Dreeecksau'],
+  ['invisible', 'Dreck\u200Bsau'],
+];
+
+function drawEvasions() {
+  const options = { languages: ['en', 'de'] };
+  let caught = 0;
+
+  els.evRows.textContent = '';
+  for (const [kind, text] of EVASIONS) {
+    const segments = filterFWordsToSegments(text, options);
+    const hits = segments.filter((segment) => segment.isProfane);
+    if (hits.length > 0) caught++;
+
+    const row = document.createElement('tr');
+    if (hits.length === 0) row.className = 'row-weak';
+
+    const kindCell = document.createElement('td');
+    kindCell.textContent = t('ev.kind.' + kind);
+
+    const inputCell = document.createElement('td');
+    inputCell.className = 'seg-text';
+    // Zero-width characters are invisible by definition, so the cell says so
+    // instead of showing an apparently identical string twice.
+    inputCell.textContent = kind === 'invisible' ? text.replace('\u200B', '\u2423') : text;
+
+    const verdictCell = document.createElement('td');
+    const tag = document.createElement('span');
+    tag.className = hits.length > 0 ? 'kind-tag' : '';
+    tag.textContent =
+      hits.length > 0
+        ? t('ev.caught') + ' · ' + hits.map((segment) => segment.text).join(', ')
+        : t('ev.missed');
+    verdictCell.append(tag);
+
+    row.append(kindCell, inputCell, verdictCell);
+    els.evRows.append(row);
+  }
+
+  els.evCount.textContent = caught + '/' + EVASIONS.length;
+}
+
+/* --- benchmark, CLI ---------------------------------------------------- */
+
+/**
+ * The adversarial benchmark, as measured — not as guessed.
+ *
+ * These are the numbers `npx profanity-adversarial --preset ts-profanity-filter`
+ * printed against the version named below, copied verbatim including the
+ * failures. The benchmark is a Node CLI over a second package, so the page
+ * cannot run it live the way the panels above run the filter; what it can do is
+ * name the version it measured and the command that reproduces it.
+ */
+const BENCH = {
+  version: '1.5.0',
+  measured: '2026-08-10',
+  attacks: 81,
+  languages: 'en, de',
+  evasion: { passed: 36, total: 44 },
+  precision: { passed: 37, total: 37 },
+  categories: [
+    ['control', 4, 4], ['leet', 5, 5], ['diacritics', 3, 3], ['homoglyph', 4, 4],
+    ['spacing', 4, 4], ['repetition', 3, 4], ['invisible', 4, 4],
+    ['compatibility', 5, 5], ['combining', 3, 3], ['casing', 2, 2],
+    ['insertion', 1, 3], ['rewriting', 0, 3], ['encoding', 0, 2],
+    ['false-positive', 35, 35],
+  ],
+  leaks: [
+    ['repeat-doubled-de', 'DDrreecckkssaauu', 'repeat.doubled'],
+    ['insert-letter-de', 'Dreckxsau', 'insert.letter'],
+    ['insert-bracket-de', 'Dr[e]cksau', 'insert.bracket'],
+    ['reverse-de', 'uaskcerD', 'reverse'],
+    ['phonetic-de', 'Dreggsau', 'phonetic'],
+    ['phonetic-en', 'phuck this', 'phonetic'],
+    ['encoding-entity-de', 'Dreck&#115;au', 'encoding.entity'],
+    ['encoding-percent-de', 'Dreck%73au', 'encoding.percent'],
+  ],
+};
+
+function drawBench() {
+  els.benchVersion.textContent = t('bench.pill')
+    .replace('{v}', BENCH.version)
+    .replace('{n}', String(BENCH.attacks));
+
+  const scores = [
+    ['bench.evasion', BENCH.evasion, 'bench.evasion.of'],
+    ['bench.precision', BENCH.precision, 'bench.precision.of'],
+  ];
+
+  els.benchScores.textContent = '';
+  for (const [nameKey, score, ofKey] of scores) {
+    const percent = Math.round((score.passed / score.total) * 100);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'bench-score';
+
+    const top = document.createElement('div');
+    top.className = 'bench-top';
+    const name = document.createElement('span');
+    name.className = 'bench-name';
+    name.textContent = t(nameKey);
+    const right = document.createElement('span');
+    const num = document.createElement('span');
+    num.className = 'bench-num';
+    num.textContent = percent + '%';
+    const of = document.createElement('span');
+    of.className = 'bench-of';
+    of.textContent = ' ' + t(ofKey)
+      .replace('{p}', String(score.passed))
+      .replace('{t}', String(score.total));
+    right.append(num, of);
+    top.append(name, right);
+
+    const bar = document.createElement('div');
+    bar.className = 'bench-bar';
+    const fill = document.createElement('div');
+    fill.className = 'bench-fill';
+    fill.style.width = percent + '%';
+    bar.append(fill);
+
+    wrap.append(top, bar);
+    els.benchScores.append(wrap);
+  }
+
+  els.benchCats.textContent = '';
+  for (const [name, passed, total] of BENCH.categories) {
+    const cell = document.createElement('div');
+    cell.className = 'bench-cat' + (passed < total ? ' leaky' : '');
+    const label = document.createElement('b');
+    label.textContent = name;
+    const value = document.createElement('span');
+    value.textContent = passed + '/' + total;
+    cell.append(label, value);
+    els.benchCats.append(cell);
+  }
+
+  els.benchRepro.innerHTML = t('bench.repro')
+    .replace('{v}', BENCH.version)
+    .replace('{d}', BENCH.measured)
+    .replace('{n}', String(BENCH.attacks))
+    .replace('{l}', BENCH.languages);
+
+  els.benchLeaks.textContent = '';
+  for (const [id, input, whyKey] of BENCH.leaks) {
+    const row = document.createElement('tr');
+    const idCell = document.createElement('td');
+    idCell.className = 'kind-tag';
+    idCell.textContent = id;
+    const inputCell = document.createElement('td');
+    inputCell.className = 'seg-text';
+    inputCell.textContent = input;
+    const whyCell = document.createElement('td');
+    whyCell.textContent = t('bench.why.' + whyKey);
+    row.append(idCell, inputCell, whyCell);
+    els.benchLeaks.append(row);
+  }
+}
+
+/** The flags worth explaining, rendered from the string table. */
+const CLI_FLAGS = [
+  '--pii', '--ai <provider>', '--out <file>', '--pdf <file>', '--json',
+  '--fail-on-findings', '--max-calls <n>',
+];
+
+function drawCli() {
+  // Recorded from a real run against examples/batch/chat-log.csv. Marked as a
+  // recording in the note above it, because the page cannot spawn a process.
+  const lines = [
+    ['cmd', '$ npx ts-profanity-filter scan examples/batch/chat-log.csv --pii'],
+    ['dimmed', 'Scanning examples/batch/chat-log.csv'],
+    ['dimmed', '  column: message (index 4) — guessed; pass --column to choose another'],
+    ['dimmed', '  25 records · 13 flagged · 158/s'],
+    ['', ''],
+    ['', '  Records processed           25'],
+    ['', '  Flagged                     13 (52.0%)'],
+    ['', '  Matched a word list         6'],
+    ['', '  Records with personal data  7 (8 findings)'],
+    ['', ''],
+    ['', '  Personal data by kind'],
+    ['', '    phone     2'],
+    ['', '    ip        2'],
+    ['', '    email     1'],
+    ['', '    iban      1'],
+    ['', '    card      1'],
+    ['', '    taxid-de  1'],
+  ];
+
+  els.cliDemo.textContent = '';
+  for (const [kind, text] of lines) {
+    const line = document.createElement('span');
+    if (kind) line.className = kind;
+    line.textContent = text + '\n';
+    els.cliDemo.append(line);
+  }
+
+  els.cliFlags.textContent = '';
+  for (const flag of CLI_FLAGS) {
+    const row = document.createElement('tr');
+    const name = document.createElement('td');
+    name.className = 'kind-tag';
+    name.textContent = flag;
+    const what = document.createElement('td');
+    what.innerHTML = t('cli.flag.' + flag.split(' ')[0].replace(/^--/, ''));
+    row.append(name, what);
+    els.cliFlags.append(row);
+  }
+}
+
+/* --- hero ------------------------------------------------------------- */
+
+/**
+ * The capability grid, from the string table rather than the markup, so both
+ * languages stay in one place and neither can drift out of sync with the other.
+ * Entries are [name, why] or [name, why, badge].
+ */
+function drawCaps() {
+  els.caps.textContent = '';
+  for (const entry of I18N[ui].caps) {
+    const item = document.createElement('li');
+
+    const name = document.createElement('b');
+    name.textContent = entry[0];
+    item.append(name);
+
+    if (entry[2]) {
+      const badge = document.createElement('span');
+      badge.className = 'opt';
+      badge.textContent = entry[2];
+      name.append(document.createTextNode(' '), badge);
+    }
+
+    const why = document.createElement('span');
+    // Backticked identifiers read as code here for the same reason they do in
+    // the README, and this is the cheapest way to get that without a parser.
+    why.append(...entry[1].split(/`([^`]+)`/).map((part, i) => {
+      if (i % 2 === 0) return document.createTextNode(part);
+      const code = document.createElement('code');
+      code.textContent = part;
+      return code;
+    }));
+    item.append(why);
+
+    els.caps.append(item);
+  }
+}
+
 /* --- batch ------------------------------------------------------------ */
 
 /**
@@ -6544,8 +7498,53 @@ function drawSegments(segments) {
   });
 }
 
-function drawSuppressed(hits, options) {
+/**
+ * The claim the whole segment API rests on, checked on every keystroke rather
+ * than asserted in prose: joining the segments has to reproduce the input.
+ */
+function drawLossless(segments, text) {
+  const rebuilt = segments.map((segment) => segment.text).join('');
+  const ok = rebuilt === text;
+  els.lossless.textContent = t(ok ? 'lossless.ok' : 'lossless.bad');
+  els.lossless.className = ok ? 'pill yes' : 'pill flagged';
+}
+
+/** Which of the two cross-check views is showing. */
+let xcView = 'suppressed';
+
+function drawSuppressed(hits, options, text) {
   els.xcRows.textContent = '';
+
+  // The second view answers "what would I get without this?" by running the
+  // filter again with crossCheck off — the real comparison, not a description
+  // of one.
+  if (xcView === 'raw') {
+    const raw = filterFWordsToSegments(text, { ...options, crossCheck: false })
+      .filter((segment) => segment.isProfane);
+    if (raw.length === 0) {
+      emptyRow(els.xcRows, t('xc.raw.none'), 3);
+      return;
+    }
+    const suppressedTexts = new Set(hits.map((hit) => hit.hit));
+    for (const segment of raw) {
+      const tr = document.createElement('tr');
+      const word = document.createElement('td');
+      word.className = 'mono-cell';
+      word.textContent = segment.text;
+      const matched = document.createElement('td');
+      matched.className = 'mono-cell';
+      matched.textContent = segment.text;
+      const rule = document.createElement('td');
+      rule.className = 'rule-cell';
+      const wouldBeCleared = suppressedTexts.has(segment.text);
+      rule.textContent = wouldBeCleared ? t('xc.view.suppressed') : '—';
+      if (wouldBeCleared) tr.className = 'row-weak';
+      tr.append(word, matched, rule);
+      els.xcRows.append(tr);
+    }
+    return;
+  }
+
   if (!options.crossCheck) {
     emptyRow(els.xcRows, t('xc.off'), 3);
     return;
@@ -6586,6 +7585,15 @@ function drawStats(segments, suppressed, text) {
     .replace('{total}', text.length);
 }
 
+/**
+ * The call that produced what is on screen — in the flavour of the framework
+ * selected further down the page.
+ *
+ * The options object is assembled from the same `options` the run used, so
+ * copying this out and pasting it into an editor reproduces exactly the result
+ * above. Switching framework changes the wrapper around that object, never the
+ * object.
+ */
 function drawSnippet(options) {
   const all = listLanguages();
   const everything = options.languages.length === all.length && all.length > 0;
@@ -6593,17 +7601,51 @@ function drawSnippet(options) {
     ? "'*'"
     : '[' + options.languages.map((l) => "'" + l + "'").join(', ') + ']';
 
-  const lines = [
-    "import { filterFWordsToSegments } from 'ts-profanity-filter';",
-    '',
-    'filterFWordsToSegments(text, {',
-    '  languages: ' + langs + ',',
-  ];
-  if (!options.aggressive) lines.push('  aggressive: false,');
-  if (!options.crossCheck) lines.push('  crossCheck: false,');
-  lines.push('});');
+  const opts = ['  languages: ' + langs + ','];
+  if (!options.aggressive) opts.push('  aggressive: false,');
+  if (!options.crossCheck) opts.push('  crossCheck: false,');
 
-  els.snippet.textContent = lines.join('\n');
+  const inline = opts.map((line) => line.trim()).join(' ');
+
+  const shapes = {
+    vanilla: () => [
+      "import { filterFWordsToSegments } from 'ts-profanity-filter';",
+      '',
+      'const segments = filterFWordsToSegments(text, {',
+      ...opts,
+      '});',
+    ],
+    react: () => [
+      "import { useProfanitySegments } from 'ts-profanity-filter/react';",
+      '',
+      'const segments = useProfanitySegments(text, {',
+      ...opts,
+      '});',
+      '',
+      '// Memoised by the value of the options, so this inline object is fine.',
+    ],
+    vue: () => [
+      "import { useProfanitySegments } from 'ts-profanity-filter/vue';",
+      '',
+      '// text may be a plain value, a ref, or a getter.',
+      'const segments = useProfanitySegments(text, {',
+      ...opts,
+      '});',
+    ],
+    angular: () => [
+      "import { Pipe } from '@angular/core';",
+      "import { ProfanitySegmentsPipeBase } from 'ts-profanity-filter/angular';",
+      '',
+      "@Pipe({ name: 'profanitySegments', standalone: true })",
+      'export class ProfanitySegmentsPipe extends ProfanitySegmentsPipeBase {}',
+      '',
+      '<!-- in the template -->',
+      '<span *ngFor="let seg of body | profanitySegments:{ ' + inline.replace(/,$/, '') + ' }"',
+      '      [class.redacted]="seg.isProfane">{{ seg.text }}</span>',
+    ],
+  };
+
+  els.snippet.textContent = (shapes[framework] ?? shapes.vanilla)().join('\n');
 }
 
 /* --- framework samples ------------------------------------------------ */
@@ -6631,6 +7673,10 @@ function drawSamples(container, samples) {
 function drawFramework() {
   drawSamples(els.fwSamples, SAMPLES[framework]);
   els.fwNote.innerHTML = t('fw.' + framework + '.note');
+  // The snippet at the top of the page follows this choice, so switching here
+  // has to repaint it — otherwise the page shows React samples next to a
+  // vanilla call.
+  drawSnippet(currentOptions());
 }
 
 /* --- registering a language ------------------------------------------- */
@@ -7030,6 +8076,21 @@ function drawNav() {
     const label = panel.querySelector('.panel-head .label');
     if (!label) continue;
 
+    // A panel carrying data-part opens a numbered part of the page. The label is
+    // a heading, not a link — clicking a group name that jumps to its first
+    // member is a lie about what the list is.
+    const part = panel.dataset.part;
+    if (part) {
+      const heading = document.createElement('li');
+      heading.className = 'nav-part';
+      const number = document.createElement('b');
+      number.textContent = part;
+      const name = document.createElement('span');
+      name.textContent = t(panel.dataset.partKey);
+      heading.append(number, name);
+      list.append(heading);
+    }
+
     const item = document.createElement('li');
     const link = document.createElement('a');
     link.href = '#' + panel.id;
@@ -7132,6 +8193,10 @@ function applyLanguage() {
     els.caveats.append(li);
   }
 
+  drawCaps();
+  drawEvasions();
+  drawBench();
+  drawCli();
   drawPresets();
   drawFramework();
   drawColophon();
@@ -7177,6 +8242,16 @@ function drawPresets() {
 }
 
 /* --- events ----------------------------------------------------------- */
+
+for (const btn of document.querySelectorAll('#xc-views button')) {
+  btn.addEventListener('click', () => {
+    xcView = btn.dataset.xc;
+    for (const other of document.querySelectorAll('#xc-views button')) {
+      other.setAttribute('aria-pressed', String(other === btn));
+    }
+    run();
+  });
+}
 
 for (const btn of document.querySelectorAll('#modes button')) {
   btn.addEventListener('click', () => {
