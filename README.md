@@ -1,7 +1,7 @@
 # ts-profanity-filter
 
 [![npm version](https://img.shields.io/npm/v/ts-profanity-filter)](https://www.npmjs.com/package/ts-profanity-filter)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/ts-profanity-filter)](https://bundlephobia.com/package/ts-profanity-filter)
+[![bundle size](https://img.shields.io/bundlejs/size/ts-profanity-filter)](https://bundlejs.com/?q=ts-profanity-filter)
 [![license](https://img.shields.io/npm/l/ts-profanity-filter)](https://github.com/Kevinci/ts-profanity-filter/blob/main/LICENSE)
 
 A strict TypeScript profanity filter that splits text into segments so your UI
@@ -13,7 +13,10 @@ string.
 words and repetition are matched; a cross-check keeps ordinary words like
 `Klassik` and `classic` out of the results.
 
-Zero runtime dependencies. Optional adapters for React, Vue and Angular.
+Zero runtime dependencies. Optional adapters for React, Vue and Angular, an
+optional AI check, and an optional generator for the **DSA Art. 17** statement
+of reasons you owe whoever you moderated. Each is its own subpath, so nothing
+you do not import reaches your bundle.
 
 **[Try it in the playground →](https://kevinci.github.io/ts-profanity-filter/)**
 
@@ -23,26 +26,64 @@ npm install ts-profanity-filter
 
 ---
 
-## New in 1.2.0 · Unicode hardening
+## New in 1.3.0 · DSA Article 17 justifications
 
-**Evasion is a Unicode problem**, and the matching path now treats it as one.
-Compatibility spellings fold with NFKC to the letters the patterns are written
-in, so `Ｄｒｅｃｋｓａｕ`, `𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮` and `Ⓓⓡⓔⓒⓚⓢⓐⓤ` stop walking past the
-list. Whole-word anchors use Unicode boundaries instead of `\b` — which is
-defined in terms of `\w` and stays ASCII even under the `u` flag, so every
-umlaut and every `ß` read as a word boundary and `Straußschwanz` came back
-flagged.
+**In the EU, deleting the comment is only half the obligation.** Article 17 of
+the Digital Services Act requires that whoever is moderated gets a *statement of
+reasons*: what was done, on which ground, on which facts, whether an automated
+system was involved, how long it lasts, and where to contest it — in their
+language, on a durable medium they can keep.
 
-Iteration is by code point rather than code unit, and the offset map carries one
-entry per output character, so a folded character that expands still points back
-at the one it came from — and a segment boundary can no longer land inside a
-surrogate pair.
+A filter that returns `flagged: true` gives you none of that. So the new
+`ts-profanity-filter/compliance` subpath builds the notice out of the moderation
+result you already have:
 
-Seventeen cases assert the **offsets**, not the round trip. Rebuilding the
-string intact proves only that nothing was dropped; it says nothing about
-whether the flagged span still covers the right characters, which is exactly
-where a filter holding three representations of the input — original, folded
-haystack, segments — goes wrong.
+```ts
+import { moderateText } from 'ts-profanity-filter/ai';
+import {
+  generateJustification,
+  formatJustificationAsText,
+} from 'ts-profanity-filter/compliance';
+
+const result = await moderateText(comment, {
+  languages: ['de'],
+  ai: { provider: 'gemini', enabled: true },   // the graded verdict
+});
+
+const notice = await generateJustification(comment, result, {
+  action: 'CONTENT_REMOVED',
+  policyBases: [{ name: 'Community Guidelines', section: '§4.2' }],
+  appealUrl: 'https://example.com/appeal/8f21',
+  ai: { provider: 'gemini', enabled: true },   // wording only — optional
+});
+
+formatJustificationAsText(notice);   // the text you send the user
+exportJustification(notice);         // the JSON you keep for your records
+```
+
+**The facts are never the model's to decide.** Action, policy basis, categories,
+severity, confidence, the quoted excerpt and the timestamp are all fixed by the
+code before any model is asked. What a model contributes is the two things a
+template cannot write: a `reason` that names the measure and the behaviour in one
+breath, and an `assessment` that weighs the case — and says so plainly when the
+call is uncertain. Leave `ai` out and the built-in German and English templates
+carry the notice on their own.
+
+[The full section →](#dsa-art-17-justifications) ·
+[See one generated →](https://kevinci.github.io/ts-profanity-filter/#sec-compliance)
+
+**Also in this release:**
+
+- **A third AI provider that needs no network.** `ollama` runs the check on your
+  own machine — no key, no third party, the same JSON Schema constraining the
+  answer, so switching is a config change and not a second code path. See
+  [Nothing leaves the building](#nothing-leaves-the-building).
+- **Three false positives and a Cyrillic `к` fixed**, found by pointing an
+  adversarial benchmark of 81 attacks at this filter. `Cockburn`, `Lightwater`
+  and `Matsushita` are names, which is the most expensive kind of false
+  positive; `к` was never in the expandable set, so no pattern could reach it.
+  English went from 82/83 to 94/100, German to 74/100, both with regression
+  tests.
 
 ---
 
@@ -83,51 +124,26 @@ nothing leaves your machine — the word-list half never calls out at all.
 
 ---
 
-## DSA Article 17 · the part after the verdict
+## Unicode hardening
 
-**In the EU, deleting the comment is only half the obligation.** Article 17 of
-the Digital Services Act requires that whoever is moderated gets a *statement of
-reasons*: what was done, on which ground, on which facts, whether an automated
-system was involved, how long it lasts, and where to contest it — in their
-language, on a durable medium they can keep.
+**Evasion is a Unicode problem**, and the matching path treats it as one.
+Compatibility spellings fold with NFKC to the letters the patterns are written
+in, so `Ｄｒｅｃｋｓａｕ`, `𝐃𝐫𝐞𝐜𝐤𝐬𝐚𝐮` and `Ⓓⓡⓔⓒⓚⓢⓐⓤ` stop walking past the
+list. Whole-word anchors use Unicode boundaries instead of `\b` — which is
+defined in terms of `\w` and stays ASCII even under the `u` flag, so every
+umlaut and every `ß` read as a word boundary and `Straußschwanz` came back
+flagged.
 
-A filter that returns `flagged: true` gives you none of that. So
-`ts-profanity-filter/compliance` builds the notice out of the moderation result
-you already have:
+Iteration is by code point rather than code unit, and the offset map carries one
+entry per output character, so a folded character that expands still points back
+at the one it came from — and a segment boundary can no longer land inside a
+surrogate pair.
 
-```ts
-import { moderateText } from 'ts-profanity-filter/ai';
-import {
-  generateJustification,
-  formatJustificationAsText,
-} from 'ts-profanity-filter/compliance';
-
-const result = await moderateText(comment, {
-  languages: ['de'],
-  ai: { provider: 'gemini', enabled: true },   // the graded verdict
-});
-
-const notice = await generateJustification(comment, result, {
-  action: 'CONTENT_REMOVED',
-  policyBases: [{ name: 'Community Guidelines', section: '§4.2' }],
-  appealUrl: 'https://example.com/appeal/8f21',
-  ai: { provider: 'gemini', enabled: true },   // wording only — optional
-});
-
-formatJustificationAsText(notice);   // the text you send the user
-exportJustification(notice);         // the JSON you keep for your records
-```
-
-**The facts are never the model's to decide.** Action, policy basis, categories,
-severity, confidence, the quoted excerpt and the timestamp are all fixed by the
-code before any model is asked. What a model contributes is the two things a
-template cannot write: a `reason` that names the measure and the behaviour in one
-breath, and an `assessment` that weighs the case — and says so plainly when the
-call is uncertain. Leave `ai` out and the built-in German and English templates
-carry the notice on their own.
-
-[The full section →](#dsa-art-17-justifications) ·
-[See one generated →](https://kevinci.github.io/ts-profanity-filter/#sec-compliance)
+Seventeen cases assert the **offsets**, not the round trip. Rebuilding the
+string intact proves only that nothing was dropped; it says nothing about
+whether the flagged span still covers the right characters, which is exactly
+where a filter holding three representations of the input — original, folded
+haystack, segments — goes wrong.
 
 ---
 
@@ -354,7 +370,7 @@ import are the whole setup — no build step, nothing to install.
 </style>
 
 <script type="module">
-  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.2.0/+esm';
+  import { filterFWordsToSegments } from 'https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.3.0/+esm';
 
   const draft = document.getElementById('draft');
   const output = document.getElementById('output');
@@ -390,13 +406,13 @@ lists every published file and version.
 
 | CDN | URL |
 | --- | --- |
-| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.2.0/+esm` |
-| esm.sh | `https://esm.sh/ts-profanity-filter@1.2.0` |
-| unpkg | `https://unpkg.com/ts-profanity-filter@1.2.0/dist/index.js` |
+| jsDelivr | `https://cdn.jsdelivr.net/npm/ts-profanity-filter@1.3.0/+esm` |
+| esm.sh | `https://esm.sh/ts-profanity-filter@1.3.0` |
+| unpkg | `https://unpkg.com/ts-profanity-filter@1.3.0/dist/index.js` |
 
 ```js
-import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.2.0/react';
-import { de } from 'https://esm.sh/ts-profanity-filter@1.2.0/lang/de';
+import { useProfanitySegments } from 'https://esm.sh/ts-profanity-filter@1.3.0/react';
+import { de } from 'https://esm.sh/ts-profanity-filter@1.3.0/lang/de';
 ```
 
 **Pin the version.** An unpinned URL like `https://esm.sh/ts-profanity-filter`
@@ -495,7 +511,7 @@ leaving the host.
 
 For anything else — transformers.js, a hosted open-weights endpoint, your own
 fine-tune — `ai.complete` takes any function that returns JSON matching the
-schema. See [Bring your own model](#bring-your-own-model).
+schema. See [Any model, not just Claude](#any-model-not-just-claude).
 
 Gemini is the cheapest way to try this: its free tier covers the use case and it
 adds no dependency at all. `ai.model` takes any id the provider accepts;
