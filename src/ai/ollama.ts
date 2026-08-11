@@ -32,9 +32,7 @@ function hostFrom(request: AiRequest): string {
   return withScheme.replace(/\/+$/, '');
 }
 
-export const ollamaCompletion: AiCompletion = async (
-  request: AiRequest,
-): Promise<AiResponse> => {
+export const ollamaCompletion: AiCompletion = async (request: AiRequest): Promise<AiResponse> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), request.timeoutMs);
   const host = hostFrom(request);
@@ -73,9 +71,7 @@ export const ollamaCompletion: AiCompletion = async (
       // The overwhelmingly common failure is a model that was never pulled,
       // and Ollama's own message for it is genuinely useful — pass it through
       // rather than replacing it with something vaguer.
-      throw new Error(
-        data.error ?? `Ollama returned ${response.status} ${response.statusText}.`,
-      );
+      throw new Error(data.error ?? `Ollama returned ${response.status} ${response.statusText}.`);
     }
 
     const json = data.message?.content ?? '';

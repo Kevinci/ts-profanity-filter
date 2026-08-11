@@ -23,7 +23,13 @@ function stubModel(
   };
 }
 
-const CLEAN = { flagged: false, severity: 'none', categories: [], confidence: 0.9, reason: 'Harmlos.' };
+const CLEAN = {
+  flagged: false,
+  severity: 'none',
+  categories: [],
+  confidence: 0.9,
+  reason: 'Harmlos.',
+};
 
 /* ------------------------------ the switch ----------------------------- */
 
@@ -176,7 +182,7 @@ test('the api key never reaches the error message', async () => {
   assert.match(verdict.error!, /\[redacted\]/);
 });
 
-test("a provider-side refusal is reported as such, not as a verdict", async () => {
+test('a provider-side refusal is reported as such, not as a verdict', async () => {
   const verdict = await analyzeWithAi('…', {
     complete: async () => ({ refused: true, refusalReason: 'declined', model: 'stub' }),
   });

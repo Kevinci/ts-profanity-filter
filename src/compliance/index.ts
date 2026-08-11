@@ -12,10 +12,7 @@ export {
 
 export { buildJustificationPrompt, buildJustificationSchema } from './prompt.js';
 
-export {
-  InMemoryJustificationStore,
-  type JustificationStore,
-} from './store.js';
+export { InMemoryJustificationStore, type JustificationStore } from './store.js';
 
 export type {
   ComplianceAction,

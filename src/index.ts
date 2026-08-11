@@ -15,12 +15,7 @@ export {
   de,
   en,
 } from './registry.js';
-export type {
-  Language,
-  BuiltinLanguage,
-  LanguageLists,
-  LanguageDefinition,
-} from './registry.js';
+export type { Language, BuiltinLanguage, LanguageLists, LanguageDefinition } from './registry.js';
 
 export { DE_ALLOWLIST, DE_PROFANITY } from './lang/de.js';
 export { EN_ALLOWLIST, EN_PROFANITY } from './lang/en.js';

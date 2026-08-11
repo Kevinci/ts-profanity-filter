@@ -42,11 +42,7 @@ test('a brand new language works end to end', () => {
 test('languages compose without touching each other', () => {
   registerLanguage('fr', { profanity: ['merde'] });
   const text = 'Total bullshit, du Trottel, quelle merde.';
-  assert.deepEqual(flagged(text, { languages: ['en', 'de', 'fr'] }), [
-    'shit',
-    'Trottel',
-    'merde',
-  ]);
+  assert.deepEqual(flagged(text, { languages: ['en', 'de', 'fr'] }), ['shit', 'Trottel', 'merde']);
 });
 
 test("languages: '*' uses everything registered", () => {

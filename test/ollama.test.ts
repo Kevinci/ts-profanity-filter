@@ -149,7 +149,7 @@ test('needs no API key, unlike the hosted providers', async () => {
 
   const result = await analyzeWithAi('Deine Sorte …', { provider: 'ollama' });
 
-  assert.equal(result.status, 'ok', result.error);
+  assert.equal(result.status, 'ok', result.error ?? 'no error reported');
   assert.equal(result.flagged, true);
   assert.deepEqual(result.categories, ['racism']);
   assert.equal(result.model, 'llama3.2');

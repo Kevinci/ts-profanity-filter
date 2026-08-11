@@ -8,7 +8,6 @@ import {
   buildJustificationPrompt,
   buildJustificationSchema,
   InMemoryJustificationStore,
-  type ComplianceJustification,
 } from '../dist/compliance/index.js';
 import { moderateText } from '../dist/ai/index.js';
 import type { AiCompletion, AiRequest } from '../dist/ai/index.js';
@@ -93,8 +92,8 @@ test('includes custom policy bases', async () => {
   });
 
   assert.equal(justification.policyBases.length > 0, true);
-  assert.equal(justification.policyBases[0].name, 'Code of Conduct');
-  assert.equal(justification.policyBases[0].section, '§3.1');
+  assert.equal(justification.policyBases[0]?.name, 'Code of Conduct');
+  assert.equal(justification.policyBases[0]?.section, '§3.1');
 });
 
 test('accepts string policy bases and normalizes them', async () => {
@@ -108,8 +107,8 @@ test('accepts string policy bases and normalizes them', async () => {
   });
 
   assert.equal(justification.policyBases.length, 2);
-  assert.equal(justification.policyBases[0].name, 'Community Guidelines');
-  assert.equal(justification.policyBases[1].name, 'Terms of Service');
+  assert.equal(justification.policyBases[0]?.name, 'Community Guidelines');
+  assert.equal(justification.policyBases[1]?.name, 'Terms of Service');
 });
 
 test('includes appeal URL when provided', async () => {
@@ -205,7 +204,15 @@ test('no ai option means the wording comes from the template', async () => {
 test('the model writes the wording, never the facts', async () => {
   const result = await moderateText('some text', {
     languages: ['en'],
-    ai: { complete: stubModel({ ...CLEAN, flagged: true, categories: ['harassment'], confidence: 0.8, quote: 'some' }) },
+    ai: {
+      complete: stubModel({
+        ...CLEAN,
+        flagged: true,
+        categories: ['harassment'],
+        confidence: 0.8,
+        quote: 'some',
+      }),
+    },
   });
 
   const justification = await generateJustification('some text', result, {
@@ -229,7 +236,11 @@ test('a failing model does not withhold the justification', async () => {
 
   const justification = await generateJustification('text', result, {
     language: 'en',
-    ai: { complete: async () => { throw new Error('network down'); } },
+    ai: {
+      complete: async () => {
+        throw new Error('network down');
+      },
+    },
   });
 
   assert.match(justification.reason, /removed for violating/, 'fell back to the template');
@@ -244,7 +255,10 @@ test('ai.enabled false keeps the config and skips the call', async () => {
     language: 'en',
     ai: {
       enabled: false,
-      complete: async () => { called = true; return { json: JSON.stringify(WORDING) }; },
+      complete: async () => {
+        called = true;
+        return { json: JSON.stringify(WORDING) };
+      },
     },
   });
 
@@ -292,7 +306,15 @@ test('model-only fields are absent when no model was asked', async () => {
 test('model-only fields appear once a model has answered', async () => {
   const result = await moderateText('some text', {
     languages: ['en'],
-    ai: { complete: stubModel({ ...CLEAN, flagged: true, categories: ['hate'], confidence: 0.75, quote: 'some' }) },
+    ai: {
+      complete: stubModel({
+        ...CLEAN,
+        flagged: true,
+        categories: ['hate'],
+        confidence: 0.75,
+        quote: 'some',
+      }),
+    },
   });
 
   const text = formatJustificationAsText(
@@ -398,12 +420,22 @@ test('a refused verdict is not graded as harmless', async () => {
 test('the model writes the assessment when one is asked for', async () => {
   const result = await moderateText('some text', {
     languages: ['en'],
-    ai: { complete: stubModel({ ...CLEAN, flagged: true, severity: 'high', categories: ['hate'], confidence: 0.9 }) },
+    ai: {
+      complete: stubModel({
+        ...CLEAN,
+        flagged: true,
+        severity: 'high',
+        categories: ['hate'],
+        confidence: 0.9,
+      }),
+    },
   });
 
   const justification = await generateJustification('some text', result, {
     language: 'de',
-    ai: { complete: stubModel({ reason: 'Kurzer Grund.', assessment: 'Die ausführliche Bewertung.' }) },
+    ai: {
+      complete: stubModel({ reason: 'Kurzer Grund.', assessment: 'Die ausführliche Bewertung.' }),
+    },
   });
 
   assert.equal(justification.assessment, 'Die ausführliche Bewertung.');

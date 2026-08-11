@@ -32,7 +32,11 @@ export function isValidLuhn(digits: string): boolean {
  * The published length of an IBAN per country. This is not decoration: the
  * checksum alone accepts a truncated IBAN often enough to matter, and the
  * length is what stops the scanner from swallowing the next number on the line.
+ *
+ * Hand-aligned on purpose — this is a lookup table, and one country per line
+ * turns twelve readable rows into seventy-eight unreadable ones.
  */
+// prettier-ignore
 export const IBAN_LENGTHS: Readonly<Record<string, number>> = {
   AD: 24, AE: 23, AL: 28, AT: 20, AZ: 28, BA: 20, BE: 16, BG: 22, BH: 22,
   BR: 29, BY: 28, CH: 21, CR: 22, CY: 28, CZ: 24, DE: 22, DK: 18, DO: 28,
@@ -55,6 +59,10 @@ export const IBAN_LENGTHS: Readonly<Record<string, number>> = {
  * would cost an allocation per candidate for arithmetic that fits in an int.
  */
 export function isValidIban(candidate: string): boolean {
+  // The class holds an ordinary space *and* a non-breaking one, because that
+  // is what a pasted IBAN contains. Invisible in the source, which is why the
+  // linter objects — and why it has to stay.
+  // eslint-disable-next-line no-irregular-whitespace
   const iban = candidate.replace(/[\s.\- ]/g, '').toUpperCase();
   if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$/.test(iban)) return false;
 

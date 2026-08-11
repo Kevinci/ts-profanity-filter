@@ -34,7 +34,9 @@ export async function preset(name: string): Promise<FilterAdapter> {
   try {
     mod = await import('ts-profanity-filter');
   } catch {
-    throw new Error('ts-profanity-filter is not installed here. Try: npm install ts-profanity-filter');
+    throw new Error(
+      'ts-profanity-filter is not installed here. Try: npm install ts-profanity-filter',
+    );
   }
 
   return {

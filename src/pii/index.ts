@@ -34,14 +34,7 @@ export {
 } from './checksums.js';
 
 /** Every kind this module knows, in the order findings are reported for ties. */
-export const PII_KINDS: readonly PiiKind[] = [
-  'email',
-  'iban',
-  'card',
-  'phone',
-  'taxid-de',
-  'ip',
-];
+export const PII_KINDS: readonly PiiKind[] = ['email', 'iban', 'card', 'phone', 'taxid-de', 'ip'];
 
 const DEFAULT_MIN_CONFIDENCE = 0.6;
 const DEFAULT_CONTEXT_WINDOW = 48;

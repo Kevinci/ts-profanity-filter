@@ -70,9 +70,7 @@ export const anthropicCompletion: AiCompletion = async (
   }
 
   if (response.stop_reason === 'max_tokens') {
-    throw new Error(
-      'The model hit max_tokens before finishing its answer — raise ai.maxTokens.',
-    );
+    throw new Error('The model hit max_tokens before finishing its answer — raise ai.maxTokens.');
   }
 
   const json = extractText(response.content);

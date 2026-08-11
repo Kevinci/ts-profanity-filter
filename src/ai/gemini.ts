@@ -60,9 +60,7 @@ interface GeminiResponse {
   error?: { message?: string; status?: string };
 }
 
-export const geminiCompletion: AiCompletion = async (
-  request: AiRequest,
-): Promise<AiResponse> => {
+export const geminiCompletion: AiCompletion = async (request: AiRequest): Promise<AiResponse> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), request.timeoutMs);
 
@@ -124,9 +122,7 @@ export const geminiCompletion: AiCompletion = async (
       );
     }
 
-    const json = (candidate.content?.parts ?? [])
-      .map((part) => part.text ?? '')
-      .join('');
+    const json = (candidate.content?.parts ?? []).map((part) => part.text ?? '').join('');
 
     if (json.trim() === '') {
       throw new Error(

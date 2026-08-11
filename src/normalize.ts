@@ -40,10 +40,11 @@ const MARK = /\p{M}/u;
 const MARK_ALL = /\p{M}/gu;
 
 /** Anything outside ASCII, as a cheap gate in front of the NFKC check. */
+// eslint-disable-next-line no-control-regex -- the ASCII range is the pattern
 const NON_ASCII = /[^\x00-\x7F]/;
 
 /** What counts as a separator when letters have been pulled apart. */
-const SEPARATOR = /[\s._*+~|\-]/u;
+const SEPARATOR = /[\s._*+~|-]/u;
 
 /**
  * Compiles at runtime instead of as a literal, and reports failure rather than
@@ -129,7 +130,7 @@ export function normalizeForMatching(text: string): Normalized | null {
   const chars: string[] = [];
   const starts: number[] = [];
   const ends: number[] = [];
-  for (let i = 0; i < text.length; ) {
+  for (let i = 0; i < text.length;) {
     const point = String.fromCodePoint(text.codePointAt(i)!);
 
     if (dropped.has(i) || FORMAT.test(point)) {
@@ -178,7 +179,7 @@ export function normalizeForMatching(text: string): Normalized | null {
   const outChars: string[] = [];
   const outStarts: number[] = [];
   const outEnds: number[] = [];
-  for (let i = 0; i < chars.length; ) {
+  for (let i = 0; i < chars.length;) {
     const here = chars[i]!.toLowerCase();
     let j = i + 1;
     while (j < chars.length && chars[j]!.toLowerCase() === here) j++;

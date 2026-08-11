@@ -41,8 +41,14 @@ test('both halves are substantial — neither can be a token gesture', () => {
 test('each language has attacks of both kinds', () => {
   for (const lang of ['en', 'de'] as const) {
     const mine = CORPUS.filter((a) => a.languages.includes(lang));
-    assert.ok(mine.some((a) => a.expect === 'flag'), `${lang}: nothing to evade`);
-    assert.ok(mine.some((a) => a.expect === 'clean'), `${lang}: no false positives`);
+    assert.ok(
+      mine.some((a) => a.expect === 'flag'),
+      `${lang}: nothing to evade`,
+    );
+    assert.ok(
+      mine.some((a) => a.expect === 'clean'),
+      `${lang}: no false positives`,
+    );
   }
 });
 

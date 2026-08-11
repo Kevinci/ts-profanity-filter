@@ -112,7 +112,7 @@ test('a mixed sentence keeps clean and flagged spans in the right places', () =>
     ['D r e c k s a u', 'Dreeecksack'],
   );
   assert.equal(segments[0]!.text, 'Hallo ');
-  assert.equal(segments.at(-1)!.text, ', bis morgen.');
+  assert.equal(segments[segments.length - 1]!.text, ', bis morgen.');
 });
 
 /* --------------------------- engine support ---------------------------- */

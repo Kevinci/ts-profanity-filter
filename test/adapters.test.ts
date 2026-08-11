@@ -3,11 +3,7 @@ import { test } from 'node:test';
 
 import { ref } from 'vue';
 
-import {
-  IsProfanePipeBase,
-  ProfanityFilter,
-  ProfanitySegmentsPipeBase,
-} from '../dist/angular.js';
+import { IsProfanePipeBase, ProfanityFilter, ProfanitySegmentsPipeBase } from '../dist/angular.js';
 import * as reactEntry from '../dist/react.js';
 import { useIsProfane, useProfanitySegments } from '../dist/vue.js';
 
@@ -19,7 +15,10 @@ test('vue: composable recomputes when the source ref changes', () => {
   const text = ref('Ein ganz normaler Satz.');
   const segments = useProfanitySegments(text, { languages: ['de'] });
 
-  assert.deepEqual(segments.value.filter((s) => s.isProfane), []);
+  assert.deepEqual(
+    segments.value.filter((s) => s.isProfane),
+    [],
+  );
 
   text.value = 'Du Trottel!';
   assert.deepEqual(
@@ -45,7 +44,10 @@ test('vue: getters work as input', () => {
   const segments = useProfanitySegments(() => source.value.trim(), BOTH);
   assert.deepEqual(segments.value, [{ text: 'Klassik', isProfane: false }]);
   source.value = '  Arschloch  ';
-  assert.equal(segments.value.some((s) => s.isProfane), true);
+  assert.equal(
+    segments.value.some((s) => s.isProfane),
+    true,
+  );
 });
 
 /* ----------------------------- angular -------------------------------- */
@@ -53,7 +55,10 @@ test('vue: getters work as input', () => {
 test('angular: pipe base returns segments', () => {
   const pipe = new ProfanitySegmentsPipeBase();
   const out = pipe.transform('Der Klassiker ist Mist, du Trottel.', BOTH);
-  assert.deepEqual(out.filter((s) => s.isProfane).map((s) => s.text), ['Trottel']);
+  assert.deepEqual(
+    out.filter((s) => s.isProfane).map((s) => s.text),
+    ['Trottel'],
+  );
 });
 
 test('angular: pipe base caches by value, not by reference', () => {
@@ -99,9 +104,7 @@ test('react: entry point exposes the documented API', () => {
 
 test('react: re-exported core function behaves like the main entry', () => {
   assert.deepEqual(
-    reactEntry
-      .filterFWordsToSegments('Die Massage war klasse.', BOTH)
-      .filter((s) => s.isProfane),
+    reactEntry.filterFWordsToSegments('Die Massage war klasse.', BOTH).filter((s) => s.isProfane),
     [],
   );
 });

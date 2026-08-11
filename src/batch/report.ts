@@ -32,7 +32,10 @@ function throughput(summary: BatchSummary): string {
 export function summaryRows(summary: BatchSummary): [string, string][] {
   const rows: [string, string][] = [
     ['Records processed', summary.processed.toLocaleString('en-US')],
-    ['Flagged', `${summary.flagged.toLocaleString('en-US')} (${share(summary.flagged, summary.processed)})`],
+    [
+      'Flagged',
+      `${summary.flagged.toLocaleString('en-US')} (${share(summary.flagged, summary.processed)})`,
+    ],
     ['Matched a word list', summary.matchedList.toLocaleString('en-US')],
   ];
 
@@ -55,7 +58,8 @@ export function summaryRows(summary: BatchSummary): [string, string][] {
 
   // Both of these change how the numbers above must be read, so they are never
   // omitted when true — a truncated run that looks complete is the worst report.
-  if (summary.aiBudgetExhausted) rows.push(['Model budget', 'exhausted — later records went unasked']);
+  if (summary.aiBudgetExhausted)
+    rows.push(['Model budget', 'exhausted — later records went unasked']);
   if (summary.aborted) rows.push(['Ended', 'aborted before the input was finished']);
 
   return rows;
@@ -83,7 +87,10 @@ export function formatSummary(summary: BatchSummary): string {
   }
 
   if (summary.samples.length > 0) {
-    lines.push('', `  Examples (${summary.samples.length} of ${summary.flagged.toLocaleString('en-US')})`);
+    lines.push(
+      '',
+      `  Examples (${summary.samples.length} of ${summary.flagged.toLocaleString('en-US')})`,
+    );
     for (const sample of summary.samples) {
       const reasons = [
         sample.matchedList ? 'word list' : '',

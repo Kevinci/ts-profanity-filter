@@ -87,9 +87,7 @@ function profanityRegexFor(patterns: readonly string[], aggressive: boolean): Re
   // through. lastIndex is reset before every use, so sharing one instance
   // across calls is safe.
   return cached(profanityCache, key, () => {
-    const source = patterns
-      .map((p) => (aggressive ? toAggressivePattern(p) : p))
-      .join('|');
+    const source = patterns.map((p) => (aggressive ? toAggressivePattern(p) : p)).join('|');
     return compilePatterns(source, 'giu');
   });
 }
@@ -105,9 +103,7 @@ function allowRegexFor(patterns: readonly string[], aggressive: boolean): RegExp
   // 'u' so allow entries can use \p{L}; anchored so a stem must cover the
   // whole surrounding word rather than just appearing inside it.
   return cached(allowCache, key, () => {
-    const source = patterns
-      .map((p) => (aggressive ? toAggressivePattern(p) : p))
-      .join('|');
+    const source = patterns.map((p) => (aggressive ? toAggressivePattern(p) : p)).join('|');
     return compilePatterns(`^(?:${source})$`, 'iu');
   });
 }
@@ -130,8 +126,7 @@ function resolvePatterns(options: FilterOptions): {
   profanity: readonly string[];
   allow: readonly string[];
 } {
-  const languages =
-    options.languages === '*' ? listLanguages() : (options.languages ?? ['en']);
+  const languages = options.languages === '*' ? listLanguages() : (options.languages ?? ['en']);
 
   const builtinProfanity: string[] = [];
   const builtinAllow: string[] = [];
@@ -150,17 +145,13 @@ function resolvePatterns(options: FilterOptions): {
   }
 
   const profanity =
-    options.customList && options.customList.length > 0
-      ? options.customList
-      : builtinProfanity;
+    options.customList && options.customList.length > 0 ? options.customList : builtinProfanity;
 
   if (options.crossCheck === false) {
     return { profanity, allow: [] };
   }
 
-  const allow = options.allowList
-    ? [...builtinAllow, ...options.allowList]
-    : builtinAllow;
+  const allow = options.allowList ? [...builtinAllow, ...options.allowList] : builtinAllow;
 
   return { profanity, allow };
 }
@@ -176,10 +167,7 @@ function resolvePatterns(options: FilterOptions): {
  * @param options - Languages, custom patterns, allowlist additions, aggressive matching.
  * @returns An array of TextSegment objects covering the full input text.
  */
-export function filterFWordsToSegments(
-  text: string,
-  options: FilterOptions = {},
-): TextSegment[] {
+export function filterFWordsToSegments(text: string, options: FilterOptions = {}): TextSegment[] {
   if (!text || text.trim() === '') {
     return [{ text: text || '', isProfane: false }];
   }

@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { filterFWordsToSegments } from "../dist/index.js";
+import { filterFWordsToSegments } from '../dist/index.js';
 
 const BOTH = { languages: ['en', 'de'] } as const;
 
@@ -181,10 +181,7 @@ test('segments stay lossless when matches are dropped by the allowlist', () => {
 });
 
 test('an unknown language throws rather than passing text through unfiltered', () => {
-  assert.throws(
-    () => flagged('This is bullshit.', { languages: ['xx'] }),
-    /Unknown language 'xx'/,
-  );
+  assert.throws(() => flagged('This is bullshit.', { languages: ['xx'] }), /Unknown language 'xx'/);
 });
 
 test('default language is English only', () => {

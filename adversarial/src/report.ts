@@ -36,7 +36,9 @@ export function formatReport(report: RunReport, options: FormatOptions = {}): st
   const { score } = report;
 
   lines.push('');
-  lines.push(`  ${report.filter}   ${dim(`${report.languages.join(', ')} · ${report.results.length} attacks`)}`);
+  lines.push(
+    `  ${report.filter}   ${dim(`${report.languages.join(', ')} · ${report.results.length} attacks`)}`,
+  );
   lines.push('');
   lines.push(
     `  evasion resistance  ${bar(score.evasionResistance)}  ${pct(score.evasionResistance)}` +
@@ -74,7 +76,8 @@ export function formatReport(report: RunReport, options: FormatOptions = {}): st
     const passed = report.results.filter((r) => r.passed);
     lines.push('');
     lines.push(`  ${passed.length} passing:`);
-    for (const p of passed) lines.push(dim(`    ${p.attack.id.padEnd(26)} ${visible(p.attack.text)}`));
+    for (const p of passed)
+      lines.push(dim(`    ${p.attack.id.padEnd(26)} ${visible(p.attack.text)}`));
   }
 
   lines.push('');

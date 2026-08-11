@@ -52,7 +52,12 @@ interface Args {
 
 function parse(argv: readonly string[]): Args {
   const args: Args = {
-    adapters: [], presets: [], json: false, verbose: false, list: false, help: false,
+    adapters: [],
+    presets: [],
+    json: false,
+    verbose: false,
+    list: false,
+    help: false,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -64,15 +69,39 @@ function parse(argv: readonly string[]): Args {
     };
 
     switch (arg) {
-      case '--preset': args.presets.push(next()); break;
-      case '--lang': args.languages = next().split(',').map((l) => l.trim()) as Language[]; break;
-      case '--category': args.categories = next().split(',').map((c) => c.trim()); break;
-      case '--json': args.json = true; break;
-      case '--verbose': case '-v': args.verbose = true; break;
-      case '--min-evasion': args.minEvasion = Number(next()); break;
-      case '--min-precision': args.minPrecision = Number(next()); break;
-      case '--list': args.list = true; break;
-      case '--help': case '-h': args.help = true; break;
+      case '--preset':
+        args.presets.push(next());
+        break;
+      case '--lang':
+        args.languages = next()
+          .split(',')
+          .map((l) => l.trim()) as Language[];
+        break;
+      case '--category':
+        args.categories = next()
+          .split(',')
+          .map((c) => c.trim());
+        break;
+      case '--json':
+        args.json = true;
+        break;
+      case '--verbose':
+      case '-v':
+        args.verbose = true;
+        break;
+      case '--min-evasion':
+        args.minEvasion = Number(next());
+        break;
+      case '--min-precision':
+        args.minPrecision = Number(next());
+        break;
+      case '--list':
+        args.list = true;
+        break;
+      case '--help':
+      case '-h':
+        args.help = true;
+        break;
       default:
         if (arg.startsWith('-')) throw new Error(`Unknown option ${arg}.`);
         args.adapters.push(arg);
@@ -87,9 +116,7 @@ async function loadAdapter(path: string): Promise<FilterAdapter> {
   const adapter = mod.default ?? mod.adapter;
 
   if (!adapter || typeof adapter.detect !== 'function') {
-    throw new Error(
-      `${path} must default-export { name, detect(text) }. See --help.`,
-    );
+    throw new Error(`${path} must default-export { name, detect(text) }. See --help.`);
   }
   return { name: adapter.name ?? path, detect: adapter.detect };
 }

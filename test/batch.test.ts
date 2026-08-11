@@ -28,7 +28,7 @@ const EN = { languages: ['en'] as const };
 const CORPUS = [
   'a perfectly ordinary sentence',
   'what the sh1t is this',
-  'please pass the class list',       // the cross-check must keep this clean
+  'please pass the class list', // the cross-check must keep this clean
   'you @sshole',
   'nothing to see here',
 ];
@@ -341,12 +341,9 @@ test('NDJSON records carry text and id, and bad lines are skipped', async () => 
     { text: 'ordinary', id: 3 },
   ]);
 
-  await assert.rejects(
-    async () => {
-      for await (const _ of ndjsonFrom(path, { onBadLine: 'throw' })) void _;
-    },
-    /not valid JSON/,
-  );
+  await assert.rejects(async () => {
+    for await (const _ of ndjsonFrom(path, { onBadLine: 'throw' })) void _;
+  }, /not valid JSON/);
 });
 
 test('the CSV parser survives quotes, delimiters and newlines inside fields', async () => {
@@ -377,12 +374,9 @@ test('the CSV parser survives quotes, delimiters and newlines inside fields', as
   assert.equal(records[0]?.id, '1');
   assert.match(String(records[0]?.text), /you @sshole/);
 
-  await assert.rejects(
-    async () => {
-      for await (const _ of csvFrom(path, { column: 'nope' })) void _;
-    },
-    /no column "nope"/,
-  );
+  await assert.rejects(async () => {
+    for await (const _ of csvFrom(path, { column: 'nope' })) void _;
+  }, /no column "nope"/);
 });
 
 test('recordsFrom picks the reader from the extension', async () => {
@@ -391,8 +385,13 @@ test('recordsFrom picks the reader from the extension', async () => {
   await writeFile(join(dir, 'b.csv'), 'comment\nyou @sshole\n');
   await writeFile(join(dir, 'c.log'), 'you @sshole\n');
 
-  for (const [file, kind] of [['a.ndjson', 'ndjson'], ['b.csv', 'csv'], ['c.log', 'lines']]) {
-    const summary = await runBatch(recordsFrom(join(dir, file as string)) as never, { filter: EN });
+  const cases: [string, string][] = [
+    ['a.ndjson', 'ndjson'],
+    ['b.csv', 'csv'],
+    ['c.log', 'lines'],
+  ];
+  for (const [file, kind] of cases) {
+    const summary = await runBatch(recordsFrom(join(dir, file)) as never, { filter: EN });
     assert.equal(summary.flagged, 1, kind);
   }
 });
@@ -410,7 +409,10 @@ test('the NDJSON writer round-trips through a real file', async () => {
   });
   await writer.close();
 
-  const written = (await readFile(path, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+  const written = (await readFile(path, 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
   assert.deepEqual(written, [
     { index: 1, flagged: true },
     { index: 3, flagged: true },
@@ -431,9 +433,20 @@ test('the text report states the numbers it was given', async () => {
 
 test('an empty run reports zero rather than NaN', () => {
   const empty: BatchSummary = {
-    processed: 0, flagged: 0, matchedList: 0, piiRecords: 0, piiFindings: 0,
-    piiByKind: {}, aiCalls: 0, aiFlagged: 0, aiErrors: 0, errors: 0,
-    aborted: false, aiBudgetExhausted: false, elapsedMs: 0, samples: [],
+    processed: 0,
+    flagged: 0,
+    matchedList: 0,
+    piiRecords: 0,
+    piiFindings: 0,
+    piiByKind: {},
+    aiCalls: 0,
+    aiFlagged: 0,
+    aiErrors: 0,
+    errors: 0,
+    aborted: false,
+    aiBudgetExhausted: false,
+    elapsedMs: 0,
+    samples: [],
   };
   const report = formatSummary(empty);
   assert.match(report, /Records processed\s+0/);
@@ -442,9 +455,20 @@ test('an empty run reports zero rather than NaN', () => {
 
 test('a truncated run says so in the report, both ways', () => {
   const cut: BatchSummary = {
-    processed: 10, flagged: 1, matchedList: 1, piiRecords: 0, piiFindings: 0,
-    piiByKind: {}, aiCalls: 5, aiFlagged: 0, aiErrors: 0, errors: 0,
-    aborted: true, aiBudgetExhausted: true, elapsedMs: 100, samples: [],
+    processed: 10,
+    flagged: 1,
+    matchedList: 1,
+    piiRecords: 0,
+    piiFindings: 0,
+    piiByKind: {},
+    aiCalls: 5,
+    aiFlagged: 0,
+    aiErrors: 0,
+    errors: 0,
+    aborted: true,
+    aiBudgetExhausted: true,
+    elapsedMs: 100,
+    samples: [],
   };
   const report = formatSummary(cut);
   assert.match(report, /Model budget\s+exhausted/);
@@ -477,7 +501,10 @@ test('the text column is guessed from the header when nobody names one', async (
   }
 
   assert.deepEqual(chosen, [{ index: 2, detected: true, name: 'message' }]);
-  assert.deepEqual(records.map((r) => r.text), ['you @sshole', 'ordinary']);
+  assert.deepEqual(
+    records.map((r) => r.text),
+    ['you @sshole', 'ordinary'],
+  );
 });
 
 test('an unguessable header is a question, not a silent scan of column 0', async () => {
@@ -487,16 +514,16 @@ test('an unguessable header is a question, not a silent scan of column 0', async
   // real result, which is the outcome worth failing over.
   await writeFile(path, 'id,autor,freitext\n1,anna,you @sshole\n');
 
-  await assert.rejects(
-    async () => {
-      for await (const _ of csvFrom(path)) void _;
-    },
-    /which column holds the text\?.*id, autor, freitext/s,
-  );
+  await assert.rejects(async () => {
+    for await (const _ of csvFrom(path)) void _;
+  }, /which column holds the text\?.*id, autor, freitext/s);
 
   const named = [];
   for await (const record of csvFrom(path, { column: 'freitext' })) named.push(record);
-  assert.deepEqual(named.map((r) => r.text), ['you @sshole']);
+  assert.deepEqual(
+    named.map((r) => r.text),
+    ['you @sshole'],
+  );
 });
 
 test('a single column needs no guessing, and an explicit choice is not announced as one', async () => {
@@ -510,7 +537,10 @@ test('a single column needs no guessing, and an explicit choice is not announced
     records.push(record);
   }
   assert.equal(chosen[0]?.detected, true);
-  assert.deepEqual(records.map((r) => r.text), ['you @sshole']);
+  assert.deepEqual(
+    records.map((r) => r.text),
+    ['you @sshole'],
+  );
 
   const explicit: { detected: boolean }[] = [];
   for await (const _ of csvFrom(path, { column: 0, onColumn: (c) => explicit.push(c) })) void _;

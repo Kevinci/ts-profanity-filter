@@ -59,7 +59,10 @@ test('the most frequent word comes first, and minCount trims the tail', async ()
   assert.equal(report.words[0]?.word, 'Assmann', 'three occurrences beats one');
 
   const frequent = await findFlaggedWords(CORPUS, { ...EN, minCount: 2 });
-  assert.deepEqual(frequent.words.map((word) => word.word), ['Assmann']);
+  assert.deepEqual(
+    frequent.words.map((word) => word.word),
+    ['Assmann'],
+  );
 });
 
 test('samples are bounded, so a summary cannot grow with the corpus', async () => {
@@ -273,7 +276,7 @@ test('the snippet is a registerLanguage call that inherits', async () => {
 test('a regex-special word is escaped when the entry is derived by hand', async () => {
   const report = await tuneAllowlist(['Call the ass(embly) team'], {
     ...EN,
-    verdicts: { 'ass': 'ordinary' },
+    verdicts: { ass: 'ordinary' },
   });
   // Whatever the word turned out to be, the derived entry must compile.
   for (const entry of report.entries) {

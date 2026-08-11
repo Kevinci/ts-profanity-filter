@@ -1,12 +1,5 @@
 import { CORPUS } from './corpus.js';
-import type {
-  Attack,
-  AttackResult,
-  FilterAdapter,
-  Language,
-  RunReport,
-  Score,
-} from './types.js';
+import type { Attack, AttackResult, FilterAdapter, Language, RunReport, Score } from './types.js';
 
 export interface RunOptions {
   /** Only attacks written for these languages. Defaults to all of them. */
@@ -50,10 +43,7 @@ function score(results: readonly AttackResult[]): Score {
  * crashing on hostile input is itself a result worth reporting, and one filter
  * blowing up should not cost you the other twenty numbers.
  */
-export async function run(
-  adapter: FilterAdapter,
-  options: RunOptions = {},
-): Promise<RunReport> {
+export async function run(adapter: FilterAdapter, options: RunOptions = {}): Promise<RunReport> {
   const attacks = selectAttacks(options);
   const results: AttackResult[] = [];
 

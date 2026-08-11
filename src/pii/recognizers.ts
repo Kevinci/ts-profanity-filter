@@ -8,12 +8,7 @@
 // punctuation, and a word nearby only ever adjusts what the string itself
 // already argued for. Nothing reaches the default threshold on context alone.
 
-import {
-  IBAN_LENGTHS,
-  isValidGermanTaxId,
-  isValidIban,
-  isValidLuhn,
-} from './checksums.js';
+import { IBAN_LENGTHS, isValidGermanTaxId, isValidIban, isValidLuhn } from './checksums.js';
 import { ALNUM, type Anchors, type DigitCluster } from './scan.js';
 import type { PiiEvidence, PiiKind, PiiMatch } from './types.js';
 
@@ -27,6 +22,7 @@ export interface RecognizerContext {
 const LETTER = /\p{L}/u;
 
 /** Words that agree with a reading, per kind. Lower case; matched on a boundary. */
+// prettier-ignore
 const CONTEXT_WORDS: Readonly<Record<PiiKind, readonly string[]>> = {
   email: ['mail', 'email', 'e-mail', 'kontakt', 'contact', 'absender', 'sender'],
   // `nummer` on its own is deliberately absent: it sits in front of order
@@ -68,7 +64,7 @@ function hasContext(
   for (const word of words) {
     let at = haystack.indexOf(word);
     while (at !== -1) {
-      const before = at === 0 ? '' : haystack[at - 1] ?? '';
+      const before = at === 0 ? '' : (haystack[at - 1] ?? '');
       const afterIndex = at + word.length;
       const after = haystack[afterIndex] ?? '';
       const leftOk = before === '' || !LETTER.test(before);
@@ -130,7 +126,7 @@ function candidate(
 /* ------------------------------- e-mail -------------------------------- */
 
 const LOCAL_CHAR = /[\p{L}\p{N}._%+\-!#$&'*/=?^`{|}~]/u;
-const DOMAIN_CHAR = /[\p{L}\p{N}.\-]/u;
+const DOMAIN_CHAR = /[\p{L}\p{N}.-]/u;
 const LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u;
 const TLD = /^\p{L}{2,24}$/u;
 
@@ -217,6 +213,7 @@ export function findIbans(ctx: RecognizerContext): PiiMatch[] {
 /* --------------------------------- card -------------------------------- */
 
 /** Issuer prefixes with their published lengths. */
+// prettier-ignore
 const CARD_BRANDS: readonly { pattern: RegExp; lengths: readonly number[] }[] = [
   { pattern: /^4/, lengths: [13, 16, 19] }, // Visa
   { pattern: /^(5[1-5]|2(2[2-9]|[3-6][0-9]|7[01]|720))/, lengths: [16] }, // Mastercard
@@ -260,7 +257,7 @@ export function findCards(ctx: RecognizerContext): PiiMatch[] {
 
 /* -------------------------------- phone -------------------------------- */
 
-const DATE_SHAPED = /^[0-9]{1,2}[.\/][0-9]{1,2}[.\/][0-9]{2,4}\.?$/;
+const DATE_SHAPED = /^[0-9]{1,2}[./][0-9]{1,2}[./][0-9]{2,4}\.?$/;
 
 export function findPhones(ctx: RecognizerContext): PiiMatch[] {
   const out: PiiMatch[] = [];
@@ -269,7 +266,7 @@ export function findPhones(ctx: RecognizerContext): PiiMatch[] {
     const { digits, raw } = cluster;
     if (DATE_SHAPED.test(raw)) continue;
 
-    let confidence = 0;
+    let confidence: number;
     const evidence: PiiEvidence[] = ['structure'];
 
     if (cluster.plus) {
@@ -294,9 +291,7 @@ export function findPhones(ctx: RecognizerContext): PiiMatch[] {
 
     if (cluster.groups.length >= 2) confidence = Math.min(0.95, confidence + 0.05);
 
-    out.push(
-      candidate(ctx.text, 'phone', cluster.start, cluster.end, confidence, evidence, ctx),
-    );
+    out.push(candidate(ctx.text, 'phone', cluster.start, cluster.end, confidence, evidence, ctx));
   }
 
   return out;
@@ -351,10 +346,7 @@ function isValidIpv6(value: string): boolean {
 
   const head = compressed ? value.slice(0, doubleAt) : value;
   const tail = compressed ? value.slice(doubleAt + 2) : '';
-  const parts = [
-    ...(head === '' ? [] : head.split(':')),
-    ...(tail === '' ? [] : tail.split(':')),
-  ];
+  const parts = [...(head === '' ? [] : head.split(':')), ...(tail === '' ? [] : tail.split(':'))];
   if (parts.some((part) => part === '')) return false;
 
   let count = parts.length;
@@ -418,15 +410,7 @@ export function findIps(ctx: RecognizerContext): PiiMatch[] {
     const ambiguous = allSingle && !allEqual;
 
     out.push(
-      candidate(
-        text,
-        'ip',
-        first.start,
-        last.end,
-        ambiguous ? 0.5 : 0.8,
-        ['structure'],
-        ctx,
-      ),
+      candidate(text, 'ip', first.start, last.end, ambiguous ? 0.5 : 0.8, ['structure'], ctx),
     );
   }
 
@@ -446,7 +430,10 @@ export function findIps(ctx: RecognizerContext): PiiMatch[] {
       if (text.startsWith('::', start)) break;
       start++;
     }
-    while (end > start && (text[end - 1] === '.' || (text[end - 1] === ':' && !text.startsWith('::', end - 2)))) {
+    while (
+      end > start &&
+      (text[end - 1] === '.' || (text[end - 1] === ':' && !text.startsWith('::', end - 2)))
+    ) {
       end--;
     }
     cursor = end;

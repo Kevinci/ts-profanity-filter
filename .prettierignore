@@ -1,0 +1,23 @@
+node_modules/
+dist/
+
+# Generated from demo/template.html by scripts/build-demo.mjs — never edited by
+# hand, so never formatted by hand either.
+docs/index.html
+
+# The playground template is one hand-built page: a 5 000-line HTML document with
+# its own script, its own string tables and alignment that carries meaning.
+# Formatting it would rewrite the page to no benefit and a large risk.
+demo/template.html
+
+# Data files and lockfiles.
+package-lock.json
+examples/batch/chat-log.csv
+
+# Documentation. The prose is hand-wrapped and the emphasis markers are chosen;
+# Prettier would rewrite every *word* to _word_ and reflow the code samples
+# inside it, which is 437 lines of churn in the README alone for no gain.
+*.md
+
+# A hand-built example page whose formatting is part of what it teaches.
+examples/server/public/index.html

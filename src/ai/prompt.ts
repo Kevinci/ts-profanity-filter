@@ -32,8 +32,7 @@ const CATEGORY_RULES: Readonly<Record<AiCategory, string>> = {
     'approaches toward one. This is the most severe category; flag it even on ' +
     'suspicion and say so in your reason.',
   self_harm:
-    'self_harm — encouraging suicide or self-injury, or pressuring someone ' +
-    'toward it.',
+    'self_harm — encouraging suicide or self-injury, or pressuring someone ' + 'toward it.',
 };
 
 /**
@@ -43,11 +42,13 @@ const CATEGORY_RULES: Readonly<Record<AiCategory, string>> = {
  * `ai.extraInstructions` — the second is usually what you want, since the
  * output contract lives in here too.
  */
-export function buildSystemPrompt(options: {
-  categories?: readonly AiCategory[];
-  extraInstructions?: string;
-  languageHint?: string;
-} = {}): string {
+export function buildSystemPrompt(
+  options: {
+    categories?: readonly AiCategory[];
+    extraInstructions?: string;
+    languageHint?: string;
+  } = {},
+): string {
   const categories = options.categories?.length ? options.categories : AI_CATEGORIES;
   const rules = categories.map((c) => `- ${CATEGORY_RULES[c]}`).join('\n');
 

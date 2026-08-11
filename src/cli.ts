@@ -73,8 +73,19 @@ function parseArgs(argv: readonly string[]): Flags {
   const positional: string[] = [];
 
   const TAKES_VALUE = new Set([
-    'text-field', 'id-field', 'column', 'id-column', 'languages', 'kinds',
-    'min-confidence', 'ai', 'ai-model', 'ai-when', 'max-calls', 'out', 'pdf',
+    'text-field',
+    'id-field',
+    'column',
+    'id-column',
+    'languages',
+    'kinds',
+    'min-confidence',
+    'ai',
+    'ai-model',
+    'ai-when',
+    'max-calls',
+    'out',
+    'pdf',
     'concurrency',
   ]);
 
@@ -110,7 +121,10 @@ function number(flags: Flags, name: string, fallback: number): number {
 function list(flags: Flags, name: string): string[] | undefined {
   const raw = flags.values.get(name);
   if (raw === undefined) return undefined;
-  return raw.split(',').map((part) => part.trim()).filter((part) => part !== '');
+  return raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
 }
 
 /** A column reference is a name unless it is entirely digits. */
@@ -264,7 +278,13 @@ async function main(argv: readonly string[]): Promise<number> {
                 ? { pii: result.pii.map((f) => ({ kind: f.kind, start: f.start, end: f.end })) }
                 : {}),
               ...(result.ai !== undefined
-                ? { ai: { status: result.ai.status, flagged: result.ai.flagged, severity: result.ai.severity } }
+                ? {
+                    ai: {
+                      status: result.ai.status,
+                      flagged: result.ai.flagged,
+                      severity: result.ai.severity,
+                    },
+                  }
                 : {}),
               ...(result.error !== undefined ? { error: result.error } : {}),
             });

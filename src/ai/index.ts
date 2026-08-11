@@ -107,9 +107,7 @@ function parseVerdict(json: string, allowed: readonly AiCategory[]): AiVerdict {
   const value = raw as Record<string, unknown>;
 
   const categories = Array.isArray(value['categories'])
-    ? value['categories'].filter((c): c is AiCategory =>
-        allowed.includes(c as AiCategory),
-      )
+    ? value['categories'].filter((c): c is AiCategory => allowed.includes(c as AiCategory))
     : [];
 
   const severity = SEVERITIES.includes(value['severity'] as AiSeverity)
@@ -169,10 +167,7 @@ export async function runAiCompletion(
       if (options.onError === 'throw') {
         throw new Error(response.refusalReason ?? 'Provider declined the request.');
       }
-      console.error(
-        '[runAiCompletion] refused',
-        response.refusalReason ?? 'no reason given',
-      );
+      console.error('[runAiCompletion] refused', response.refusalReason ?? 'no reason given');
       return null;
     }
 
@@ -196,10 +191,7 @@ export async function runAiCompletion(
  * be a decision you make, not an exception that takes down the request. Set
  * `onError: 'throw'` if you would rather it stopped.
  */
-export async function analyzeWithAi(
-  text: string,
-  options: AiOptions = {},
-): Promise<AiVerdict> {
+export async function analyzeWithAi(text: string, options: AiOptions = {}): Promise<AiVerdict> {
   if (options.enabled === false) return verdict({ status: 'disabled' });
   if (!text || text.trim() === '') return verdict({ status: 'skipped' });
 
@@ -224,9 +216,7 @@ export async function analyzeWithAi(
           ...(options.extraInstructions !== undefined
             ? { extraInstructions: options.extraInstructions }
             : {}),
-          ...(options.languageHint !== undefined
-            ? { languageHint: options.languageHint }
-            : {}),
+          ...(options.languageHint !== undefined ? { languageHint: options.languageHint } : {}),
         }),
       text,
       schema: buildSchema(categories),
@@ -243,9 +233,7 @@ export async function analyzeWithAi(
       return verdict({
         status: 'refused',
         ...(response.model !== undefined ? { model: response.model } : {}),
-        error:
-          response.refusalReason ??
-          "The provider's own safety layer declined the request.",
+        error: response.refusalReason ?? "The provider's own safety layer declined the request.",
       });
     }
 
@@ -288,9 +276,7 @@ export async function moderateText(
   const segments = filterFWordsToSegments(text, filterOptions);
   const matchedList = segments.some((segment) => segment.isProfane);
 
-  const aiVerdict = ai
-    ? await analyzeWithAi(text, ai)
-    : verdict({ status: 'disabled' });
+  const aiVerdict = ai ? await analyzeWithAi(text, ai) : verdict({ status: 'disabled' });
 
   return {
     segments,

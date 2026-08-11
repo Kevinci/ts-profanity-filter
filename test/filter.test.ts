@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 
-import { filterFWordsToSegments } from "../dist/index.js";
-import type { TextSegment } from "../dist/index.js";
+import { filterFWordsToSegments } from '../dist/index.js';
+import type { TextSegment } from '../dist/index.js';
 
 /** Re-joining all segments must always reproduce the input exactly. */
 function joined(segments: TextSegment[]): string {
@@ -11,16 +11,12 @@ function joined(segments: TextSegment[]): string {
 
 test('returns a single clean segment for empty input', () => {
   assert.deepEqual(filterFWordsToSegments(''), [{ text: '', isProfane: false }]);
-  assert.deepEqual(filterFWordsToSegments('   '), [
-    { text: '   ', isProfane: false },
-  ]);
+  assert.deepEqual(filterFWordsToSegments('   '), [{ text: '   ', isProfane: false }]);
 });
 
 test('returns a single clean segment when nothing matches', () => {
   const result = filterFWordsToSegments('Hello there, friend.');
-  assert.deepEqual(result, [
-    { text: 'Hello there, friend.', isProfane: false },
-  ]);
+  assert.deepEqual(result, [{ text: 'Hello there, friend.', isProfane: false }]);
 });
 
 test('splits text around a match', () => {

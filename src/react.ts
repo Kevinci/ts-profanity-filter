@@ -25,10 +25,7 @@ import { filterFWordsToSegments, type FilterOptions, type TextSegment } from './
  * }
  * ```
  */
-export function useProfanitySegments(
-  text: string,
-  options: FilterOptions = {},
-): TextSegment[] {
+export function useProfanitySegments(text: string, options: FilterOptions = {}): TextSegment[] {
   const key = JSON.stringify([
     options.languages,
     options.customList,
@@ -39,8 +36,9 @@ export function useProfanitySegments(
   return useMemo(
     () => filterFWordsToSegments(text, options),
     // `options` is intentionally left out — `key` is its value-level identity,
-    // so an inline literal with unchanged contents does not invalidate.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // so an inline literal with unchanged contents does not invalidate. A React
+    // hooks linter in a consuming app will want that exception spelled out;
+    // this repository does not run one, so the directive would be dead weight.
     [text, key],
   );
 }

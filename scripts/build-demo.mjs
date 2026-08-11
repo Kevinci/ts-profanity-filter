@@ -53,18 +53,20 @@ const SPECIFIER = /^(?:import|export)\s[^;]*?from\s+'([^']+)'/gm;
 
 /** Turns an ES module into plain script-scope code. */
 function deModule(source) {
-  return source
-    .replace(/^import\s[^;]*;$/gm, '') // drop cross-file imports
-    // Both shapes of re-export. `export { x } from './y.js'` is pure module
-    // plumbing here: in one shared scope the binding is already the declaration
-    // in y.js, so the line has nothing left to do.
-    .replace(/^export\s*\{[^}]*\}\s*(?:from\s+'[^']*'\s*)?;$/gm, '')
-    // Unwrap declarations, `async function` among them — and `function*`, whose
-    // star sits where the regex was looking for a space. Generators only entered
-    // the bundle with the batch runner, so this held until then.
-    .replace(/^export\s+(?=(?:async\s+)?(?:const|function\*?|class|let)\s)/gm, '')
-    .replace(/^\/\/# sourceMappingURL=.*$/gm, '')
-    .trim();
+  return (
+    source
+      .replace(/^import\s[^;]*;$/gm, '') // drop cross-file imports
+      // Both shapes of re-export. `export { x } from './y.js'` is pure module
+      // plumbing here: in one shared scope the binding is already the declaration
+      // in y.js, so the line has nothing left to do.
+      .replace(/^export\s*\{[^}]*\}\s*(?:from\s+'[^']*'\s*)?;$/gm, '')
+      // Unwrap declarations, `async function` among them — and `function*`, whose
+      // star sits where the regex was looking for a space. Generators only entered
+      // the bundle with the batch runner, so this held until then.
+      .replace(/^export\s+(?=(?:async\s+)?(?:const|function\*?|class|let)\s)/gm, '')
+      .replace(/^\/\/# sourceMappingURL=.*$/gm, '')
+      .trim()
+  );
 }
 
 const parts = [];
@@ -104,7 +106,9 @@ for (const file of MODULES) {
   const owner = new Map();
   for (const part of parts) {
     const [, file] = part.match(/^\/\/ ---- (.+?) ----$/m) ?? [];
-    for (const [, name] of part.matchAll(/^(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+    for (const [, name] of part.matchAll(
+      /^(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm,
+    )) {
       const first = owner.get(name);
       if (first !== undefined && first !== file) {
         throw new Error(

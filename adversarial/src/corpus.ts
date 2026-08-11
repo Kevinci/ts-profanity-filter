@@ -18,6 +18,12 @@ import type { Attack } from './types.js';
 const EN = ['en'] as const;
 const DE = ['de'] as const;
 
+/**
+ * Hand-aligned on purpose: 81 attacks as a readable table. Prettier would
+ * expand this to 711 lines of one field per line, which is the same data and a
+ * far worse corpus to review.
+ */
+// prettier-ignore
 export const CORPUS: readonly Attack[] = [
   /* ---------------------------- control ------------------------------- */
   // If these fail, nothing below means anything.

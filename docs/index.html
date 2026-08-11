@@ -2039,9 +2039,10 @@ const MARK = /\p{M}/u;
 /** The same, global, for stripping marks that survived composition. */
 const MARK_ALL = /\p{M}/gu;
 /** Anything outside ASCII, as a cheap gate in front of the NFKC check. */
+// eslint-disable-next-line no-control-regex -- the ASCII range is the pattern
 const NON_ASCII = /[^\x00-\x7F]/;
 /** What counts as a separator when letters have been pulled apart. */
-const SEPARATOR = /[\s._*+~|\-]/u;
+const SEPARATOR = /[\s._*+~|-]/u;
 /**
  * Compiles at runtime instead of as a literal, and reports failure rather than
  * raising it.
@@ -2758,9 +2759,7 @@ function profanityRegexFor(patterns, aggressive) {
     // through. lastIndex is reset before every use, so sharing one instance
     // across calls is safe.
     return cached(profanityCache, key, () => {
-        const source = patterns
-            .map((p) => (aggressive ? toAggressivePattern(p) : p))
-            .join('|');
+        const source = patterns.map((p) => (aggressive ? toAggressivePattern(p) : p)).join('|');
         return compilePatterns(source, 'giu');
     });
 }
@@ -2776,9 +2775,7 @@ function allowRegexFor(patterns, aggressive) {
     // 'u' so allow entries can use \p{L}; anchored so a stem must cover the
     // whole surrounding word rather than just appearing inside it.
     return cached(allowCache, key, () => {
-        const source = patterns
-            .map((p) => (aggressive ? toAggressivePattern(p) : p))
-            .join('|');
+        const source = patterns.map((p) => (aggressive ? toAggressivePattern(p) : p)).join('|');
         return compilePatterns(`^(?:${source})$`, 'iu');
     });
 }
@@ -2812,15 +2809,11 @@ function resolvePatterns(options) {
         builtinProfanity.push(...lists.profanity);
         builtinAllow.push(...lists.allow);
     }
-    const profanity = options.customList && options.customList.length > 0
-        ? options.customList
-        : builtinProfanity;
+    const profanity = options.customList && options.customList.length > 0 ? options.customList : builtinProfanity;
     if (options.crossCheck === false) {
         return { profanity, allow: [] };
     }
-    const allow = options.allowList
-        ? [...builtinAllow, ...options.allowList]
-        : builtinAllow;
+    const allow = options.allowList ? [...builtinAllow, ...options.allowList] : builtinAllow;
     return { profanity, allow };
 }
 /**
@@ -2951,8 +2944,7 @@ const CATEGORY_RULES = {
     sexual_minors: 'sexual_minors — any sexualisation of a minor, and grooming or predatory ' +
         'approaches toward one. This is the most severe category; flag it even on ' +
         'suspicion and say so in your reason.',
-    self_harm: 'self_harm — encouraging suicide or self-injury, or pressuring someone ' +
-        'toward it.',
+    self_harm: 'self_harm — encouraging suicide or self-injury, or pressuring someone ' + 'toward it.',
 };
 /**
  * The built-in system prompt.
@@ -3208,9 +3200,7 @@ const geminiCompletion = async (request) => {
         if (candidate.finishReason === 'MAX_TOKENS') {
             throw new Error('Gemini hit maxOutputTokens before finishing its answer — raise ai.maxTokens.');
         }
-        const json = (candidate.content?.parts ?? [])
-            .map((part) => part.text ?? '')
-            .join('');
+        const json = (candidate.content?.parts ?? []).map((part) => part.text ?? '').join('');
         if (json.trim() === '') {
             throw new Error(`Gemini returned no text (finishReason: ${candidate.finishReason ?? 'unknown'}).`);
         }
@@ -3493,9 +3483,7 @@ async function analyzeWithAi(text, options = {}) {
                     ...(options.extraInstructions !== undefined
                         ? { extraInstructions: options.extraInstructions }
                         : {}),
-                    ...(options.languageHint !== undefined
-                        ? { languageHint: options.languageHint }
-                        : {}),
+                    ...(options.languageHint !== undefined ? { languageHint: options.languageHint } : {}),
                 }),
             text,
             schema: buildSchema(categories),
@@ -3511,8 +3499,7 @@ async function analyzeWithAi(text, options = {}) {
             return verdict({
                 status: 'refused',
                 ...(response.model !== undefined ? { model: response.model } : {}),
-                error: response.refusalReason ??
-                    "The provider's own safety layer declined the request.",
+                error: response.refusalReason ?? "The provider's own safety layer declined the request.",
             });
         }
         if (response.json === undefined) {
@@ -3549,9 +3536,7 @@ async function moderateText(text, options = {}) {
     const { ai, ...filterOptions } = options;
     const segments = filterFWordsToSegments(text, filterOptions);
     const matchedList = segments.some((segment) => segment.isProfane);
-    const aiVerdict = ai
-        ? await analyzeWithAi(text, ai)
-        : verdict({ status: 'disabled' });
+    const aiVerdict = ai ? await analyzeWithAi(text, ai) : verdict({ status: 'disabled' });
     return {
         segments,
         matchedList,
@@ -3977,7 +3962,11 @@ function isValidLuhn(digits) {
  * The published length of an IBAN per country. This is not decoration: the
  * checksum alone accepts a truncated IBAN often enough to matter, and the
  * length is what stops the scanner from swallowing the next number on the line.
+ *
+ * Hand-aligned on purpose — this is a lookup table, and one country per line
+ * turns twelve readable rows into seventy-eight unreadable ones.
  */
+// prettier-ignore
 const IBAN_LENGTHS = {
     AD: 24, AE: 23, AL: 28, AT: 20, AZ: 28, BA: 20, BE: 16, BG: 22, BH: 22,
     BR: 29, BY: 28, CH: 21, CR: 22, CY: 28, CZ: 24, DE: 22, DK: 18, DO: 28,
@@ -3999,6 +3988,10 @@ const IBAN_LENGTHS = {
  * would cost an allocation per candidate for arithmetic that fits in an int.
  */
 function isValidIban(candidate) {
+    // The class holds an ordinary space *and* a non-breaking one, because that
+    // is what a pasted IBAN contains. Invisible in the source, which is why the
+    // linter objects — and why it has to stay.
+    // eslint-disable-next-line no-irregular-whitespace
     const iban = candidate.replace(/[\s.\- ]/g, '').toUpperCase();
     if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$/.test(iban))
         return false;
@@ -4192,6 +4185,7 @@ function clusters(text, runs) {
 
 const LETTER = /\p{L}/u;
 /** Words that agree with a reading, per kind. Lower case; matched on a boundary. */
+// prettier-ignore
 const CONTEXT_WORDS = {
     email: ['mail', 'email', 'e-mail', 'kontakt', 'contact', 'absender', 'sender'],
     // `nummer` on its own is deliberately absent: it sits in front of order
@@ -4225,7 +4219,7 @@ function hasContext(text, start, end, window, words) {
     for (const word of words) {
         let at = haystack.indexOf(word);
         while (at !== -1) {
-            const before = at === 0 ? '' : haystack[at - 1] ?? '';
+            const before = at === 0 ? '' : (haystack[at - 1] ?? '');
             const afterIndex = at + word.length;
             const after = haystack[afterIndex] ?? '';
             const leftOk = before === '' || !LETTER.test(before);
@@ -4273,7 +4267,7 @@ function candidate(text, kind, start, end, confidence, evidence, ctx) {
 }
 /* ------------------------------- e-mail -------------------------------- */
 const LOCAL_CHAR = /[\p{L}\p{N}._%+\-!#$&'*/=?^`{|}~]/u;
-const DOMAIN_CHAR = /[\p{L}\p{N}.\-]/u;
+const DOMAIN_CHAR = /[\p{L}\p{N}.-]/u;
 const LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u;
 const TLD = /^\p{L}{2,24}$/u;
 function findEmails(ctx) {
@@ -4355,6 +4349,7 @@ function findIbans(ctx) {
 }
 /* --------------------------------- card -------------------------------- */
 /** Issuer prefixes with their published lengths. */
+// prettier-ignore
 const CARD_BRANDS = [
     { pattern: /^4/, lengths: [13, 16, 19] }, // Visa
     { pattern: /^(5[1-5]|2(2[2-9]|[3-6][0-9]|7[01]|720))/, lengths: [16] }, // Mastercard
@@ -4382,14 +4377,14 @@ function findCards(ctx) {
     return out;
 }
 /* -------------------------------- phone -------------------------------- */
-const DATE_SHAPED = /^[0-9]{1,2}[.\/][0-9]{1,2}[.\/][0-9]{2,4}\.?$/;
+const DATE_SHAPED = /^[0-9]{1,2}[./][0-9]{1,2}[./][0-9]{2,4}\.?$/;
 function findPhones(ctx) {
     const out = [];
     for (const cluster of ctx.clusters) {
         const { digits, raw } = cluster;
         if (DATE_SHAPED.test(raw))
             continue;
-        let confidence = 0;
+        let confidence;
         const evidence = ['structure'];
         if (cluster.plus) {
             // E.164: the `+` is the format declaring itself.
@@ -4456,10 +4451,7 @@ function isValidIpv6(value) {
         return false;
     const head = compressed ? value.slice(0, doubleAt) : value;
     const tail = compressed ? value.slice(doubleAt + 2) : '';
-    const parts = [
-        ...(head === '' ? [] : head.split(':')),
-        ...(tail === '' ? [] : tail.split(':')),
-    ];
+    const parts = [...(head === '' ? [] : head.split(':')), ...(tail === '' ? [] : tail.split(':'))];
     if (parts.some((part) => part === ''))
         return false;
     let count = parts.length;
@@ -4539,7 +4531,8 @@ function findIps(ctx) {
                 break;
             start++;
         }
-        while (end > start && (text[end - 1] === '.' || (text[end - 1] === ':' && !text.startsWith('::', end - 2)))) {
+        while (end > start &&
+            (text[end - 1] === '.' || (text[end - 1] === ':' && !text.startsWith('::', end - 2)))) {
             end--;
         }
         cursor = end;
@@ -4667,14 +4660,7 @@ function resolve(matches) {
 
 
 /** Every kind this module knows, in the order findings are reported for ties. */
-const PII_KINDS = [
-    'email',
-    'iban',
-    'card',
-    'phone',
-    'taxid-de',
-    'ip',
-];
+const PII_KINDS = ['email', 'iban', 'card', 'phone', 'taxid-de', 'ip'];
 const DEFAULT_MIN_CONFIDENCE = 0.6;
 const DEFAULT_CONTEXT_WINDOW = 48;
 function selectedKinds(requested) {
@@ -4866,7 +4852,10 @@ function throughput(summary) {
 function summaryRows(summary) {
     const rows = [
         ['Records processed', summary.processed.toLocaleString('en-US')],
-        ['Flagged', `${summary.flagged.toLocaleString('en-US')} (${share(summary.flagged, summary.processed)})`],
+        [
+            'Flagged',
+            `${summary.flagged.toLocaleString('en-US')} (${share(summary.flagged, summary.processed)})`,
+        ],
         ['Matched a word list', summary.matchedList.toLocaleString('en-US')],
     ];
     if (summary.piiFindings > 0 || summary.piiRecords > 0) {

@@ -30,10 +30,7 @@ function detectLanguage(text: string, hint?: string): string {
   return germanMatch / (text.split(/\s+/).length || 1) > 0.15 ? 'de' : 'en';
 }
 
-function buildDefaultReason(
-  action: ComplianceAction,
-  language: string,
-): string {
+function buildDefaultReason(action: ComplianceAction, language: string): string {
   const translations = {
     en: {
       CONTENT_REMOVED: 'Your content was removed for violating community standards.',
@@ -43,7 +40,8 @@ function buildDefaultReason(
       FEATURE_RESTRICTION: 'Some features have been restricted on your account.',
     },
     de: {
-      CONTENT_REMOVED: 'Ihr Inhalt wurde entfernt, da er gegen die Gemeinschaftsstandards verstößt.',
+      CONTENT_REMOVED:
+        'Ihr Inhalt wurde entfernt, da er gegen die Gemeinschaftsstandards verstößt.',
       CONTENT_DEMOTION: 'Die Sichtbarkeit Ihres Inhalts wurde eingeschränkt.',
       ACCOUNT_SUSPENSION: 'Ihr Konto wurde gesperrt.',
       ACCOUNT_TERMINATION: 'Ihr Konto wurde beendet.',
@@ -62,10 +60,7 @@ function buildDefaultReason(
  * in a notice someone may contest would be inventing grounds — so this says
  * exactly what was established and, where it applies, admits what was not.
  */
-function buildDefaultAssessment(
-  result: ModerationResult,
-  language: string,
-): string {
+function buildDefaultAssessment(result: ModerationResult, language: string): string {
   const severity = result.ai.status === 'ok' ? result.ai.severity : 'none';
 
   const translations = {
@@ -93,7 +88,8 @@ function buildDefaultAssessment(
         low: 'Die Formulierung ist derb, aber auf niemanden gerichtet, und wird entsprechend gewichtet.',
         medium: 'Die Formulierung ist eindeutig beleidigend und wiegt als eigenständiger Verstoß.',
         high: 'Die Formulierung ist gezielte Herabwürdigung und wiegt schwer.',
-        critical: 'Die Formulierung fällt in die schwerste Kategorie, die die Prüfung unterscheidet.',
+        critical:
+          'Die Formulierung fällt in die schwerste Kategorie, die die Prüfung unterscheidet.',
       },
       listOnly:
         'Die zitierte Stelle entspricht einem Begriff aus der Wortliste der geprüften ' +
@@ -131,7 +127,6 @@ function buildDefaultAssessment(
   sentences.push(t.contest);
   return sentences.join(' ');
 }
-
 
 /**
  * Generate a DSA Art. 17 compliant justification for a moderation action.

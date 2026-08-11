@@ -13,9 +13,7 @@ import type { Language } from '../registry.js';
  * except them, with `rerun: false` saying so.
  */
 export type AllowSource =
-  | Iterable<string>
-  | AsyncIterable<string>
-  | (() => Iterable<string> | AsyncIterable<string>);
+  Iterable<string> | AsyncIterable<string> | (() => Iterable<string> | AsyncIterable<string>);
 
 /** A word the lists flagged, and how often. */
 export interface FlaggedWord {

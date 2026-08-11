@@ -1436,11 +1436,25 @@ and spendable by every visitor.
 ## Scripts
 
 ```bash
-npm run build      # tsc -> dist/ (.js, .d.ts, .d.ts.map, .js.map)
-npm test           # builds, then runs node --test
-npm run typecheck  # type-checks src + test
-npm run demo       # builds and regenerates docs/index.html
+npm run build         # tsc -> dist/ (.js, .d.ts, .d.ts.map, .js.map)
+npm test              # builds, then runs node --test
+npm run typecheck     # type-checks src + test
+npm run lint          # eslint, type-aware
+npm run lint:fix      # the same, applying what it can fix
+npm run format        # prettier --write
+npm run format:check  # prettier --check, for CI
+npm run demo          # builds and regenerates docs/index.html
 ```
+
+`prepublishOnly` runs all of them, so a release cannot ship code that fails its
+own checks.
+
+**Prettier leaves three things alone**, on purpose: the Markdown, because the
+prose is hand-wrapped and it would rewrite every `*word*` to `_word_` for no
+gain; the playground template, because it is one hand-built page rather than a
+module; and a handful of `// prettier-ignore` tables — the IBAN lengths, the PII
+context words, the 81-attack corpus — which are data laid out to be read across,
+not down. The corpus alone would go from 226 lines to 711.
 
 ## License
 

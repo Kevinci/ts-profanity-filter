@@ -146,10 +146,7 @@ export const TEXT_COLUMN_NAMES: readonly string[] = [
  * quote — and splitting on lines first makes the embedded-newline case
  * unrecoverable rather than merely wrong.
  */
-export async function* csvRowsFrom(
-  path: string,
-  delimiter = ',',
-): AsyncGenerator<string[]> {
+export async function* csvRowsFrom(path: string, delimiter = ','): AsyncGenerator<string[]> {
   const stream = createReadStream(path, { encoding: 'utf8' });
 
   let field = '';
@@ -211,9 +208,7 @@ function columnIndex(
   }
   const at = header.indexOf(which);
   if (at === -1) {
-    throw new Error(
-      `${path}: no column ${JSON.stringify(which)}. Found: ${header.join(', ')}`,
-    );
+    throw new Error(`${path}: no column ${JSON.stringify(which)}. Found: ${header.join(', ')}`);
   }
   return at;
 }

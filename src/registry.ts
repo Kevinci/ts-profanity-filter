@@ -72,9 +72,7 @@ function assertPatterns(
   }
   patterns.forEach((pattern, i) => {
     if (typeof pattern !== 'string' || pattern === '') {
-      throw new TypeError(
-        `registerLanguage('${code}'): ${kind}[${i}] must be a non-empty string.`,
-      );
+      throw new TypeError(`registerLanguage('${code}'): ${kind}[${i}] must be a non-empty string.`);
     }
     const compile = (source: string, flags: string, note: string) => {
       try {

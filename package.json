@@ -104,8 +104,12 @@
     "demo": "npm run build && node scripts/build-demo.mjs",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "npm run build && node --test test/*.test.ts",
-    "prepublishOnly": "npm run clean && npm run build && npm run typecheck && npm test"
+    "prepublishOnly": "npm run clean && npm run build && npm run lint && npm run format:check && npm run typecheck && npm test"
   },
   "keywords": [
     "profanity",
@@ -148,9 +152,9 @@
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.60",
+    "fast-pdf": ">=0.7",
     "react": ">=16.8",
-    "vue": ">=3.3",
-    "fast-pdf": ">=0.7"
+    "vue": ">=3.3"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -168,11 +172,15 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
+    "eslint": "^10.8.1",
     "fast-pdf": "^0.7.1",
+    "prettier": "^3.9.6",
     "react": "^19.2.8",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
     "vue": "^3.5.41"
   },
   "engines": {

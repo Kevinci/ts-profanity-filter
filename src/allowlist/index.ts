@@ -396,11 +396,7 @@ async function countFlagged(
  * patterns and its allowlist both come along, so the false positives it already
  * solved stay solved.
  */
-export function formatAllowEntries(
-  report: TuneReport,
-  code = 'custom',
-  parent = 'en',
-): string {
+export function formatAllowEntries(report: TuneReport, code = 'custom', parent = 'en'): string {
   if (report.entries.length === 0) return '// nothing to add: no entry passed verification\n';
 
   const lines = [

@@ -48,7 +48,8 @@ export function scan(text: string): Anchors {
       runStart = -1;
     }
 
-    if (code === 64) atSigns.push(i); // '@'
+    if (code === 64)
+      atSigns.push(i); // '@'
     else if (code === 58) colons.push(i); // ':'
   }
 
